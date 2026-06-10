@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --violet: #5B4FCF;
+  --violet-dark: #3D34A5;
+  --violet-light: #EEF0FB;
+  --violet-mid: #7B6FE0;
+  --amber: #F6A623;
+  --amber-dark: #D4861A;
+  --amber-light: #FEF3DC;
+  --white: #FFFFFF;
+  --gray-50: #F9F9FB;
+  --gray-100: #F0EFF6;
+  --gray-200: #E2E0EE;
+  --gray-400: #9E9BC0;
+  --gray-600: #5A5878;
+  --gray-800: #2D2B45;
+  --danger: #E5534B;
+  --success: #27A85F;
+  --font-display: 'Plus Jakarta Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 4px rgba(91,79,207,0.08);
+  --shadow: 0 4px 16px rgba(91,79,207,0.12);
+  --shadow-lg: 0 8px 32px rgba(91,79,207,0.16);
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: var(--font-body);
+  background: var(--gray-50);
+  color: var(--gray-800);
+  -webkit-font-smoothing: antialiased;
+}
+
+a { text-decoration: none; color: inherit; }
+button { cursor: pointer; font-family: var(--font-body); }
+input, select, textarea { font-family: var(--font-body); }
