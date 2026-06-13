@@ -11,7 +11,7 @@ venv\Scripts\activate && uvicorn main:app --reload
 ```
 
 ## Activación del fronted
-En la <a href="https://github.com/Lincoln1986/SIGNBRIDGE/tree/main/Fronted-SignBridge"> Carpeta Fronted </a> iniciamos el fronted de REACT desde la consola, funciona junto con el backend siempre y cuando el backend se encuentre en rutado junto con el fronted, comandos para iniciar el fronted: 
+En la <a href="https://github.com/Lincoln1986/SIGNBRIDGE/tree/main/Frontend-SignBridge"> Carpeta Frontend </a> iniciamos el fronted de REACT desde la consola, funciona junto con el backend siempre y cuando el backend se encuentre en rutado junto con el frontend, comandos para iniciar el fronted: 
 ```bash
 npm install && npm run dev
 ```
