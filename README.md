@@ -1,8 +1,9 @@
 # SIGNBRIDGE
 
-Aquí se van  a subir los documentos requeridos para el proyecto formativo.
+Aquí se van  a subir los archivos requeridos para el proyecto formativo.
 
 - <a href="https://github.com/Lincoln1986/SIGNBRIDGE/tree/main/DOCS"> Documentos </a>
+- <a href="https://github.com/Lincoln1986/SIGNBRIDGE/tree/main/Mockups-proyecto"> Mockups </a>
 
 ## Activación del backend
 En la <a href="https://github.com/Lincoln1986/SIGNBRIDGE/tree/main/Backend-SignBridge"> Carpeta Backend </a>  iniciamos un entorno virtual de FAST API con estos <a href="https://github.com/Lincoln1986/SIGNBRIDGE/blob/main/Backend-SignBridge/requirements.txt">requerimientos</a>. A continuación ejecutamos el siguiente comando en consola: 
