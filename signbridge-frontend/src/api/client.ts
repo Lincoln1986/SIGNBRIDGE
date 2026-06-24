@@ -76,15 +76,24 @@ export interface LexicalUnit {
   language: string;
   created_at: string;
   updated_at: string;
+  video_url?: string;
+}
+
+export interface LexicalUnitAdmin {
+  id_lexicalunit: string;
+  text: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+  video_url?: string;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────
 
 export const authApi = {
   register: (data: {
-    first_name: string; middle_name?: string; last_name: string;
-    second_last_name?: string; phone: string; address?: string;
-    city?: string; email: string; password: string; id_region?: string;
+    first_name: string; last_name: string;
+    phone: string; city?: string; email: string; password: string;
   }) => api.post('/auth/register', data),
 
   login: (email: string, password: string) =>
@@ -106,4 +115,11 @@ export const dashboardApi = {
   user: () => api.get<UserDashboardRow>('/dashboard/user'),
   stats: () => api.get<SystemStats>('/dashboard/stats'),
   lexicalUnits: () => api.get<LexicalUnit[]>('/dashboard/lexical-units'),
+  lexicalUnitsAdmin: () => api.get<LexicalUnitAdmin[]>('/dashboard/lexical-units/admin'),
+  createLexicalUnit: (data: { text: string; language: string }) =>
+    api.post<LexicalUnitAdmin>('/dashboard/lexical-units', data),
+  updateLexicalUnitVideo: (id: string, video_url: string | null) =>
+    api.patch<LexicalUnitAdmin>(`/dashboard/lexical-units/${id}/video`, { video_url }),
+  deleteLexicalUnit: (id: string) =>
+    api.delete(`/dashboard/lexical-units/${id}`),
 };

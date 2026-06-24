@@ -15,7 +15,7 @@ async def send_reset_email(to_email: str, reset_token: str) -> None:
       <body style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
         <h2 style="color: #2563eb;">Sign Bridge — Recuperación de contraseña</h2>
         <p>Recibimos una solicitud para restablecer tu contraseña.</p>
-        <p>Haz clic en el botón para continuar (el enlace expira en <strong>15 minutos</strong>):</p>
+        <p>Haz clic en el botón para continuar (el enlace expira en <strong>1 hora</strong>):</p>
         <a href="{reset_link}"
            style="display:inline-block;padding:12px 24px;background:#2563eb;
                   color:#fff;text-decoration:none;border-radius:6px;margin:16px 0;">

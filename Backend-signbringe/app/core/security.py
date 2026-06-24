@@ -35,10 +35,10 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
 
 
 def create_reset_token(email: str) -> str:
-    """Token de un solo uso para recuperación de contraseña (15 min)."""
+    """Token de un solo uso para recuperación de contraseña (1 hora)."""
     return create_access_token(
         data={"sub": email, "type": "reset"},
-        expires_delta=timedelta(minutes=15),
+        expires_delta=timedelta(hours=1),
     )
 
 

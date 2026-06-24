@@ -151,4 +151,7 @@ async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(ge
 
     user.password_hash = hash_password(payload.new_password)
     db.commit()
-    return {"message": "Contraseña restablecida exitosamente"}
+    return {
+        "message": "¡Contraseña actualizada exitosamente! Ya puedes iniciar sesión con tu nueva contraseña.",
+        "redirect": "/login",
+    }

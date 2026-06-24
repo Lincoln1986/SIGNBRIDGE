@@ -22,7 +22,7 @@ app = FastAPI(
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080", "http://localhost:5173"],
+    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -42,3 +42,28 @@ def root():
 @app.get("/health", tags=["Root"])
 def health():
     return {"status": "healthy"}
+
+
+@app.get("/info", tags=["Root"])
+def info():
+    """
+    Información pública del proyecto para la landing page.
+    No requiere autenticación.
+    """
+    return {
+        "name": "Sign Bridge",
+        "description": (
+            "Plataforma de traducción entre lenguaje hablado/escrito y "
+            "Lengua de Señas Colombiana (LSC). Conectamos a personas oyentes "
+            "con la comunidad sorda mediante tecnología de traducción en tiempo real."
+        ),
+        "features": [
+            "Traducción de texto a Lengua de Señas Colombiana",
+            "Videoteca de señas grabadas por expertos",
+            "Avatar animado para visualización de señas",
+            "Panel de administración y estadísticas",
+            "Historial de traducciones por usuario",
+        ],
+        "version": "1.0.0",
+        "contact": "signbridge@sena.edu.co",
+    }
