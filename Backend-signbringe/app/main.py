@@ -1,14 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import get_settings
-from app.routers import auth, dashboard
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from app.core.config import get_settings
-from app.routers import auth, dashboard
+from app.routers import auth, dashboard, traduccion
 
 # Importar todos los modelos para registrar relaciones en SQLAlchemy
 from app.models import user, session  # noqa: F401
+
 settings = get_settings()
 
 app = FastAPI(
@@ -31,6 +28,7 @@ app.add_middleware(
 # ── Routers ───────────────────────────────────────────────────────────────────
 app.include_router(auth.router)
 app.include_router(dashboard.router)
+app.include_router(traduccion.router)
 
 
 # ── Healthcheck ───────────────────────────────────────────────────────────────

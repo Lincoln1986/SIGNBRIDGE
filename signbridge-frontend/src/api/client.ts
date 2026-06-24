@@ -88,6 +88,21 @@ export interface LexicalUnitAdmin {
   video_url?: string;
 }
 
+// ── Translation Types ──────────────────────────────────────────────────────
+
+export interface SignToTextResponse {
+  translated_text: string;
+  confidence?: number;
+  detected_sign?: string;
+}
+
+export interface TextToSignResponse {
+  video_url?: string;
+  animation_url?: string;
+  signs: string[];
+  message?: string;
+}
+
 // ── Auth ───────────────────────────────────────────────────────────────────
 
 export const authApi = {
@@ -122,4 +137,22 @@ export const dashboardApi = {
     api.patch<LexicalUnitAdmin>(`/dashboard/lexical-units/${id}/video`, { video_url }),
   deleteLexicalUnit: (id: string) =>
     api.delete(`/dashboard/lexical-units/${id}`),
+};
+
+// ── Translation ────────────────────────────────────────────────────────────
+
+export const translationApi = {
+  /**
+   * Envía un frame en base64 para detectar y traducir una seña.
+   * Endpoint esperado: POST /translation/sign-to-text
+   */
+  signToText: (frameBase64: string) =>
+    api.post<SignToTextResponse>('/translation/sign-to-text', { frame: frameBase64 }),
+
+  /**
+   * Envía texto para obtener la representación en LSC (video/animación).
+   * Endpoint esperado: POST /translation/text-to-sign
+   */
+  textToSign: (text: string) =>
+    api.post<TextToSignResponse>('/translation/text-to-sign', { text }),
 };

@@ -12,3 +12,7 @@ jinja2==3.1.4
 python-dotenv==1.0.1
 bcrypt==4.0.1
 
+# Procesamiento de imágenes y detección de señas (H03)
+Pillow==10.3.0
+numpy==1.26.4
+mediapipe==0.10.14

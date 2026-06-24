@@ -11,7 +11,8 @@ import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import Vocabulary from './pages/Vocabulary';
 import Stats from './pages/Stats';
-import ComingSoon from './pages/ComingSoon';
+import VoiceToSign from './pages/VoiceToSign';
+import SignToText from './pages/SignToText';
 
 function AppRoutes() {
   return (
@@ -49,12 +50,12 @@ function AppRoutes() {
       } />
       <Route path="/voice-to-sign" element={
         <ProtectedRoute>
-          <AppShell maxWidth={960}><ComingSoon /></AppShell>
+          <AppShell maxWidth={960}><VoiceToSign /></AppShell>
         </ProtectedRoute>
       } />
       <Route path="/sign-to-text" element={
         <ProtectedRoute>
-          <AppShell maxWidth={960}><ComingSoon /></AppShell>
+          <AppShell maxWidth={960}><SignToText /></AppShell>
         </ProtectedRoute>
       } />
       <Route path="/stats" element={
