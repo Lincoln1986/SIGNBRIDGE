@@ -1,4 +1,6 @@
-# SIGNBRIDGE
+cd /home/juan/Documentos/Sena/Trimestre4/SIGNBRIDGE/Frontend-SignBridge
+npm install
+npm run dev -- --host 0.0.0.0# SIGNBRIDGE
 
 Aquí se van  a subir los archivos requeridos para el proyecto formativo.
 
