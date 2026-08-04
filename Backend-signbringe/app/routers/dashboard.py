@@ -93,7 +93,7 @@ def system_stats(
     )
 
 
-# ── Listado de tabla LexicalUnit (criterio 6 — todos los campos excepto ID) ──
+# ── Listado de tabla LexicalUnit (público para usuarios autenticados) ─────────
 
 @router.get("/lexical-units")
 def list_lexical_units(
@@ -101,12 +101,12 @@ def list_lexical_units(
     _: User = Depends(get_current_user),
 ):
     """
-    Lista el vocabulario del sistema sin exponer el id.
-    Cumple el criterio 6: visualizar contenido de tabla sin el campo id.
+    Lista el vocabulario del sistema.
+    Incluye id_lexicalunit para que los usuarios puedan marcar favoritos.
     """
     rows = db.execute(
         text("""
-            SELECT text, language, video_url, created_at, updated_at
+            SELECT id_lexicalunit, text, language, video_url, created_at, updated_at
             FROM "LexicalUnit"
             WHERE deleted_at IS NULL
             ORDER BY text

@@ -40,6 +40,7 @@ class User(Base):
     city = Column(String(100), nullable=True)
     email = Column(String(150), nullable=False, unique=True)
     password_hash = Column(String(255), nullable=False)
+    is_active = Column(Boolean, nullable=False, server_default="true", default=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     deleted_at = Column(DateTime, nullable=True)
@@ -53,6 +54,8 @@ class User(Base):
     support_tickets = relationship("Support", back_populates="user")
     favorite_words = relationship("FavoriteWords", back_populates="user")
     access_logs = relationship("AccessLog", back_populates="user")
+    sent_messages     = relationship("Message", foreign_keys="Message.id_sender",   back_populates="sender")
+    received_messages = relationship("Message", foreign_keys="Message.id_receiver", back_populates="receiver")
 
 
 class TranslationSession(Base):

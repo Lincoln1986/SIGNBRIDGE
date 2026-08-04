@@ -1,8 +1,19 @@
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Logo } from '../components/UI';
+import { AuthModal } from '../components/AuthModal';
 
 export default function Landing() {
-  const navigate = useNavigate();
+  const location = useLocation();
+  const [modalTab, setModalTab] = useState<'login' | 'register' | 'forgot' | null>(null);
+
+  // Abre el modal automáticamente si viene de un redirect con state
+  useEffect(() => {
+    const state = location.state as { openModal?: string } | null;
+    if (state?.openModal === 'login')    setModalTab('login');
+    if (state?.openModal === 'register') setModalTab('register');
+    if (state?.openModal === 'forgot')   setModalTab('forgot');
+  }, [location.state]);
 
   const features = [
     { icon: '🤟', title: 'Traducción LSC', desc: 'Traduce texto e imágenes a Lengua de Señas Colombiana en tiempo real.' },
@@ -23,7 +34,7 @@ export default function Landing() {
       }}>
         <Logo size="md" />
         <button
-          onClick={() => navigate('/login')}
+          onClick={() => setModalTab('login')}
           style={{
             background: 'none', border: '1.5px solid var(--violet)', color: 'var(--violet)',
             padding: '8px 22px', borderRadius: 'var(--radius-sm)', fontWeight: 600,
@@ -66,7 +77,7 @@ export default function Landing() {
 
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
           <button
-            onClick={() => navigate('/register')}
+            onClick={() => setModalTab('register')}
             style={{
               background: 'var(--violet)', color: 'white',
               padding: '14px 36px', borderRadius: 'var(--radius-sm)',
@@ -80,7 +91,7 @@ export default function Landing() {
             🚀 Iniciar ahora
           </button>
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => setModalTab('login')}
             style={{
               background: 'var(--white)', color: 'var(--gray-800)',
               padding: '14px 36px', borderRadius: 'var(--radius-sm)',
@@ -131,6 +142,9 @@ export default function Landing() {
           © 2026 SignBridge · Proyecto educativo · Lengua de Señas Colombiana
         </p>
       </footer>
+
+      {/* Modal de autenticación */}
+      {modalTab && <AuthModal initialTab={modalTab} onClose={() => setModalTab(null)} />}
     </div>
   );
 }

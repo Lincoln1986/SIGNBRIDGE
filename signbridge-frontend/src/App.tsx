@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AppShell, ProtectedRoute, PublicRoute } from './components/layout';
+import { CookieBanner } from './components/CookieBanner';
 
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -13,6 +14,7 @@ import Vocabulary from './pages/Vocabulary';
 import Stats from './pages/Stats';
 import VoiceToSign from './pages/VoiceToSign';
 import SignToText from './pages/SignToText';
+import PrivacyPolicy from './pages/PrivacyPolicy';
 
 function AppRoutes() {
   return (
@@ -23,6 +25,7 @@ function AppRoutes() {
       <Route path="/register"        element={<PublicRoute><Register /></PublicRoute>} />
       <Route path="/forgot-password" element={<PublicRoute><ForgotPassword /></PublicRoute>} />
       <Route path="/reset-password"  element={<ResetPassword />} />
+      <Route path="/privacy"         element={<PrivacyPolicy />} />
 
       {/* ── Protegidas — usan AppShell (Navbar + Footer automático) ── */}
 
@@ -75,6 +78,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
+        <CookieBanner />
       </AuthProvider>
     </BrowserRouter>
   );

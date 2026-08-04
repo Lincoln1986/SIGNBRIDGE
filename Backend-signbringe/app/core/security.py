@@ -68,6 +68,8 @@ def get_current_user(
     user = db.query(User).filter(User.id_user == user_id, User.deleted_at.is_(None)).first()
     if not user:
         raise HTTPException(status_code=401, detail="Usuario no encontrado")
+    if not user.is_active:
+        raise HTTPException(status_code=403, detail="Cuenta desactivada")
     return user
 
 

@@ -1,17 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../api/client';
-import { Logo, Input, Btn, Alert, Card } from '../components/UI';
+import { Logo, Input, Btn, Alert, Card, PasswordInput, PasswordRequirements } from '../components/UI';
 import { Footer } from '../components/Footer';
 
-const COLOMBIAN_CITIES = [
+// Ciudades de respaldo (se usan si el endpoint aún no responde)
+const FALLBACK_CITIES = [
   'Arauca', 'Armenia', 'Barranquilla', 'Bogotá', 'Bucaramanga', 'Buenaventura',
   'Bello', 'Cali', 'Cartagena', 'Cúcuta', 'Dosquebradas', 'Florencia',
   'Ibagué', 'Leticia', 'Manizales', 'Medellín', 'Mitú', 'Mocoa',
   'Montería', 'Neiva', 'Palmira', 'Pasto', 'Pereira', 'Popayán',
   'Puerto Carreño', 'Puerto Inírida', 'Quibdó', 'Riohacha', 'Santa Marta',
   'Sincelejo', 'Soledad', 'Soacha', 'Tunja', 'Valledupar', 'Villavicencio', 'Yumbo',
-];
+  'Barrancabermeja', 'Cartago', 'Duitama', 'El Banco', 'Florencia', 'Fundación',
+  'Girardot', 'Honda', 'Ipiales', 'La Dorada', 'Lorica', 'Magangué',
+  'Maicao', 'Malambo', 'Manizales', 'Mompox', 'Ocaña', 'Palmira',
+  'Pamplona', 'Pitalito', 'Rionegro', 'Sahagún', 'San Gil', 'Santa Rosa de Cabal',
+  'Sogamoso', 'Soledad', 'Tuluá', 'Tumaco', 'Turbo', 'Ubaté', 'Zipaquirá',
+].filter((v, i, a) => a.indexOf(v) === i).sort();
 
 // Capitaliza la primera letra y elimina espacios al final
 const capitalize = (val: string) =>
@@ -29,9 +35,32 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [cities, setCities] = useState<string[]>(FALLBACK_CITIES);
   const [form, setForm] = useState({
     first_name: '', last_name: '', phone: '3', city: '', address: '', email: '', password: '', confirm: '',
   });
+
+  // Intenta cargar ciudades desde el backend; si falla, usa el fallback silenciosamente
+  useEffect(() => {
+    authApi.getCities()
+      .then(r => {
+        const raw = r.data;
+        if (!Array.isArray(raw) || raw.length === 0) return;
+
+        // Detecta si la respuesta es string[] u objetos
+        if (typeof raw[0] === 'string') {
+          setCities(raw as string[]);
+        } else {
+          // Objetos con region_name / name / city
+          const mapped = (raw as any[])
+            .map((item: any) => item.region_name ?? item.name ?? item.city ?? '')
+            .filter(Boolean)
+            .sort() as string[];
+          if (mapped.length > 0) setCities(mapped);
+        }
+      })
+      .catch(() => { /* usa FALLBACK_CITIES */ });
+  }, []);
 
   // Handler genérico
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -46,7 +75,11 @@ export default function Register() {
     setForm(f => ({ ...f, [k]: f[k as keyof typeof f].trim() }));
 
   const passwordsMatch = form.password === form.confirm;
-  const passwordValid  = form.password.length >= 8;
+  const passwordValid  = form.password.length >= 8 &&
+    /[A-Z]/.test(form.password) &&
+    /[a-z]/.test(form.password) &&
+    /[0-9]/.test(form.password) &&
+    /[^A-Za-z0-9]/.test(form.password);
   const phoneValid     = form.phone.length === 10 && form.phone.startsWith('3');
 
   const isFormComplete =
@@ -62,7 +95,7 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!passwordsMatch) { setError('Las contraseñas no coinciden'); return; }
-    if (!passwordValid)  { setError('La contraseña debe tener al menos 8 caracteres'); return; }
+    if (!passwordValid)  { setError('La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial'); return; }
     if (!phoneValid)     { setError('El teléfono debe tener 10 dígitos y empezar con 3'); return; }
     setError(''); setLoading(true);
     try {
@@ -77,8 +110,21 @@ export default function Register() {
       });
       setSuccess('¡Cuenta creada exitosamente! Redirigiendo...');
       setTimeout(() => navigate('/login'), 1800);
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Error al registrar usuario');
+    } catch (err: unknown) {
+      // FastAPI puede devolver detail como string o como array de objetos (errores 422)
+      const axiosErr = err as { response?: { data?: { detail?: unknown } } };
+      const detail = axiosErr.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setError(detail);
+      } else if (Array.isArray(detail) && detail.length > 0) {
+        // Tomar el primer mensaje de validación del array
+        const first = detail[0] as { msg?: string; loc?: string[] };
+        const field = first.loc?.slice(-1)[0] ?? '';
+        const msg   = first.msg ?? 'Error de validación';
+        setError(field ? `${field}: ${msg}` : msg);
+      } else {
+        setError('Error al registrar usuario. Intenta de nuevo.');
+      }
     } finally {
       setLoading(false);
     }
@@ -156,7 +202,7 @@ export default function Register() {
                   onBlur={e  => { e.target.style.borderColor = 'var(--gray-200)'; }}
                 >
                   <option value="">Selecciona tu ciudad</option>
-                  {COLOMBIAN_CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                  {cities.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
             </div>
@@ -183,17 +229,16 @@ export default function Register() {
 
             {/* Contraseñas */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <Input
+              <PasswordInput
                 label="Contraseña *"
-                type="password"
                 placeholder="Mín. 8 caracteres"
                 value={form.password}
                 onChange={set('password')}
                 required
+                showStrength
               />
-              <Input
+              <PasswordInput
                 label="Confirmar contraseña *"
-                type="password"
                 placeholder="Repite la contraseña"
                 value={form.confirm}
                 onChange={set('confirm')}
@@ -202,10 +247,8 @@ export default function Register() {
               />
             </div>
 
-            {form.password.length > 0 && !passwordValid && (
-              <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: -6 }}>
-                La contraseña debe tener al menos 8 caracteres
-              </p>
+            {form.password.length > 0 && (
+              <PasswordRequirements password={form.password} />
             )}
 
             <Btn

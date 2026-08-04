@@ -7,7 +7,7 @@ export function Navbar() {
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = () => { logout(); navigate('/'); };
 
   const navLink = (to: string, label: string) => {
     const isActive = pathname === to;

@@ -41,15 +41,16 @@ export default function SignToText() {
     if (!frame) return;
 
     try {
+      // El backend espera "frame_base64", no "frame" — translationApi.signToText lo maneja
       const res = await translationApi.signToText(frame);
       const data = res.data;
       setLastResult(data);
 
-      if (data.translated_text && data.translated_text.trim()) {
-        setTranslatedText(data.translated_text);
+      if (data.detected_sign && data.detected_sign.trim()) {
+        setTranslatedText(data.detected_sign);
         setHistory(prev => {
           const last = prev[prev.length - 1];
-          return last === data.translated_text ? prev : [...prev, data.translated_text];
+          return last === data.detected_sign ? prev : [...prev, data.detected_sign!];
         });
         setTranslationError(null);
       }
@@ -339,7 +340,7 @@ export default function SignToText() {
                   fontFamily: 'var(--font-display)', fontWeight: 700,
                   fontSize: '0.95rem', color: 'var(--gray-800)',
                 }}>
-                  Historial
+                  Conversación
                 </h2>
                 <button
                   onClick={clearHistory}
@@ -363,8 +364,10 @@ export default function SignToText() {
                       color: i === 0 ? 'var(--violet)' : 'var(--gray-600)',
                       fontWeight: i === 0 ? 600 : 400,
                       border: `1px solid ${i === 0 ? 'transparent' : 'var(--gray-100)'}`,
+                      display: 'flex', alignItems: 'center', gap: 8,
                     }}
                   >
+                    <span style={{ fontSize: '0.8rem' }}>{i === 0 ? '🟣' : '⚫'}</span>
                     {text}
                   </div>
                 ))}
@@ -383,11 +386,17 @@ export default function SignToText() {
                     color: 'rgba(255,255,255,0.7)',
                     textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6,
                   }}>
-                    Frase completa
+                    Frase construida
                   </p>
                   <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.5 }}>
                     {history.join(' ')}
                   </p>
+                  <button
+                    onClick={() => navigator.clipboard?.writeText(history.join(' '))}
+                    style={{ marginTop: 8, background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', padding: '5px 12px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
+                  >
+                    📋 Copiar frase
+                  </button>
                 </div>
               )}
             </Card>

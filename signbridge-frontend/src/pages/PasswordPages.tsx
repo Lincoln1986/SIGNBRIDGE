@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../api/client';
-import { Logo, Input, Btn, Alert, Card } from '../components/UI';
+import { Logo, Btn, Alert, Card, PasswordInput, PasswordRequirements } from '../components/UI';
 import { Footer } from '../components/Footer';
 
 // ── Componente de countdown reutilizable ──────────────────────────────────────
@@ -153,8 +153,13 @@ export function ResetPassword() {
     e.preventDefault();
     setError('');
 
-    if (password.length < 8) {
-      setError('La contraseña debe tener al menos 8 caracteres');
+    const hasUpper = /[A-Z]/.test(password);
+    const hasLower = /[a-z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+    if (password.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+      setError('La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial');
       return;
     }
     if (password !== confirm) {
@@ -188,28 +193,26 @@ export function ResetPassword() {
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {error && <Alert type="error" message={error} />}
 
-              <Input
+              <PasswordInput
                 label="Nueva contraseña"
-                type="password"
                 placeholder="Mín. 8 caracteres"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 required
+                showStrength
               />
 
-              {password.length > 0 && password.length < 8 && (
-                <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '-8px' }}>
-                  La contraseña debe tener al menos 8 caracteres
-                </p>
+              {password.length > 0 && (
+                <PasswordRequirements password={password} />
               )}
 
-              <Input
+              <PasswordInput
                 label="Confirmar contraseña"
-                type="password"
                 placeholder="Repite la contraseña"
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
                 required
+                error={confirm && confirm !== password ? 'Las contraseñas no coinciden' : undefined}
               />
 
               <Btn
@@ -217,7 +220,14 @@ export function ResetPassword() {
                 loading={loading}
                 size="lg"
                 style={{ width: '100%' }}
-                disabled={password.length < 8 || password !== confirm}
+                disabled={
+                  password.length < 8 ||
+                  !/[A-Z]/.test(password) ||
+                  !/[a-z]/.test(password) ||
+                  !/[0-9]/.test(password) ||
+                  !/[^A-Za-z0-9]/.test(password) ||
+                  password !== confirm
+                }
               >
                 Restablecer contraseña
               </Btn>
