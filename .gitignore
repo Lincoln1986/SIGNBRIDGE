@@ -3,3 +3,8 @@ Backend-signbringe/venv/
 Backend-signbringe/**/__pycache__/
 Backend-signbringe/**/*.pyc
 signbridge-frontend/node_modules/
+
+node_modules/
+venv/
+__pycache__/
+*.pyc
