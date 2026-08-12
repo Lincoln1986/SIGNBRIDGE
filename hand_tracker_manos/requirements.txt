@@ -1,0 +1,4 @@
+# Hand Tracker — dependencias
+# Instalar con:  pip install -r requirements.txt
+opencv-python>=4.10
+mediapipe>=1.0.0
