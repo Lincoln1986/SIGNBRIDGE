@@ -201,6 +201,8 @@ def delete_lexical_unit(
 
     unit.deleted_at = datetime.now(timezone.utc)
     db.commit()
+
+
 # ── Gestión de usuarios (solo admin) ─────────────────────────────────────────
 
 from app.models.user import Role

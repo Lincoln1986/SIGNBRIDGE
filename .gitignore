@@ -1,9 +1,8 @@
-Backend-signbringe/.env
-Backend-signbringe/venv/
-Backend-signbringe/**/__pycache__/
-Backend-signbringe/**/*.pyc
-signbridge-frontend/node_modules/
-
+Backend-SignBridge/.env
+Backend-SignBridge/venv/
+Backend-SignBridge/**/__pycache__/
+Backend-SignBridge/**/*.pyc
+Frontend-SignBridge/node_modules/
 node_modules/
 venv/
 __pycache__/

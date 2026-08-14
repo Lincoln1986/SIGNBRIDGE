@@ -436,7 +436,7 @@ export default function Vocabulary() {
             Las sennas de este diccionario estan siendo validadas en colaboracion con la
             Federacion Nacional de Sordos de Colombia (Fenascol). El vocabulario se
             amplia y verifica continuamente.{' '}
-            <a
+            
               href="https://www.fenascol.org.co"
               target="_blank"
               rel="noopener noreferrer"

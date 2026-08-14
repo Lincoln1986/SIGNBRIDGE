@@ -341,7 +341,7 @@ function FavoritesTab() {
             )}
           </h2>
         </div>
-        <a
+        
           href="/vocabulary"
           style={{ fontSize: '0.85rem', color: 'var(--violet)', fontWeight: 600, textDecoration: 'none' }}
         >

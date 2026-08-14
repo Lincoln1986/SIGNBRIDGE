@@ -262,18 +262,17 @@ export function ResetPassword() {
                 </p>
               </div>
 
-              {/* Countdown */}
-             <p
-               style={{
-               textAlign: 'center',
-              marginTop: 20,
-              fontSize: '1.2rem',
-              color: '#000',
-              fontWeight: 'bold'
-            }}
-            >
-              Ya puedes cerrar la pestaña.
-            </p> 
+              <p
+                style={{
+                  textAlign: 'center',
+                  marginTop: 20,
+                  fontSize: '1.2rem',
+                  color: '#000',
+                  fontWeight: 'bold'
+                }}
+              >
+                Ya puedes cerrar la pestaña.
+              </p>
             </div>
           )}
 

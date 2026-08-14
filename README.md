@@ -146,7 +146,7 @@ Esquemas Pydantic para todos los endpoints:
 
 | Servicio | Responsabilidad |
 |---|---|
-| `traduccion.py` | Decodificación de frames base64 → NumPy, detección con MediaPipe Hands, traducción texto→LSC con búsqueda en `LexicalUnit`, delefreo dactilológico de fallback, gestión de `TranslationSession` |
+| `traduccion.py` | Decodificación de frames base64 → NumPy, detección con MediaPipe Hands, traducción texto→LSC con búsqueda en `LexicalUnit`, deletreo dactilológico de fallback, gestión de `TranslationSession` |
 | `mail.py` | Envío de correos HTML transaccionales: bienvenida al registrarse y restablecimiento de contraseña (plantilla responsiva con identidad visual de SignBridge) |
 
 ### Migraciones (`migrations/`)
