@@ -2,11 +2,15 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 from typing import List
+import uuid
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin
-from app.models.user import User
-from app.schemas.auth import AdminDashboardRow, UserDashboardRow, SystemStats, UserProfile
+from app.models.user import User, LexicalUnit
+from app.schemas.auth import (
+    AdminDashboardRow, UserDashboardRow, SystemStats, UserProfile,
+    LexicalUnitOut, LexicalUnitCreate, LexicalUnitVideoUpdate,
+)
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
 
@@ -89,7 +93,7 @@ def system_stats(
     )
 
 
-# ── Listado de tabla LexicalUnit (criterio 6 — todos los campos excepto ID) ──
+# ── Listado de tabla LexicalUnit (público para usuarios autenticados) ─────────
 
 @router.get("/lexical-units")
 def list_lexical_units(
@@ -97,15 +101,194 @@ def list_lexical_units(
     _: User = Depends(get_current_user),
 ):
     """
-    Lista el vocabulario del sistema sin exponer el id.
-    Cumple el criterio 6: visualizar contenido de tabla sin el campo id.
+    Lista el vocabulario del sistema.
+    Incluye id_lexicalunit para que los usuarios puedan marcar favoritos.
     """
     rows = db.execute(
         text("""
-            SELECT text, language, created_at, updated_at
+            SELECT id_lexicalunit, text, language, video_url, created_at, updated_at
             FROM "LexicalUnit"
             WHERE deleted_at IS NULL
             ORDER BY text
         """)
     ).mappings().all()
     return [dict(r) for r in rows]
+
+
+# ── Gestión de vocabulario (solo admin) ──────────────────────────────────────
+
+@router.get("/lexical-units/admin", response_model=List[LexicalUnitOut])
+def list_lexical_units_admin(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Lista todas las palabras con su ID para gestión desde el panel admin."""
+    units = (
+        db.query(LexicalUnit)
+        .filter(LexicalUnit.deleted_at.is_(None))
+        .order_by(LexicalUnit.text)
+        .all()
+    )
+    return units
+
+
+@router.post("/lexical-units", response_model=LexicalUnitOut, status_code=201)
+def create_lexical_unit(
+    payload: LexicalUnitCreate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Crea una nueva palabra en el vocabulario. Solo admin."""
+    existing = db.query(LexicalUnit).filter(
+        LexicalUnit.text == payload.text,
+        LexicalUnit.deleted_at.is_(None),
+    ).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="Ya existe una palabra con ese texto")
+
+    unit = LexicalUnit(
+        id_lexicalunit = str(uuid.uuid4()),
+        text           = payload.text.strip(),
+        language       = payload.language,
+        video_url      = payload.video_url,
+    )
+    db.add(unit)
+    db.commit()
+    db.refresh(unit)
+    return unit
+
+
+@router.patch("/lexical-units/{id_lexicalunit}/video", response_model=LexicalUnitOut)
+def update_lexical_unit_video(
+    id_lexicalunit: str,
+    payload: LexicalUnitVideoUpdate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """
+    Actualiza el video_url de una palabra del vocabulario.
+    Acepta URLs de YouTube (watch o embed) o cualquier URL directa de video.
+    Solo admin.
+    """
+    unit = db.query(LexicalUnit).filter(
+        LexicalUnit.id_lexicalunit == id_lexicalunit,
+        LexicalUnit.deleted_at.is_(None),
+    ).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Palabra no encontrada")
+
+    unit.video_url = payload.video_url
+    db.commit()
+    db.refresh(unit)
+    return unit
+
+
+@router.delete("/lexical-units/{id_lexicalunit}", status_code=204)
+def delete_lexical_unit(
+    id_lexicalunit: str,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Elimina (soft delete) una palabra del vocabulario. Solo admin."""
+    from datetime import datetime, timezone
+
+    unit = db.query(LexicalUnit).filter(
+        LexicalUnit.id_lexicalunit == id_lexicalunit,
+        LexicalUnit.deleted_at.is_(None),
+    ).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Palabra no encontrada")
+
+    unit.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+
+
+# ── Gestión de usuarios (solo admin) ─────────────────────────────────────────
+
+from app.models.user import Role
+from app.schemas.auth import UserAdminRow, UserRoleUpdate
+
+
+@router.get("/users/admin", response_model=List[UserAdminRow])
+def list_users_admin(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Lista todos los usuarios con su rol, para gestión desde el panel admin."""
+    rows = db.execute(text('''
+        SELECT u.id_user, u.first_name || ' ' || u.last_name AS full_name,
+               u.email, r.role_name, rg.region_name AS region
+        FROM "User" u
+        INNER JOIN "Role" r ON u.id_role = r.id_role
+        LEFT JOIN "Region" rg ON u.id_region = rg.id_region
+        WHERE u.deleted_at IS NULL
+        ORDER BY u.first_name
+    ''')).mappings().all()
+    return [UserAdminRow(**dict(r)) for r in rows]
+
+
+@router.get("/roles")
+def list_roles(
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Lista los roles disponibles en el sistema."""
+    roles = db.query(Role).all()
+    return [{"id_role": r.id_role, "role_name": r.role_name} for r in roles]
+
+
+@router.patch("/users/{id_user}/role", response_model=UserAdminRow)
+def update_user_role(
+    id_user: str,
+    payload: UserRoleUpdate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Cambia el rol de un usuario. Solo admin."""
+    if id_user == admin.id_user:
+        raise HTTPException(status_code=400, detail="No puedes cambiar tu propio rol")
+
+    user = db.query(User).filter(
+        User.id_user == id_user, User.deleted_at.is_(None)
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    role = db.query(Role).filter(Role.role_name == payload.role_name).first()
+    if not role:
+        raise HTTPException(status_code=404, detail="Rol no encontrado")
+
+    user.id_role = role.id_role
+    db.commit()
+
+    row = db.execute(text('''
+        SELECT u.id_user, u.first_name || ' ' || u.last_name AS full_name,
+               u.email, r.role_name, rg.region_name AS region
+        FROM "User" u
+        INNER JOIN "Role" r ON u.id_role = r.id_role
+        LEFT JOIN "Region" rg ON u.id_region = rg.id_region
+        WHERE u.id_user = :id_user
+    '''), {"id_user": id_user}).mappings().first()
+    return UserAdminRow(**dict(row))
+
+
+@router.delete("/users/{id_user}", status_code=204)
+def delete_user(
+    id_user: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Elimina (soft delete) un usuario. Solo admin."""
+    from datetime import datetime, timezone
+
+    if id_user == admin.id_user:
+        raise HTTPException(status_code=400, detail="No puedes eliminar tu propia cuenta")
+
+    user = db.query(User).filter(
+        User.id_user == id_user, User.deleted_at.is_(None)
+    ).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    user.deleted_at = datetime.now(timezone.utc)
+    db.commit()

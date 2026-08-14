@@ -1,28 +1,281 @@
 import { useEffect, useState } from 'react';
-import { dashboardApi } from '../api/client';
-import type { AdminDashboardRow, SystemStats } from '../api/client';
-import { Navbar } from '../components/Navbar';
-import { StatCard, Card, Spinner, Alert, Badge } from '../components/UI';
+import type { ReactNode } from 'react';
+import { dashboardApi, adminUsersApi } from '../api/client';
+import type { AdminDashboardRow, SystemStats, LexicalUnitAdmin, RoleOption } from '../api/client';
+import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
+import { VideoModal, NewWordModal, DeleteConfirmModal } from '../components/VocabModals';
+import { useAuth } from '../context/AuthContext';
 
-export default function AdminDashboard() {
-  const [rows, setRows] = useState<AdminDashboardRow[]>([]);
-  const [stats, setStats] = useState<SystemStats | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
+const PAGE_SIZE = 8;
 
+// ── Shared helpers ─────────────────────────────────────────────────────────
+
+function PaginationBtn({ children, onClick, active = false, disabled = false }: {
+  children: ReactNode; onClick: () => void; active?: boolean; disabled?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      style={{
+        minWidth: 34, height: 34, padding: '0 10px',
+        border: active ? 'none' : '1.5px solid var(--gray-200)',
+        borderRadius: 8, fontWeight: active ? 700 : 500,
+        fontSize: '0.85rem', cursor: disabled ? 'not-allowed' : 'pointer',
+        background: active ? 'var(--violet)' : 'var(--white)',
+        color: active ? 'white' : disabled ? 'var(--gray-200)' : 'var(--gray-600)',
+        fontFamily: 'var(--font-body)', transition: 'all 0.15s',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+type AdminTab = 'users' | 'vocabulary' | 'stats';
+
+// ── Tab bar ────────────────────────────────────────────────────────────────
+
+function TabBar({ active, onChange }: { active: AdminTab; onChange: (t: AdminTab) => void }) {
+  const tabs: { id: AdminTab; label: string; icon: string }[] = [
+    { id: 'users',      label: 'Usuarios',     icon: '👥' },
+    { id: 'vocabulary', label: 'Vocabulario',  icon: '📚' },
+    { id: 'stats',      label: 'Estadísticas', icon: '📊' },
+  ];
+  return (
+    <div style={{
+      display: 'flex',
+      background: 'var(--gray-50)',
+      borderRadius: 12,
+      padding: 4,
+      gap: 4,
+      marginBottom: 28,
+      border: '1.5px solid var(--gray-100)',
+    }}>
+      {tabs.map(t => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          style={{
+            flex: 1,
+            padding: '10px 8px',
+            borderRadius: 9,
+            border: 'none',
+            fontWeight: 600,
+            fontSize: '0.88rem',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            background: active === t.id ? 'var(--white)' : 'transparent',
+            color: active === t.id ? 'var(--violet)' : 'var(--gray-400)',
+            boxShadow: active === t.id ? 'var(--shadow-sm)' : 'none',
+            fontFamily: 'var(--font-body)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}
+        >
+          <span>{t.icon}</span>
+          {t.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// ── Role edit modal ────────────────────────────────────────────────────────
+
+function RoleModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: AdminDashboardRow;
+  onClose: () => void;
+  onSaved: (userId: string, newRoleName: string) => void;
+}) {
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(true);
+  const [selected, setSelected] = useState(user.role_name);  // guardamos role_name
+  const [saving, setSaving] = useState(false);
+  const [err, setErr] = useState('');
+
+  // Cargar roles reales del backend al abrir el modal
   useEffect(() => {
-    Promise.all([dashboardApi.admin(), dashboardApi.stats()])
-      .then(([r1, r2]) => { setRows(r1.data); setStats(r2.data); })
-      .catch(() => setError('No se pudieron cargar los datos'))
-      .finally(() => setLoading(false));
+    dashboardApi.roles()
+      .then(r => {
+        const data = r.data;
+        // El endpoint puede devolver distintas formas — normalizar
+        if (Array.isArray(data) && data.length > 0) {
+          setRoles(data);
+        }
+      })
+      .catch(() => {
+        // Fallback: roles conocidos sin ID (el submit usará role_name de todos modos)
+        setRoles([
+          { id_role: 'usuario',       role_name: 'Usuario' },
+          { id_role: 'administrador', role_name: 'Administrador' },
+          { id_role: 'soporte',       role_name: 'Soporte' },
+          { id_role: 'moderador',     role_name: 'Moderador' },
+        ]);
+      })
+      .finally(() => setRolesLoading(false));
   }, []);
+
+  const handleSave = async () => {
+    if (!user.id_user) return;
+    setSaving(true);
+    setErr('');
+    try {
+      // Usa PATCH /dashboard/users/:id/role con { role_name } — acepta el nombre directamente
+      await adminUsersApi.updateRole(user.id_user, selected);
+      onSaved(user.id_user, selected);
+      onClose();
+    } catch (e: unknown) {
+      const axiosErr = e as { response?: { data?: { detail?: unknown } } };
+      const detail = axiosErr.response?.data?.detail;
+      setErr(typeof detail === 'string' ? detail : 'No se pudo actualizar el rol. Intenta de nuevo.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+    }}>
+      <div style={{
+        background: 'var(--white)', borderRadius: 16, padding: 28, width: 360,
+        boxShadow: 'var(--shadow-lg)', fontFamily: 'var(--font-body)',
+      }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--gray-800)', marginBottom: 4 }}>
+          Cambiar rol
+        </h3>
+        <p style={{ fontSize: '0.83rem', color: 'var(--gray-400)', marginBottom: 20 }}>
+          {user.full_name} · {user.email}
+        </p>
+
+        {rolesLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0' }}>
+            <Spinner size={24} />
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+            {roles.map(r => (
+              <label key={r.id_role} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px',
+                border: `1.5px solid ${selected === r.role_name ? 'var(--violet)' : 'var(--gray-200)'}`,
+                borderRadius: 9, cursor: 'pointer', transition: 'border 0.15s',
+                background: selected === r.role_name ? 'var(--violet-light)' : 'transparent',
+              }}>
+                <input
+                  type="radio"
+                  name="role"
+                  value={r.role_name}
+                  checked={selected === r.role_name}
+                  onChange={() => setSelected(r.role_name)}
+                  style={{ accentColor: 'var(--violet)' }}
+                />
+                <span style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--gray-800)' }}>
+                  {r.role_name}
+                </span>
+              </label>
+            ))}
+          </div>
+        )}
+
+        {err && <p style={{ color: '#DC2626', fontSize: '0.82rem', marginBottom: 12 }}>{err}</p>}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+          <button onClick={onClose} disabled={saving} style={{ padding: '8px 18px', border: '1.5px solid var(--gray-200)', borderRadius: 8, background: 'none', color: 'var(--gray-600)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+            Cancelar
+          </button>
+          <Btn size="sm" onClick={handleSave} disabled={saving || rolesLoading || selected === user.role_name}>
+            {saving ? 'Guardando…' : 'Guardar'}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Users tab ──────────────────────────────────────────────────────────────
+
+function UsersTab({
+  rows,
+  loading,
+  error,
+  onRowsChange,
+  currentUserId,
+}: {
+  rows: AdminDashboardRow[];
+  loading: boolean;
+  error: string;
+  onRowsChange: (updater: (prev: AdminDashboardRow[]) => AdminDashboardRow[]) => void;
+  currentUserId: string | undefined;
+}) {
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [roleTarget, setRoleTarget] = useState<AdminDashboardRow | null>(null);
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [flashMsg, setFlashMsg] = useState('');
+
+  useEffect(() => { setPage(1); }, [search]);
+
+  const flash = (msg: string) => {
+    setFlashMsg(msg);
+    setTimeout(() => setFlashMsg(''), 3000);
+  };
+
+  // Toggle activo/inactivo
+  const handleToggleStatus = async (row: AdminDashboardRow) => {
+    if (!row.id_user) return;
+    const newStatus = !row.is_active;
+    setTogglingId(row.id_user);
+    try {
+      await adminUsersApi.setActive(row.id_user, newStatus);
+      onRowsChange(prev =>
+        prev.map(r => r.id_user === row.id_user ? { ...r, is_active: newStatus } : r)
+      );
+      flash(`✅ Usuario ${newStatus ? 'activado' : 'desactivado'}`);
+    } catch {
+      flash('❌ No se pudo cambiar el estado');
+    } finally {
+      setTogglingId(null);
+    }
+  };
+
+  // Exportar CSV con fetch + blob (para enviar Authorization header)
+  const handleExportCsv = async () => {
+    setExportLoading(true);
+    try {
+      const response = await adminUsersApi.exportCsv();
+      const blob = new Blob([response.data as BlobPart], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `usuarios_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      flash('✅ CSV descargado');
+    } catch {
+      flash('❌ No se pudo exportar el CSV');
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   const filtered = rows.filter(r =>
     r.full_name.toLowerCase().includes(search.toLowerCase()) ||
     r.email.toLowerCase().includes(search.toLowerCase()) ||
     r.role_name.toLowerCase().includes(search.toLowerCase())
   );
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const startIdx = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const endIdx = Math.min(safePage * PAGE_SIZE, filtered.length);
 
   const roleVariant = (role: string): 'default' | 'amber' | 'success' | 'danger' => {
     if (role.toLowerCase().includes('admin')) return 'danger';
@@ -31,58 +284,316 @@ export default function AdminDashboard() {
     return 'default';
   };
 
-  return (
-    <div style={{ minHeight: '100vh', background: 'var(--gray-50)' }}>
-      <Navbar />
-      <main style={{ maxWidth: 1100, margin: '0 auto', padding: '32px 24px' }}>
+  const getPageNumbers = () => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages: (number | '...')[] = [];
+    if (safePage <= 4) { pages.push(1, 2, 3, 4, 5, '...', totalPages); }
+    else if (safePage >= totalPages - 3) { pages.push(1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages); }
+    else { pages.push(1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages); }
+    return pages;
+  };
 
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><Spinner size={36} /></div>;
+  if (error) return <Alert type="error" message={error} />;
+
+  return (
+    <>
+      {flashMsg && (
+        <div style={{ marginBottom: 14 }}>
+          <Alert type={flashMsg.startsWith('✅') ? 'success' : 'error'} message={flashMsg} />
+        </div>
+      )}
+
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
         {/* Header */}
-        <div style={{ marginBottom: 32 }}>
-          <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-            Panel de administración
-          </p>
-          <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.8rem', color: 'var(--gray-800)', marginTop: 4 }}>
-            Gestión de usuarios
-          </h1>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', color: 'var(--gray-800)' }}>
+              Todos los usuarios
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 2 }}>
+              {filtered.length === 0 ? 'Sin resultados' : `Mostrando ${startIdx}–${endIdx} de ${filtered.length}`}
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              placeholder="Buscar por nombre, correo o rol..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              style={{ padding: '8px 14px', border: '1.5px solid var(--gray-200)', borderRadius: 8, fontSize: '0.85rem', width: 260, outline: 'none', fontFamily: 'var(--font-body)' }}
+              onFocus={e => e.target.style.borderColor = 'var(--violet)'}
+              onBlur={e => e.target.style.borderColor = 'var(--gray-200)'}
+            />
+            <button
+              onClick={handleExportCsv}
+              disabled={exportLoading}
+              title="Exportar usuarios a CSV"
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '8px 14px', borderRadius: 8,
+                border: '1.5px solid var(--gray-200)',
+                background: exportLoading ? 'var(--gray-50)' : 'var(--white)',
+                color: exportLoading ? 'var(--gray-400)' : 'var(--gray-700)',
+                fontSize: '0.84rem', fontWeight: 600,
+                cursor: exportLoading ? 'not-allowed' : 'pointer',
+                fontFamily: 'var(--font-body)', transition: 'all 0.15s',
+              }}
+            >
+              {exportLoading ? <Spinner size={14} /> : '⬇'}
+              {exportLoading ? 'Exportando…' : 'Exportar CSV'}
+            </button>
+          </div>
         </div>
 
-        {loading && <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><Spinner size={36} /></div>}
-        {error && <Alert type="error" message={error} />}
+        {/* Table */}
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ background: 'var(--gray-50)' }}>
+                {['Usuario', 'Correo', 'Rol', 'Región', 'Traducciones', 'Soporte', 'Feedback', 'Acciones'].map(h => (
+                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)', whiteSpace: 'nowrap' }}>
+                    {h}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {paginated.length === 0 ? (
+                <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.9rem' }}>Sin resultados</td></tr>
+              ) : paginated.map((row, i) => {
+                const inactive = row.is_active === false;
+                const isToggling = togglingId === row.id_user;
+                return (
+                  <tr
+                    key={i}
+                    style={{
+                      borderBottom: '1px solid var(--gray-100)',
+                      transition: 'background 0.1s',
+                      opacity: inactive ? 0.55 : 1,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    {/* Usuario */}
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{
+                          width: 32, height: 32, borderRadius: '50%',
+                          background: inactive ? 'var(--gray-300)' : 'var(--violet)',
+                          color: 'white', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
+                        }}>
+                          {row.full_name.charAt(0)}
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--gray-800)' }}>{row.full_name}</span>
+                          {inactive && (
+                            <span style={{
+                              marginLeft: 8, fontSize: '0.7rem', fontWeight: 700,
+                              background: '#FEE2E2', color: '#DC2626',
+                              borderRadius: 4, padding: '1px 6px',
+                            }}>
+                              Inactivo
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </td>
 
-        {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 28 }}>
-            <StatCard label="Usuarios totales" value={stats.total_users} icon={<span>👥</span>} />
-            <StatCard label="Traducciones" value={stats.total_translations} icon={<span>🤟</span>} accent />
-            <StatCard label="Tickets soporte" value={stats.total_support_requests} icon={<span>🎫</span>} />
-            <StatCard label="Valoración media" value={stats.average_rating?.toFixed(1) ?? '—'} icon={<span>⭐</span>} accent />
+                    {/* Correo */}
+                    <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.email}</td>
+
+                    {/* Rol */}
+                    <td style={{ padding: '14px 16px' }}><Badge label={row.role_name} variant={roleVariant(row.role_name)} /></td>
+
+                    {/* Región */}
+                    <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.region}</td>
+
+                    {/* Traducciones */}
+                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{row.total_translations}</span>
+                    </td>
+
+                    {/* Soporte */}
+                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <span style={{ fontWeight: 700, color: row.support_tickets > 0 ? 'var(--amber-dark)' : 'var(--gray-400)' }}>{row.support_tickets}</span>
+                    </td>
+
+                    {/* Feedback */}
+                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{row.feedback_count}</span>
+                    </td>
+
+                    {/* Acciones */}
+                    <td style={{ padding: '14px 16px' }}>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        {/* Editar rol */}
+                        {(() => {
+                          const isSelf = !!(row.id_user && currentUserId && row.id_user === currentUserId);
+                          return (
+                            <button
+                              onClick={() => !isSelf && setRoleTarget(row)}
+                              disabled={!row.id_user || isSelf}
+                              title={isSelf ? 'No puedes cambiar tu propio rol' : 'Cambiar rol'}
+                              style={{
+                                padding: '5px 10px', borderRadius: 6,
+                                border: `1.5px solid ${isSelf ? 'var(--gray-200)' : 'var(--violet)'}`,
+                                background: 'none',
+                                color: isSelf ? 'var(--gray-400)' : 'var(--violet)',
+                                fontSize: '0.78rem', fontWeight: 600,
+                                cursor: (row.id_user && !isSelf) ? 'pointer' : 'not-allowed',
+                                fontFamily: 'var(--font-body)',
+                              }}
+                            >
+                              {isSelf ? '🚫 Rol' : '✏️ Rol'}
+                            </button>
+                          );
+                        })()}
+
+                        {/* Toggle estado */}
+                        <button
+                          onClick={() => handleToggleStatus(row)}
+                          disabled={!row.id_user || isToggling}
+                          title={inactive ? 'Activar usuario' : 'Desactivar usuario'}
+                          style={{
+                            padding: '5px 10px', borderRadius: 6,
+                            border: `1.5px solid ${inactive ? '#BBF7D0' : '#FECACA'}`,
+                            background: 'none',
+                            color: inactive ? '#15803D' : '#DC2626',
+                            fontSize: '0.78rem', fontWeight: 600,
+                            cursor: (row.id_user && !isToggling) ? 'pointer' : 'not-allowed',
+                            fontFamily: 'var(--font-body)',
+                            minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                          }}
+                        >
+                          {isToggling
+                            ? <Spinner size={12} />
+                            : inactive ? '✓ Activar' : '✕ Desactivar'}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ padding: '16px 24px', borderTop: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <PaginationBtn onClick={() => setPage(1)} disabled={safePage === 1}>«</PaginationBtn>
+            <PaginationBtn onClick={() => setPage(p => Math.max(1, p - 1))} disabled={safePage === 1}>‹</PaginationBtn>
+            {getPageNumbers().map((p, idx) =>
+              p === '...'
+                ? <span key={`e${idx}`} style={{ padding: '0 4px', color: 'var(--gray-400)', fontSize: '0.85rem' }}>…</span>
+                : <PaginationBtn key={p} onClick={() => setPage(p as number)} active={safePage === p}>{p}</PaginationBtn>
+            )}
+            <PaginationBtn onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={safePage === totalPages}>›</PaginationBtn>
+            <PaginationBtn onClick={() => setPage(totalPages)} disabled={safePage === totalPages}>»</PaginationBtn>
           </div>
         )}
+      </Card>
 
-        {/* Table */}
-        {!loading && !error && (
-          <Card style={{ padding: 0, overflow: 'hidden' }}>
-            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', color: 'var(--gray-800)' }}>
-                Todos los usuarios ({filtered.length})
-              </h2>
-              <input
-                placeholder="Buscar por nombre, correo o rol..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                style={{
-                  padding: '8px 14px', border: '1.5px solid var(--gray-200)', borderRadius: 8,
-                  fontSize: '0.85rem', width: 260, outline: 'none', fontFamily: 'var(--font-body)',
-                }}
-                onFocus={e => e.target.style.borderColor = 'var(--violet)'}
-                onBlur={e => e.target.style.borderColor = 'var(--gray-200)'}
-              />
-            </div>
+      {/* Modal de edición de rol */}
+      {roleTarget && (
+        <RoleModal
+          user={roleTarget}
+          onClose={() => setRoleTarget(null)}
+          onSaved={(userId, newRole) => {
+            onRowsChange(prev =>
+              prev.map(r => r.id_user === userId ? { ...r, role_name: newRole } : r)
+            );
+            flash(`✅ Rol actualizado a "${newRole}"`);
+          }}
+        />
+      )}
+    </>
+  );
+}
 
+// ── Vocabulary tab ─────────────────────────────────────────────────────────
+
+function VocabularyTab() {
+  const [vocabUnits, setVocabUnits] = useState<LexicalUnitAdmin[]>([]);
+  const [vocabLoading, setVocabLoading] = useState(true);
+  const [vocabSearch, setVocabSearch] = useState('');
+  const [vocabPage, setVocabPage] = useState(1);
+  const [editingUnit, setEditingUnit] = useState<LexicalUnitAdmin | null>(null);
+  const [showNewWord, setShowNewWord] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<LexicalUnitAdmin | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [vocabMsg, setVocabMsg] = useState('');
+
+  useEffect(() => {
+    dashboardApi.lexicalUnitsAdmin()
+      .then(r => setVocabUnits(r.data))
+      .catch(() => {})
+      .finally(() => setVocabLoading(false));
+  }, []);
+
+  useEffect(() => { setVocabPage(1); }, [vocabSearch]);
+
+  const filteredVocab = vocabUnits.filter(u => u.text?.toLowerCase().includes(vocabSearch.toLowerCase()));
+  const vocabTotalPages = Math.max(1, Math.ceil(filteredVocab.length / PAGE_SIZE));
+  const safeVocabPage = Math.min(vocabPage, vocabTotalPages);
+  const paginatedVocab = filteredVocab.slice((safeVocabPage - 1) * PAGE_SIZE, safeVocabPage * PAGE_SIZE);
+
+  const flash = (msg: string) => { setVocabMsg(msg); setTimeout(() => setVocabMsg(''), 3000); };
+
+  const handleSaveVideo = async (id: string, url: string | null) => {
+    await dashboardApi.updateLexicalUnitVideo(id, url ?? '');
+    setVocabUnits(prev => prev.map(u => u.id_lexicalunit === id ? { ...u, video_url: url ?? undefined } : u));
+    flash(url ? '✅ Video asignado correctamente' : '✅ Video eliminado');
+  };
+
+  const handleDelete = async () => {
+    if (!deleteConfirm) return;
+    setDeleting(true);
+    try {
+      await dashboardApi.deleteLexicalUnit(deleteConfirm.id_lexicalunit);
+      setVocabUnits(prev => prev.filter(u => u.id_lexicalunit !== deleteConfirm.id_lexicalunit));
+      flash('✅ Palabra eliminada');
+    } catch { flash('❌ No se pudo eliminar'); }
+    finally { setDeleting(false); setDeleteConfirm(null); }
+  };
+
+  return (
+    <>
+      {vocabMsg && <div style={{ marginBottom: 16 }}><Alert type={vocabMsg.startsWith('✅') ? 'success' : 'error'} message={vocabMsg} /></div>}
+
+      <Card style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', color: 'var(--gray-800)' }}>
+              Unidades léxicas ({filteredVocab.length})
+            </h3>
+            <p style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 2 }}>
+              {filteredVocab.filter(u => u.video_url).length} con video asignado
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              placeholder="Buscar palabra..."
+              value={vocabSearch}
+              onChange={e => setVocabSearch(e.target.value)}
+              style={{ padding: '8px 14px', border: '1.5px solid var(--gray-200)', borderRadius: 8, fontSize: '0.85rem', width: 200, outline: 'none', fontFamily: 'var(--font-body)' }}
+              onFocus={e => e.target.style.borderColor = 'var(--violet)'}
+              onBlur={e => e.target.style.borderColor = 'var(--gray-200)'}
+            />
+            <Btn size="sm" onClick={() => setShowNewWord(true)}>+ Nueva palabra</Btn>
+          </div>
+        </div>
+
+        {vocabLoading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={28} /></div>
+        ) : (
+          <>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--gray-50)' }}>
-                    {['Usuario', 'Correo', 'Rol', 'Región', 'Traducciones', 'Soporte', 'Feedback'].map(h => (
+                    {['Palabra', 'Idioma', 'Video', 'Acciones'].map(h => (
                       <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)' }}>
                         {h}
                       </th>
@@ -90,43 +601,185 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.length === 0 ? (
-                    <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.9rem' }}>Sin resultados</td></tr>
-                  ) : (
-                    filtered.map((row, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid var(--gray-100)', transition: 'background 0.1s' }}
-                        onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
-                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                      >
-                        <td style={{ padding: '14px 16px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--violet)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>
-                              {row.full_name.charAt(0)}
-                            </div>
-                            <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--gray-800)' }}>{row.full_name}</span>
-                          </div>
-                        </td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.email}</td>
-                        <td style={{ padding: '14px 16px' }}><Badge label={row.role_name} variant={roleVariant(row.role_name)} /></td>
-                        <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.region}</td>
-                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                          <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{row.total_translations}</span>
-                        </td>
-                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                          <span style={{ fontWeight: 700, color: row.support_tickets > 0 ? 'var(--amber-dark)' : 'var(--gray-400)' }}>{row.support_tickets}</span>
-                        </td>
-                        <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                          <span style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{row.feedback_count}</span>
-                        </td>
-                      </tr>
-                    ))
-                  )}
+                  {paginatedVocab.length === 0 ? (
+                    <tr><td colSpan={4} style={{ padding: 40, textAlign: 'center', color: 'var(--gray-400)' }}>Sin palabras. Usa "+ Nueva palabra" para agregar.</td></tr>
+                  ) : paginatedVocab.map((u, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--gray-100)', transition: 'background 0.1s' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--gray-800)', fontSize: '0.9rem' }}>{u.text}</td>
+                      <td style={{ padding: '12px 16px' }}><Badge label={u.language} variant="default" /></td>
+                      <td style={{ padding: '12px 16px' }}>
+                        {u.video_url
+                          ? <span style={{ color: '#15803D', fontWeight: 600, fontSize: '0.82rem' }}>🎬 Asignado</span>
+                          : <span style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>Sin video</span>}
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={() => setEditingUnit(u)} style={{ padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--violet)', background: 'none', color: 'var(--violet)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                            {u.video_url ? '✏️ Editar video' : '▶ Agregar video'}
+                          </button>
+                          <button onClick={() => setDeleteConfirm(u)} style={{ padding: '5px 10px', borderRadius: 6, border: '1.5px solid #FECACA', background: 'none', color: '#DC2626', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                            🗑
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          </Card>
+
+            {vocabTotalPages > 1 && (
+              <div style={{ padding: '16px 24px', borderTop: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <PaginationBtn onClick={() => setVocabPage(1)} disabled={safeVocabPage === 1}>«</PaginationBtn>
+                <PaginationBtn onClick={() => setVocabPage(p => Math.max(1, p - 1))} disabled={safeVocabPage === 1}>‹</PaginationBtn>
+                {Array.from({ length: vocabTotalPages }, (_, i) => i + 1).map(p => (
+                  <PaginationBtn key={p} onClick={() => setVocabPage(p)} active={safeVocabPage === p}>{p}</PaginationBtn>
+                ))}
+                <PaginationBtn onClick={() => setVocabPage(p => Math.min(vocabTotalPages, p + 1))} disabled={safeVocabPage === vocabTotalPages}>›</PaginationBtn>
+                <PaginationBtn onClick={() => setVocabPage(vocabTotalPages)} disabled={safeVocabPage === vocabTotalPages}>»</PaginationBtn>
+              </div>
+            )}
+          </>
         )}
-      </main>
+      </Card>
+
+      {editingUnit && <VideoModal unit={editingUnit} onClose={() => setEditingUnit(null)} onSave={handleSaveVideo} />}
+      {showNewWord && <NewWordModal onClose={() => setShowNewWord(false)} onCreated={u => setVocabUnits(prev => [u, ...prev])} />}
+      {deleteConfirm && <DeleteConfirmModal unit={deleteConfirm} onClose={() => setDeleteConfirm(null)} onConfirm={handleDelete} deleting={deleting} />}
+    </>
+  );
+}
+
+// ── Stats tab ──────────────────────────────────────────────────────────────
+
+function StatsTab({ stats, loading }: { stats: SystemStats | null; loading: boolean }) {
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><Spinner size={36} /></div>;
+
+  if (!stats) return (
+    <Card style={{ textAlign: 'center', padding: 48 }}>
+      <div style={{ fontSize: '2rem', marginBottom: 12 }}>📊</div>
+      <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem' }}>
+        Las estadísticas estarán disponibles cuando el endpoint <code>/dashboard/stats</code> esté activo.
+      </p>
+    </Card>
+  );
+
+  const statItems = [
+    { label: 'Usuarios registrados', value: stats.total_users, icon: '👥', accent: false, desc: 'Total de cuentas activas en la plataforma' },
+    { label: 'Traducciones realizadas', value: stats.total_translations, icon: '🤟', accent: true, desc: 'Total acumulado de traducciones LSC' },
+    { label: 'Tickets de soporte', value: stats.total_support_requests, icon: '🎫', accent: false, desc: 'Solicitudes de ayuda enviadas por usuarios' },
+    { label: 'Feedback recibido', value: stats.total_feedback, icon: '💬', accent: true, desc: 'Valoraciones y comentarios de sesiones' },
+    { label: 'Valoración promedio', value: stats.average_rating ? `${stats.average_rating.toFixed(1)} / 5` : '—', icon: '⭐', accent: false, desc: 'Satisfacción media de los usuarios' },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+        {statItems.map(s => (
+          <StatCard key={s.label} label={s.label} value={s.value} icon={<span>{s.icon}</span>} accent={s.accent} />
+        ))}
+      </div>
+
+      {/* Detail cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
+        {statItems.map(s => (
+          <Card key={s.label} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18 }}>
+            <div style={{
+              width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+              background: s.accent ? 'var(--amber-light)' : 'var(--violet-light)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem',
+            }}>
+              {s.icon}
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.3rem', fontFamily: 'var(--font-display)', color: 'var(--gray-800)' }}>
+                {s.value}
+              </div>
+              <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--gray-800)' }}>{s.label}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: 2 }}>{s.desc}</div>
+            </div>
+          </Card>
+        ))}
+      </div>
     </div>
+  );
+}
+
+// ── Main dashboard ─────────────────────────────────────────────────────────
+
+export default function AdminDashboard() {
+  const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState<AdminTab>('users');
+  const [rows, setRows] = useState<AdminDashboardRow[]>([]);
+  const [stats, setStats] = useState<SystemStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    Promise.all([
+      adminUsersApi.list(),       // GET /admin/users — incluye id_user
+      dashboardApi.stats(),       // GET /dashboard/stats — estadísticas globales
+    ])
+      .then(([r1, r2]) => {
+        // UserAdminRow no tiene métricas (traducciones, tickets, feedback).
+        // Combinamos con /dashboard/admin por email para completar los conteos.
+        const adminRows = r1.data;
+        dashboardApi.admin()
+          .then(r3 => {
+            const metricsByEmail = new Map(r3.data.map(row => [row.email, row]));
+            const merged = adminRows.map(u => ({
+              ...u,
+              total_translations: metricsByEmail.get(u.email)?.total_translations ?? 0,
+              support_tickets:    metricsByEmail.get(u.email)?.support_tickets    ?? 0,
+              feedback_count:     metricsByEmail.get(u.email)?.feedback_count     ?? 0,
+            }));
+            setRows(merged);
+          })
+          .catch(() => {
+            // Si falla /dashboard/admin igual mostramos usuarios sin métricas
+            setRows(adminRows.map(u => ({
+              ...u,
+              total_translations: 0,
+              support_tickets: 0,
+              feedback_count: 0,
+            })));
+          });
+        setStats(r2.data);
+      })
+      .catch(() => setError('No se pudieron cargar los datos'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  return (
+    <>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+          Panel de administración
+        </p>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.8rem', color: 'var(--gray-800)', marginTop: 4 }}>
+          Administración
+        </h1>
+      </div>
+
+      {/* Tab bar */}
+      <TabBar active={activeTab} onChange={setActiveTab} />
+
+      {/* Tab content */}
+      {activeTab === 'users' && (
+        <UsersTab
+          rows={rows}
+          loading={loading}
+          error={error}
+          onRowsChange={setRows}
+          currentUserId={user?.id_user}
+        />
+      )}
+      {activeTab === 'vocabulary' && <VocabularyTab />}
+      {activeTab === 'stats' && <StatsTab stats={stats} loading={loading} />}
+    </>
   );
 }

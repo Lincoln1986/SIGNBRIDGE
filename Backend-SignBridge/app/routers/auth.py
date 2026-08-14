@@ -14,7 +14,7 @@ from app.schemas.auth import (
     UserRegister, UserLogin, TokenResponse,
     ForgotPasswordRequest, ResetPasswordRequest, UserProfile,
 )
-from app.services.mail import send_reset_email
+from app.services.mail import send_reset_email, send_welcome_email
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
@@ -60,6 +60,14 @@ async def register(payload: UserRegister, db: Session = Depends(get_db)):
     ))
 
     db.commit()
+
+    # Correo de bienvenida (no bloquea si falla)
+    try:
+        await send_welcome_email(new_user.email, new_user.first_name)
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("No se pudo enviar correo de bienvenida: %s", exc)
+
     return {"message": "Usuario registrado exitosamente", "user_id": new_user.id_user}
 
 
@@ -84,6 +92,19 @@ async def login(payload: UserLogin, db: Session = Depends(get_db)):
             ))
             db.commit()
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+    # Cuenta desactivada por un administrador
+    if not user.is_active:
+        db.add(AccessLog(
+            id_log      = str(uuid.uuid4()),
+            id_user     = user.id_user,
+            access_type = "blocked_attempt",
+        ))
+        db.commit()
+        raise HTTPException(
+            status_code=403,
+            detail="Tu cuenta ha sido desactivada. Contacta al administrador.",
+        )
 
     # Log de acceso exitoso
     db.add(AccessLog(
@@ -151,4 +172,7 @@ async def reset_password(payload: ResetPasswordRequest, db: Session = Depends(ge
 
     user.password_hash = hash_password(payload.new_password)
     db.commit()
-    return {"message": "Contraseña restablecida exitosamente"}
+    return {
+        "message": "¡Contraseña actualizada exitosamente! Ya puedes iniciar sesión con tu nueva contraseña.",
+        "redirect": "/login",
+    }

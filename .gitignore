@@ -1,4 +1,9 @@
 Backend-SignBridge/.env
 Backend-SignBridge/venv/
-Backend-SignBridge/.env
-Backend-SignBridge/venv/
+Backend-SignBridge/**/__pycache__/
+Backend-SignBridge/**/*.pyc
+Frontend-SignBridge/node_modules/
+node_modules/
+venv/
+__pycache__/
+*.pyc
