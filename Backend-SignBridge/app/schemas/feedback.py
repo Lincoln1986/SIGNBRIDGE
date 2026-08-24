@@ -31,5 +31,16 @@ class FeedbackOut(BaseModel):
     rating:      int
     comment:     Optional[str] = None
     date:        datetime
+    is_reviewed: bool = False
 
     model_config = {"from_attributes": True}
+
+
+class FeedbackOutWithUser(FeedbackOut):
+    """Igual que FeedbackOut, pero incluye datos de quién dejó la valoración (panel de Soporte/Admin)."""
+    user_full_name: str
+    user_email:     str
+
+
+class FeedbackReviewUpdate(BaseModel):
+    is_reviewed: bool

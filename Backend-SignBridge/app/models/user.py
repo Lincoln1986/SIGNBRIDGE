@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Boolean, Text, func
+from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Boolean, Text, func, text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -176,6 +176,7 @@ class Feedback(Base):
     rating = Column(Integer)
     comment = Column(Text)
     date = Column(DateTime, server_default=func.now())
+    is_reviewed = Column(Boolean, nullable=False, server_default=text("false"))
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     deleted_at = Column(DateTime, nullable=True)

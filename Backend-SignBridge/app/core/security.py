@@ -65,3 +65,10 @@ def require_admin(current_user=Depends(get_current_user)):
     if current_user.role.role_name.lower() not in ("admin", "administrador"):
         raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol admin")
     return current_user
+
+def require_support_or_admin(current_user=Depends(get_current_user)):
+    """Dependencia que exige rol Soporte o Administrador (para el panel de soporte)."""
+    role_name = current_user.role.role_name.lower()
+    if role_name not in ("admin", "administrador", "soporte"):
+        raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol soporte o admin")
+    return current_user

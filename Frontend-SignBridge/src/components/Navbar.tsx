@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { Logo, Btn } from './UI';
 
 export function Navbar() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, isSupport } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
 
@@ -53,7 +53,9 @@ export function Navbar() {
           {navLink('/home', '🏠 Inicio')}
           {isAdmin
             ? navLink('/admin', '📊 Panel Admin')
-            : navLink('/dashboard', '📊 Mi Panel')}
+            : isSupport
+              ? navLink('/support', '🎧 Panel de Soporte')
+              : navLink('/dashboard', '📊 Mi Panel')}
           {navLink('/vocabulary', '📚 Vocabulario')}
           {navLink('/voice-to-sign', '🎙️ Voz a Señas')}
           {navLink('/sign-to-text', '🤟 Señas a Texto')}

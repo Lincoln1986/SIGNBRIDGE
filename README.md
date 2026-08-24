@@ -10,6 +10,7 @@ Plataforma web de traducción entre **texto**, **voz** y **Lengua de Señas Colo
 - [Estructura del repositorio](#estructura-del-repositorio)
 - [Backend](#backend)
 - [Frontend](#frontend)
+- [Base de datos](#base-de-datos)
 - [Tecnologías](#tecnologías)
 - [Variables de entorno](#variables-de-entorno)
 - [Instalación y ejecución](#instalación-y-ejecución)
@@ -27,7 +28,7 @@ SignBridge ofrece tres canales de traducción en tiempo real:
 | **Voz → Señas** | Habla en español colombiano y el sistema transcribe y muestra las señas |
 | **Señas → Texto** | Usa la cámara para capturar señas; MediaPipe detecta los gestos y los convierte a texto |
 
-Además incluye un **diccionario de vocabulario LSC** con favoritos, un **panel de usuario** con historial de traducciones, feedback y tickets de soporte, y un **panel de administración** completo para gestión de usuarios, roles y vocabulario.
+Además incluye un **diccionario de vocabulario LSC** con favoritos, un **panel de usuario** con historial de traducciones, feedback y tickets de soporte, un **panel de administración** completo para gestión de usuarios, roles y vocabulario, un **panel de soporte** independiente para el rol Soporte, gráficos/estadísticas de uso, y un **widget de accesibilidad**.
 
 ---
 
@@ -35,30 +36,37 @@ Además incluye un **diccionario de vocabulario LSC** con favoritos, un **panel 
 
 ```
 SIGNBRIDGE/
-├── Backend-signbringe/          # API REST — Python / FastAPI
+├── Backend-SignBridge/          # API REST — Python / FastAPI
 │   ├── app/
 │   │   ├── core/                # Config, base de datos, seguridad JWT
-│   │   ├── models/              # Modelos ORM (SQLAlchemy)
-│   │   ├── routers/             # Endpoints de la API (10 routers)
-│   │   ├── schemas/             # Esquemas Pydantic (request / response)
-│   │   ├── services/            # Lógica de negocio y servicios externos
-│   │   └── main.py              # Punto de entrada FastAPI + CORS + aliases
-│   ├── migrations/              # Scripts SQL de migraciones
-│   ├── requirements.txt         # Dependencias Python
-│   └── Dockerfile               # Imagen Docker del backend
+│   │   ├── models/               # Modelos ORM (SQLAlchemy)
+│   │   ├── routers/              # Endpoints de la API
+│   │   ├── schemas/              # Esquemas Pydantic (request / response)
+│   │   ├── services/             # Lógica de negocio y servicios externos
+│   │   └── main.py               # Punto de entrada FastAPI + CORS + aliases
+│   ├── migrations/               # Scripts SQL de migraciones (numerados en orden)
+│   ├── requirements.txt          # Dependencias Python
+│   └── Dockerfile                # Imagen Docker del backend
 │
-└── signbridge-frontend/         # SPA — React / TypeScript / Vite
-    ├── src/
-    │   ├── api/                 # Cliente HTTP Axios + tipos TypeScript
-    │   ├── components/          # Componentes UI reutilizables y layout
-    │   ├── context/             # AuthContext — estado global de sesión
-    │   ├── hooks/               # useCamera, useSpeechRecognition
-    │   ├── pages/               # 14 páginas de la aplicación
-    │   ├── index.css            # Sistema de tokens de diseño (CSS vars)
-    │   └── main.tsx             # Punto de entrada React
-    ├── package.json
-    ├── vite.config.ts
-    └── Dockerfile               # Imagen Docker del frontend
+├── Frontend-SignBridge/         # SPA — React / TypeScript / Vite
+│   ├── src/
+│   │   ├── api/                  # Cliente HTTP Axios + tipos TypeScript
+│   │   ├── components/           # Componentes UI reutilizables y layout
+│   │   ├── context/               # AuthContext — estado global de sesión
+│   │   ├── hooks/                 # useCamera, useSpeechRecognition
+│   │   ├── pages/                 # Páginas de la aplicación
+│   │   ├── index.css              # Sistema de tokens de diseño (CSS vars)
+│   │   └── main.tsx                # Punto de entrada React
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── Dockerfile                # Imagen Docker del frontend
+│
+├── Base-de-datos/               # Estructura y respaldos de PostgreSQL
+│   └── schema.sql                # Estructura actual de la base (referencia rápida)
+│
+├── DOCS/                         # Documentos del proyecto formativo
+├── docker-compose.yml            # Levanta backend + frontend + postgres juntos
+└── .gitignore
 ```
 
 ---
@@ -96,7 +104,7 @@ Todos los modelos usan UUIDs como PK y campos `created_at`, `updated_at`, `delet
 | Modelo | Tabla | Descripción |
 |---|---|---|
 | `User` | `User` | Nombre, email, contraseña hasheada, rol, región, estado activo |
-| `Role` | `Role` | Roles del sistema (`Administrador`, `Usuario`) |
+| `Role` | `Role` | Roles del sistema (`Administrador`, `Soporte`, `Usuario`) |
 | `Region` | `Region` | Regiones/ciudades de Colombia |
 | `TranslationSession` | `TranslationSession` | Sesiones de traducción vinculadas a un usuario |
 | `TranslationDetail` | `TranslationDetail` | Señas traducidas dentro de cada sesión (orden preservado) |
@@ -122,15 +130,13 @@ Todos los modelos usan UUIDs como PK y campos `created_at`, `updated_at`, `delet
 | `admin_users.py` | `/admin` | Listado/filtrado de usuarios, cambio de rol/estado, exportación CSV |
 | `favorites.py` | `/favorites` | Toggle favorito (`POST /:id_lexicalunit`), listado de favoritos del usuario |
 | `feedback.py` | `/feedback` | Registrar valoración de sesión, historial de feedback del usuario |
-| `support.py` | `/support` | Crear ticket de soporte, listar tickets del usuario |
+| `support.py` | `/support` | Crear ticket de soporte, listar tickets del usuario/panel de Soporte |
 | `messages.py` | `/messages` | Mensajes internos entre usuarios |
 | `regions.py` | `/regions` | Listado de regiones/ciudades de Colombia |
 
 Adicionalmente, `main.py` registra aliases directos `/admin/dashboard`, `/user/dashboard` y `/admin/stats` que consumen vistas de base de datos (`vw_admin_dashboard`, `vw_user_dashboard`, `vw_system_statistics`).
 
 ### `app/schemas/`
-
-Esquemas Pydantic para todos los endpoints:
 
 | Archivo | Schemas principales |
 |---|---|
@@ -151,10 +157,13 @@ Esquemas Pydantic para todos los endpoints:
 
 ### Migraciones (`migrations/`)
 
+Los scripts SQL se aplican en orden y documentan la evolución de la base:
+
 | Archivo | Descripción |
 |---|---|
 | `create_message_table.sql` | Crea la tabla `Message` con relaciones a `User` |
 | `add_is_active_to_user.sql` | Agrega columna `is_active` a `User` |
+| `cleanup_duplicate_roles.sql` | Elimina el rol duplicado "moderador" y unifica el rol Soporte |
 
 ---
 
@@ -184,7 +193,8 @@ Esquemas Pydantic para todos los endpoints:
 | `Vocabulary.tsx` | `/vocabulary` | Autenticado | Diccionario LSC con búsqueda, filtros, reproducción de videos y toggle de favoritos |
 | `UserDashboard.tsx` | `/dashboard` | Autenticado | Historial de traducciones, palabras favoritas, feedback enviado, tickets de soporte |
 | `AdminDashboard.tsx` | `/admin` | Solo Admin | Tabla de usuarios con gestión de roles y estado, CRUD de unidades léxicas, estadísticas del sistema, exportación CSV |
-| `Stats.tsx` | `/stats` | Solo Admin | Estadísticas globales: usuarios, traducciones, soporte, rating promedio |
+| `SupportDashboard.tsx` | `/support` | Solo Soporte | Panel dedicado al rol Soporte, separado de Admin y de Usuario |
+| `Stats.tsx` | `/stats` | Solo Admin | Estadísticas globales: usuarios, traducciones, soporte, rating promedio, gráficos (`StatsCharts`) |
 | `PrivacyPolicy.tsx` | `/privacy` | Pública | Política de privacidad del servicio |
 | `ComingSoon.tsx` | — | — | Placeholder para funcionalidades en desarrollo |
 
@@ -198,6 +208,8 @@ Esquemas Pydantic para todos los endpoints:
 | `CookieBanner.tsx` | Banner de consentimiento de cookies con persistencia en `localStorage` |
 | `AuthModal.tsx` | Modal unificado de autenticación con tabs login / registro / recuperar contraseña |
 | `VocabModals.tsx` | Modales para reproducir videos LSC, crear y eliminar palabras del diccionario |
+| `AccessibilityWidget.tsx` | Widget de accesibilidad (contraste, tamaño de texto, subtítulos) |
+| `StatsCharts.tsx` | Gráficos/estadísticas de uso para la sección de Reportes |
 | `layout/AppShell.tsx` | Wrapper de layout: Navbar superior + slot de contenido con `maxWidth` configurable + Footer |
 | `layout/ProtectedRoute.tsx` | `ProtectedRoute` — requiere sesión activa; `PublicRoute` — redirige a `/home` si ya hay sesión; soporte para `adminOnly` |
 
@@ -212,7 +224,7 @@ Esquemas Pydantic para todos los endpoints:
 
 | Archivo | Descripción |
 |---|---|
-| `AuthContext.tsx` | Estado global de autenticación: token JWT en `localStorage`, perfil de usuario (`UserProfile`), rol, booleano `isAdmin`; funciones `login` (persiste token y carga perfil) y `logout` (limpia storage) |
+| `AuthContext.tsx` | Estado global de autenticación: token JWT en `localStorage`, perfil de usuario (`UserProfile`), rol, booleanos `isAdmin`/`isSupport`; funciones `login` (persiste token y carga perfil) y `logout` (limpia storage) |
 
 ### API Client (`src/api/client.ts`)
 
@@ -242,6 +254,7 @@ Cliente Axios con interceptor que inyecta el `Bearer` token en cada petición y 
 /voice-to-sign      → Requiere sesión
 /sign-to-text       → Requiere sesión
 /admin              → Requiere sesión + rol Admin
+/support            → Requiere sesión + rol Soporte
 /stats              → Requiere sesión + rol Admin
 /privacy            → Pública
 *                   → Redirige a /
@@ -265,6 +278,18 @@ Cliente Axios con interceptor que inyecta el `Bearer` token en cada petición y 
 
 ---
 
+## Base de datos
+
+PostgreSQL. La estructura actual de tablas está respaldada en `Base-de-datos/schema.sql` (solo estructura, sin datos) — útil como referencia rápida sin tener que levantar Docker. Los cambios incrementales al esquema viven versionados en `Backend-SignBridge/migrations/`, aplicados en el orden en que aparecen ahí.
+
+Para regenerar `schema.sql` después de un cambio importante en la base:
+
+```bash
+docker exec -t signbridge_postgres pg_dump -U postgres -d signbridge --schema-only > Base-de-datos/schema.sql
+```
+
+---
+
 ## Tecnologías
 
 | Capa | Tecnología |
@@ -277,7 +302,7 @@ Cliente Axios con interceptor que inyecta el `Bearer` token en cada petición y 
 | Correo | aiosmtplib + Mailtrap SMTP (plantillas HTML responsivas) |
 | Reconocimiento de voz | Web Speech API del navegador (`es-CO`) |
 | Video LSC | HTML5 `<video>` + YouTube iframes embebidos |
-| Contenedores | Docker (Dockerfile en backend y frontend) |
+| Contenedores | Docker + Docker Compose (`docker-compose.yml` en la raíz) |
 
 ---
 
@@ -285,11 +310,11 @@ Cliente Axios con interceptor que inyecta el `Bearer` token en cada petición y 
 
 ### Backend (`.env`)
 
-Copia `.env.example` a `.env` y completa los valores:
+Copia `.env.example` a `.env` dentro de `Backend-SignBridge/` y completa los valores:
 
 ```env
 # Base de datos
-DATABASE_URL=postgresql://postgres:tu_password@localhost:5432/sign_bridge
+DATABASE_URL=postgresql://postgres:tu_password@localhost:5432/signbridge
 
 # JWT
 SECRET_KEY=clave_secreta_aleatoria_larga
@@ -308,14 +333,26 @@ APP_NAME=Sign_Bridge
 FRONTEND_URL=http://localhost:5173
 ```
 
+> Nota: si levantás con `docker-compose up`, las variables de `environment:` en `docker-compose.yml` tienen prioridad sobre el `.env` local — mantenelas sincronizadas para evitar confusiones (por ejemplo `FRONTEND_URL` debe apuntar al puerto real del frontend, `5173`).
+
 ---
 
 ## Instalación y ejecución
 
-### Backend
+### Opción recomendada: Docker Compose (levanta todo junto)
+
+Desde la raíz del repo:
 
 ```bash
-cd Backend-signbringe
+docker-compose up
+```
+
+Esto levanta backend (`:8000`), frontend (`:5173`) y PostgreSQL (`:5432`) juntos, con el código montado en vivo (los cambios se reflejan sin reconstruir la imagen).
+
+### Backend (manual, sin Docker)
+
+```bash
+cd Backend-SignBridge
 python -m venv venv
 # Linux/Mac:
 source venv/bin/activate
@@ -332,33 +369,28 @@ La API queda en `http://localhost:8000`.
 Documentación interactiva Swagger: `http://localhost:8000/docs`
 Documentación ReDoc: `http://localhost:8000/redoc`
 
-### Frontend
+### Frontend (manual, sin Docker)
 
 ```bash
-cd signbridge-frontend
+cd Frontend-SignBridge
 npm install
 npm run dev
 ```
 
 La app queda en `http://localhost:5173`. El cliente Axios apunta por defecto a `http://localhost:8000`.
 
-### Docker (opcional)
+### Compartir la app fuera de la red local (túnel temporal)
 
-Cada carpeta tiene su propio `Dockerfile`. Puedes levantarlos individualmente:
+Con backend y frontend corriendo, en una tercera terminal:
 
 ```bash
-# Backend
-docker build -t signbridge-backend ./Backend-signbringe
-docker run -p 8000:8000 --env-file Backend-signbringe/.env signbridge-backend
-
-# Frontend
-docker build -t signbridge-frontend ./signbridge-frontend
-docker run -p 5173:5173 signbridge-frontend
+cloudflared tunnel --url http://localhost:5173
 ```
+
+Copiá la URL `https://algo-random.trycloudflare.com` que imprime, actualizá `FRONTEND_URL` en `Backend-SignBridge/.env` con esa URL, y reiniciá el backend para que tome el cambio (obligatorio — sin este paso el registro/login falla por CORS).
 
 ---
 
 ## Documentación adicional
 
 - [Documentos del proyecto formativo (DOCS)](https://github.com/Lincoln1986/SIGNBRIDGE/tree/fix-backend-fronted/javier-per/DOCS)
-- [Mockups del proyecto](https://github.com/Lincoln1986/SIGNBRIDGE/tree/fix-backend-fronted/javier-per/Mockups-proyecto)

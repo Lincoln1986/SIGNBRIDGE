@@ -6,9 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_admin
+from app.core.security import get_current_user, require_admin, require_support_or_admin
 from app.models.user import Support, User
-from app.schemas.support import SupportCreate, SupportOut, SupportStatusUpdate
+from app.schemas.support import SupportCreate, SupportOut, SupportOutWithUser, SupportStatusUpdate
 
 router = APIRouter(prefix="/support", tags=["Soporte"])
 
@@ -60,7 +60,7 @@ def all_tickets(
     db: Session = Depends(get_db),
     _admin: User = Depends(require_admin),
 ):
-    """Lista todos los tickets del sistema. Requiere rol admin."""
+    """Lista todos los tickets del sistema. Requiere rol admin. (Se mantiene por compatibilidad.)"""
     return (
         db.query(Support)
         .filter(Support.deleted_at.is_(None))
@@ -69,15 +69,47 @@ def all_tickets(
     )
 
 
+@router.get("/all", response_model=List[SupportOutWithUser],
+            summary="Todos los tickets, con datos de quién lo creó (Soporte o Admin)")
+def all_tickets_for_support(
+    db: Session = Depends(get_db),
+    _user: User = Depends(require_support_or_admin),
+):
+    """Lista todos los tickets del sistema junto con el nombre/correo del usuario que
+    lo creó. Pensado para el Panel de Soporte (accesible a Soporte y Admin)."""
+    rows = (
+        db.query(Support, User)
+        .join(User, User.id_user == Support.id_user)
+        .filter(Support.deleted_at.is_(None))
+        .order_by(Support.date.desc())
+        .all()
+    )
+    return [
+        SupportOutWithUser(
+            id_support     = ticket.id_support,
+            id_user        = ticket.id_user,
+            subject        = ticket.subject,
+            message        = ticket.message,
+            status         = ticket.status,
+            date           = ticket.date,
+            user_full_name = f"{user.first_name} {user.last_name}",
+            user_email     = user.email,
+        )
+        for ticket, user in rows
+    ]
+
+
 @router.patch("/{id_support}/status", response_model=SupportOut,
-              summary="Cambiar estado de un ticket (solo admin)")
-def update_ticket_status(
+              summary="Cambiar estado de un ticket (Soporte o Admin)",
+              tags=["Soporte"])
+def update_ticket_status_support(
     id_support: str,
     payload: SupportStatusUpdate,
     db: Session = Depends(get_db),
-    _admin: User = Depends(require_admin),
+    _user: User = Depends(require_support_or_admin),
 ):
-    """Actualiza el estado de un ticket. Estados válidos: pending, in_progress, resolved, closed."""
+    """Actualiza el estado de un ticket. Estados válidos: pending, in_progress, resolved, closed.
+    Accesible para los roles Soporte y Admin."""
     ticket = db.query(Support).filter(
         Support.id_support  == id_support,
         Support.deleted_at.is_(None),

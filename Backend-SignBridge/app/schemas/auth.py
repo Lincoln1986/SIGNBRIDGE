@@ -101,8 +101,6 @@ class UserProfile(BaseModel):
     phone:     Optional[str] = None
     city:      Optional[str] = None
 
-    model_config = {"from_attributes": True}
-
 
 # ── Password recovery ─────────────────────────────────────────────────────────
 
@@ -134,8 +132,6 @@ class AdminDashboardRow(BaseModel):
     support_tickets:    int = 0
     feedback_count:     int = 0
 
-    model_config = {"from_attributes": True}
-
 
 class UserDashboardRow(BaseModel):
     full_name:         str
@@ -145,8 +141,6 @@ class UserDashboardRow(BaseModel):
     average_rating:    float = 0.0
     support_requests:  int   = 0
 
-    model_config = {"from_attributes": True}
-
 
 class SystemStats(BaseModel):
     total_users:            int
@@ -154,8 +148,6 @@ class SystemStats(BaseModel):
     total_support_requests: int
     total_feedback:         int
     average_rating:         Optional[float] = None
-
-    model_config = {"from_attributes": True}
 
 
 # ── Vocabulario ───────────────────────────────────────────────────────────────
@@ -173,13 +165,12 @@ class LexicalUnitOut(BaseModel):
 
 class LexicalUnitCreate(BaseModel):
     text:      str
-    language:  str = "es_CO"
+    language:  str = "es_Co"
     video_url: Optional[str] = None
 
 
 class LexicalUnitVideoUpdate(BaseModel):
     video_url: str
-
 
 # ── Gestión de usuarios (admin) ───────────────────────────────────────────────
 

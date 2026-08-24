@@ -57,7 +57,7 @@ const extraInfo = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const { user } = useAuth();
+  const { user, isAdmin, isSupport } = useAuth();
   const navigate = useNavigate();
   const [openSection, setOpenSection] = useState<number | null>(null);
   const [stats, setStats] = useState<UserDashboardRow | null>(null);
@@ -65,6 +65,9 @@ export default function Home() {
   const firstName = user?.full_name?.split(' ')[0] ?? 'Usuario';
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+
+  // Ruta del panel según el rol: Admin -> /admin, Soporte -> /support, resto -> /dashboard
+  const panelPath = isAdmin ? '/admin' : isSupport ? '/support' : '/dashboard';
 
   useEffect(() => {
     dashboardApi.user()
@@ -99,7 +102,7 @@ export default function Home() {
               fontSize: 'clamp(1.4rem, 3.5vw, 2rem)',
               color: 'white', lineHeight: 1.2,
             }}>
-              {firstName}, bienvenido a SignBridge 🤟
+              {firstName}, bienvenido a SignBridge
             </h1>
             <p style={{ color: 'rgba(255,255,255,0.72)', fontSize: '0.88rem', marginTop: 6, maxWidth: 480, lineHeight: 1.6 }}>
               Plataforma de traducción en{' '}
@@ -108,7 +111,7 @@ export default function Home() {
             </p>
           </div>
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(panelPath)}
             style={{
               background: 'rgba(255,255,255,0.15)',
               border: '1px solid rgba(255,255,255,0.25)',
@@ -219,7 +222,7 @@ export default function Home() {
           {features.map(f => (
             <button
               key={f.title}
-              onClick={() => navigate(f.to)}
+              onClick={() => navigate(f.title === 'Mi Panel' ? panelPath : f.to)}
               style={{
                 textAlign: 'left',
                 border: `1.5px solid ${f.color}22`,

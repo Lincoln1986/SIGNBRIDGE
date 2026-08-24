@@ -8,11 +8,13 @@ import { Spinner } from '../UI';
  * Redirige a /login si no hay sesión.
  * Redirige a /dashboard si la ruta es adminOnly y el usuario no es admin.
  */
-export function ProtectedRoute({ children, adminOnly = false }: {
+export function ProtectedRoute({ children, adminOnly = false, supportOnly = false }: {
   children: ReactNode;
   adminOnly?: boolean;
+  /** Permite el paso a Soporte y también a Admin (Admin puede ver todo). */
+  supportOnly?: boolean;
 }) {
-  const { token, isAdmin, loading } = useAuth();
+  const { token, isAdmin, isSupport, loading } = useAuth();
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -22,6 +24,7 @@ export function ProtectedRoute({ children, adminOnly = false }: {
 
   if (!token) return <Navigate to="/login" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/dashboard" replace />;
+  if (supportOnly && !isSupport && !isAdmin) return <Navigate to="/dashboard" replace />;
 
   return <>{children}</>;
 }
@@ -31,8 +34,8 @@ export function ProtectedRoute({ children, adminOnly = false }: {
  * Redirige al dashboard si ya hay sesión activa.
  */
 export function PublicRoute({ children }: { children: ReactNode }) {
-  const { token, isAdmin, loading } = useAuth();
+  const { token, isAdmin, isSupport, loading } = useAuth();
   if (loading) return null;
-  if (token) return <Navigate to={isAdmin ? '/admin' : '/dashboard'} replace />;
+  if (token) return <Navigate to={isAdmin ? '/admin' : isSupport ? '/support' : '/dashboard'} replace />;
   return <>{children}</>;
 }
