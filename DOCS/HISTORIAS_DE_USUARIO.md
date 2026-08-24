@@ -356,47 +356,38 @@ Como usuario registrado, quiero poder eliminar permanentemente mi cuenta de la a
 | 3 | El usuario intenta eliminar la cuenta sin completar la verificación de identidad. | El sistema bloquea el proceso y muestra: ‘Debes verificar tu identidad para continuar’. La cuenta no es eliminada. |
 | 4 | Otro usuario intenta acceder a la cuenta eliminada usando las mismas credenciales. | El sistema muestra: ‘Correo o contraseña incorrectos’ sin revelar que la cuenta fue eliminada, por razones de seguridad y privacidad. |
 
-# HISTORIAS DE USUARIO — NUEVAS
-## SignBridge
-### Aplicación de traducción de lengua de señas colombiana (LSC)
+# Historias de usuario nuevas
 
-* **CREATE:** Crear/Registrar
-* **READ:** Consultar/Ver
-* **UPDATE:** Modificar/Actualizar
-* **DELETE:** Eliminar/Borrar
-
----
-
-### HU-22: Carga de vocabulario con contenido propio (Admin)
-* **Operación CRUD:** CREATE UPDATE
-* **Prioridad:** ALTA
+### HU-22: Carga de vocabulario con videos propios (Admin)
+* **Operación CRUD:** CREATE
+* **Prioridad:** MEDIA
 
 **Historia de usuario:**
-Como administrador, quiero poder agregar nuevas palabras al diccionario de señas cargando el enlace de un video propio (alojado en YouTube) junto con su categoría y región, para ampliar el vocabulario disponible con contenido verificado y de calidad producido por el equipo.
+Como usuario con rol Admin, quiero poder cargar palabras de vocabulario junto con sus propios videos de YouTube, para enriquecer el contenido educativo sin depender únicamente de videos predefinidos.
 
 #### CRITERIOS DE ACEPTACIÓN
 | # | Criterio (condición / acción) | Resultado esperado |
 |---|-------------------------------|--------------------|
-| 1 | El administrador completa el formulario (palabra, categoría, región, enlace de video) y guarda. | El sistema crea el registro en el diccionario y queda visible de inmediato para todos los usuarios en el buscador de señas. |
-| 2 | El administrador intenta guardar sin un enlace de video válido. | El sistema muestra: 'Por favor ingresa un enlace de video válido' y no crea el registro. |
-| 3 | El administrador edita una palabra existente cambiando el video o la descripción. | El sistema actualiza el registro y refleja el cambio de inmediato en el buscador. |
-| 4 | El administrador intenta registrar una palabra que ya existe para la misma región. | El sistema muestra: 'Esta palabra ya existe para esta región. ¿Deseas reemplazar el video?' y solicita confirmación antes de sobrescribir. |
+| 1 | El Admin accede a la sección de Vocabulario y selecciona "Agregar nueva palabra". | El sistema muestra un formulario con campo para el nombre de la palabra y un campo para la URL del video de YouTube. |
+| 2 | El Admin ingresa una URL válida de YouTube y guarda. | El sistema valida el enlace, lo asocia a la palabra y la guarda en el vocabulario. |
+| 3 | El Admin ingresa una URL inválida o de otro origen. | El sistema muestra el mensaje: "Enlace de video no válido". |
+| 4 | Un usuario visualiza la palabra cargada en la sección de Vocabulario. | El video embebido se reproduce correctamente dentro de la plataforma. |
 
 ---
 
-### HU-23: Visualización de reportes y estadísticas del sistema (Admin)
+### HU-23: Visualización de reportes y estadísticas con gráficos (Admin)
 * **Operación CRUD:** READ
 * **Prioridad:** MEDIA
 
 **Historia de usuario:**
-Como administrador, quiero visualizar gráficos con las estadísticas clave de la plataforma (usuarios registrados, traducciones realizadas, tickets de soporte, valoraciones) en el panel de reportes, para tomar decisiones informadas sobre el estado y uso de la aplicación de forma más clara que con solo números planos.
+Como usuario con rol Admin, quiero visualizar reportes y estadísticas de uso mediante gráficos, para tener una vista clara del comportamiento de los usuarios en la plataforma.
 
 #### CRITERIOS DE ACEPTACIÓN
 | # | Criterio (condición / acción) | Resultado esperado |
 |---|-------------------------------|--------------------|
-| 1 | El administrador accede a la pestaña Estadísticas del panel. | El sistema muestra gráficos (barras/líneas) con la evolución de las métricas principales, no solo tarjetas numéricas. |
-| 2 | El administrador pasa el cursor sobre un punto del gráfico. | El sistema muestra un tooltip con el valor exacto y la fecha correspondiente. |
-| 3 | No hay datos suficientes para un periodo determinado. | El sistema muestra el gráfico vacío con el mensaje 'No hay datos disponibles para este periodo' en lugar de un error. |
+| 1 | El Admin accede a la sección de Reportes. | El sistema muestra gráficos (barras/líneas) con estadísticas de uso de la plataforma. |
+| 2 | El Admin selecciona un rango de fechas. | Los gráficos se actualizan mostrando únicamente los datos del período seleccionado. |
+| 3 | No existen datos suficientes para el período consultado. | El sistema muestra el mensaje: "No hay datos disponibles para este período". |
 
 ---
 
@@ -414,3 +405,36 @@ Como usuario con rol Soporte, quiero contar con un panel propio donde pueda ver 
 | 2 | El usuario de Soporte selecciona un ticket y cambia su estado. | El sistema actualiza el estado del ticket, registra la fecha del cambio y notifica al usuario que lo creó. |
 | 3 | Un usuario con rol distinto a Soporte intenta acceder al dashboard de tickets. | El sistema bloquea el acceso y muestra: 'No tienes permisos para ver esta sección'. |
 | 4 | El usuario de Soporte filtra los tickets por estado (Pendiente / En revisión / Resuelto). | El sistema muestra únicamente los tickets que coinciden con el filtro seleccionado. |
+
+---
+
+### HU-25: Traducción de frases completas (texto ↔ lengua de señas)
+* **Operación CRUD:** READ
+* **Prioridad:** ALTA
+
+**Historia de usuario:**
+Como usuario, quiero traducir frases completas (no solo palabras sueltas) tanto de texto a lengua de señas como de lengua de señas a texto, para comunicarme de forma más natural y fluida.
+
+#### CRITERIOS DE ACEPTACIÓN
+| # | Criterio (condición / acción) | Resultado esperado |
+|---|-------------------------------|--------------------|
+| 1 | El usuario ingresa una frase completa en texto (ej. "Hola familia"). | El sistema genera la secuencia de señas correspondiente a cada palabra de la frase, en orden. |
+| 2 | El usuario realiza una secuencia de señas correspondiente a una frase. | El sistema reconoce la secuencia y muestra el texto completo de la frase. |
+| 3 | El usuario ingresa una frase que contiene palabras no reconocidas por el sistema. | El sistema traduce las palabras reconocidas e indica cuáles no pudo traducir. |
+| 4 | El usuario ingresa una sola palabra (ej. "Hola"), como en el uso anterior. | El sistema mantiene compatibilidad y la traduce correctamente (no rompe la funcionalidad existente). |
+
+---
+
+### HU-26: Traducción de audio a lengua de señas
+* **Operación CRUD:** READ
+* **Prioridad:** ALTA
+
+**Historia de usuario:**
+Como usuario, quiero convertir audio hablado en lengua de señas, para que las personas sordas puedan comprender mensajes hablados sin necesidad de un texto intermedio.
+
+#### CRITERIOS DE ACEPTACIÓN
+| # | Criterio (condición / acción) | Resultado esperado |
+|---|-------------------------------|--------------------|
+| 1 | El usuario graba o carga un archivo de audio. | El sistema transcribe el audio a texto y luego genera la secuencia de señas correspondiente. |
+| 2 | El audio no es claro o el sistema no logra reconocerlo. | El sistema muestra el mensaje: "No se pudo procesar el audio". |
+| 3 | El usuario reproduce el audio dentro de la plataforma. | Las señas se muestran sincronizadas con el contenido hablado. |
