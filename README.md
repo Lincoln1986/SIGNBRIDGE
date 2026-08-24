@@ -65,7 +65,6 @@ SIGNBRIDGE/
 │   └── schema.sql                # Estructura actual de la base (referencia rápida)
 │
 ├── DOCS/                         # Documentos del proyecto formativo
-├── Mockups-proyecto/             # Mockups de diseño
 ├── docker-compose.yml            # Levanta backend + frontend + postgres juntos
 └── .gitignore
 ```
@@ -395,4 +394,3 @@ Copiá la URL `https://algo-random.trycloudflare.com` que imprime, actualizá `F
 ## Documentación adicional
 
 - [Documentos del proyecto formativo (DOCS)](https://github.com/Lincoln1986/SIGNBRIDGE/tree/fix-backend-fronted/javier-per/DOCS)
-- [Mockups del proyecto](https://github.com/Lincoln1986/SIGNBRIDGE/tree/fix-backend-fronted/javier-per/Mockups-proyecto)
