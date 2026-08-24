@@ -408,7 +408,7 @@ Como usuario con rol Soporte, quiero contar con un panel propio donde pueda ver 
 
 ---
 
-### HU-25: Traducción de frases completas (texto ↔ lengua de señas)
+### HU-26: Traducción de frases completas (texto ↔ lengua de señas)
 * **Operación CRUD:** READ
 * **Prioridad:** ALTA
 
@@ -425,7 +425,7 @@ Como usuario, quiero traducir frases completas (no solo palabras sueltas) tanto 
 
 ---
 
-### HU-26: Traducción de audio a lengua de señas
+### HU-27: Traducción de audio a lengua de señas
 * **Operación CRUD:** READ
 * **Prioridad:** ALTA
 
