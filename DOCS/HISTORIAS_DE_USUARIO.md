@@ -355,3 +355,62 @@ Como usuario registrado, quiero poder eliminar permanentemente mi cuenta de la a
 | 2 | El usuario confirma la eliminación e ingresa su contraseña actual como verificación de identidad. | El sistema valida la contraseña, elimina la cuenta y todos los datos asociados, y muestra: ‘Tu cuenta ha sido eliminada exitosamente’. El usuario es redirigido a la pantalla de inicio. |
 | 3 | El usuario intenta eliminar la cuenta sin completar la verificación de identidad. | El sistema bloquea el proceso y muestra: ‘Debes verificar tu identidad para continuar’. La cuenta no es eliminada. |
 | 4 | Otro usuario intenta acceder a la cuenta eliminada usando las mismas credenciales. | El sistema muestra: ‘Correo o contraseña incorrectos’ sin revelar que la cuenta fue eliminada, por razones de seguridad y privacidad. |
+
+# HISTORIAS DE USUARIO — NUEVAS
+## SignBridge
+### Aplicación de traducción de lengua de señas colombiana (LSC)
+
+* **CREATE:** Crear/Registrar
+* **READ:** Consultar/Ver
+* **UPDATE:** Modificar/Actualizar
+* **DELETE:** Eliminar/Borrar
+
+---
+
+### HU-22: Carga de vocabulario con contenido propio (Admin)
+* **Operación CRUD:** CREATE UPDATE
+* **Prioridad:** ALTA
+
+**Historia de usuario:**
+Como administrador, quiero poder agregar nuevas palabras al diccionario de señas cargando el enlace de un video propio (alojado en YouTube) junto con su categoría y región, para ampliar el vocabulario disponible con contenido verificado y de calidad producido por el equipo.
+
+#### CRITERIOS DE ACEPTACIÓN
+| # | Criterio (condición / acción) | Resultado esperado |
+|---|-------------------------------|--------------------|
+| 1 | El administrador completa el formulario (palabra, categoría, región, enlace de video) y guarda. | El sistema crea el registro en el diccionario y queda visible de inmediato para todos los usuarios en el buscador de señas. |
+| 2 | El administrador intenta guardar sin un enlace de video válido. | El sistema muestra: 'Por favor ingresa un enlace de video válido' y no crea el registro. |
+| 3 | El administrador edita una palabra existente cambiando el video o la descripción. | El sistema actualiza el registro y refleja el cambio de inmediato en el buscador. |
+| 4 | El administrador intenta registrar una palabra que ya existe para la misma región. | El sistema muestra: 'Esta palabra ya existe para esta región. ¿Deseas reemplazar el video?' y solicita confirmación antes de sobrescribir. |
+
+---
+
+### HU-23: Visualización de reportes y estadísticas del sistema (Admin)
+* **Operación CRUD:** READ
+* **Prioridad:** MEDIA
+
+**Historia de usuario:**
+Como administrador, quiero visualizar gráficos con las estadísticas clave de la plataforma (usuarios registrados, traducciones realizadas, tickets de soporte, valoraciones) en el panel de reportes, para tomar decisiones informadas sobre el estado y uso de la aplicación de forma más clara que con solo números planos.
+
+#### CRITERIOS DE ACEPTACIÓN
+| # | Criterio (condición / acción) | Resultado esperado |
+|---|-------------------------------|--------------------|
+| 1 | El administrador accede a la pestaña Estadísticas del panel. | El sistema muestra gráficos (barras/líneas) con la evolución de las métricas principales, no solo tarjetas numéricas. |
+| 2 | El administrador pasa el cursor sobre un punto del gráfico. | El sistema muestra un tooltip con el valor exacto y la fecha correspondiente. |
+| 3 | No hay datos suficientes para un periodo determinado. | El sistema muestra el gráfico vacío con el mensaje 'No hay datos disponibles para este periodo' en lugar de un error. |
+
+---
+
+### HU-24: Dashboard de gestión de tickets (Soporte)
+* **Operación CRUD:** READ UPDATE
+* **Prioridad:** ALTA
+
+**Historia de usuario:**
+Como usuario con rol Soporte, quiero contar con un panel propio donde pueda ver y gestionar los tickets enviados por los usuarios, para dar seguimiento y actualizar su estado sin depender del panel de administrador.
+
+#### CRITERIOS DE ACEPTACIÓN
+| # | Criterio (condición / acción) | Resultado esperado |
+|---|-------------------------------|--------------------|
+| 1 | El usuario con rol Soporte inicia sesión. | El sistema lo redirige a su propio dashboard, donde puede ver la lista de tickets pendientes, en revisión y resueltos. |
+| 2 | El usuario de Soporte selecciona un ticket y cambia su estado. | El sistema actualiza el estado del ticket, registra la fecha del cambio y notifica al usuario que lo creó. |
+| 3 | Un usuario con rol distinto a Soporte intenta acceder al dashboard de tickets. | El sistema bloquea el acceso y muestra: 'No tienes permisos para ver esta sección'. |
+| 4 | El usuario de Soporte filtra los tickets por estado (Pendiente / En revisión / Resuelto). | El sistema muestra únicamente los tickets que coinciden con el filtro seleccionado. |
