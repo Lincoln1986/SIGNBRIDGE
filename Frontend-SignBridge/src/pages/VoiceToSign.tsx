@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
-import { translationApi, dashboardApi, feedbackApi } from '../api/client';
+import { translationApi, dashboardApi, feedbackApi, lastSession } from '../api/client';
 import type { TextToSignResponse, VozToSignResponse, SignUnit, LexicalUnit } from '../api/client';
 import { Btn, Card, Alert, Spinner } from '../components/UI';
 
@@ -262,6 +262,8 @@ export default function VoiceToSign() {
 
       // Guardar id_session real del backend
       setActiveSessionId(normalized.id_session);
+      // Persistir como "última sesión" para que Mi Panel > Valoraciones pueda usarla
+      lastSession.set(normalized.id_session);
       setResult(normalized);
 
       setConversation(prev => [...prev, {

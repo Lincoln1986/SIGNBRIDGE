@@ -42,11 +42,10 @@ function formatDate(d: string) {
 
 interface LightboxProps {
   unit: LexicalUnit & { id_lexicalunit?: string };
-  videoSpeed: number;
   onClose: () => void;
 }
 
-function VideoLightbox({ unit, videoSpeed, onClose }: LightboxProps) {
+function VideoLightbox({ unit, onClose }: LightboxProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Cerrar con Escape
@@ -59,11 +58,6 @@ function VideoLightbox({ unit, videoSpeed, onClose }: LightboxProps) {
       document.body.style.overflow = '';
     };
   }, [onClose]);
-
-  // Aplicar velocidad al video nativo
-  useEffect(() => {
-    if (videoRef.current) videoRef.current.playbackRate = videoSpeed;
-  }, [videoSpeed]);
 
   const youtube = unit.video_url ? isYouTube(unit.video_url) : false;
 
@@ -134,30 +128,13 @@ function VideoLightbox({ unit, videoSpeed, onClose }: LightboxProps) {
           )}
         </div>
 
-        {/* Footer con velocidad (solo video nativo) */}
+        {/* Footer */}
         {!youtube && (
           <div style={{
             padding: '10px 18px',
             background: 'rgba(255,255,255,0.05)',
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', alignItems: 'center',
           }}>
-            <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.5)', fontWeight: 600 }}>
-              Velocidad:
-            </span>
-            {[0.5, 0.75, 1, 1.5].map(s => (
-              <button
-                key={s}
-                onClick={() => { if (videoRef.current) videoRef.current.playbackRate = s; }}
-                style={{
-                  padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                  fontWeight: 700, fontSize: '0.75rem', fontFamily: 'var(--font-body)',
-                  background: videoSpeed === s ? 'var(--violet)' : 'rgba(255,255,255,0.12)',
-                  color: 'white', transition: 'background 0.12s',
-                }}
-              >
-                {s}x
-              </button>
-            ))}
             <span style={{ marginLeft: 'auto', fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)' }}>
               Esc para cerrar
             </span>
@@ -290,7 +267,6 @@ export default function Vocabulary() {
   const [search, setSearch] = useState('');
   const [letterFilter, setLetterFilter] = useState<string | null>(null);
   const [filterVideo, setFilterVideo] = useState<'all' | 'with' | 'without'>('all');
-  const [videoSpeed, setVideoSpeed] = useState(1);
   const [favorites, setFavorites] = useState<FavoriteWord[]>([]);
   const [toastMsg, setToastMsg] = useState('');
   const [lightboxUnit, setLightboxUnit] = useState<(LexicalUnit & { id_lexicalunit?: string }) | null>(null);
@@ -411,42 +387,10 @@ export default function Vocabulary() {
           Diccionario LSC
         </h1>
         <p style={{ color: 'var(--gray-400)', marginTop: 4, fontSize: '0.88rem', lineHeight: 1.6 }}>
-          Vocabulario en Lengua de Senas Colombiana (LSC).{' '}
-          <span style={{ color: 'var(--violet)', fontWeight: 600 }}>
-            Vocabulario en proceso de validacion con Fenascol
-          </span>{' '}
-          — Federacion Nacional de Sordos de Colombia.
+          Vocabulario en Lengua de Senas Colombiana (LSC).
         </p>
       </div>
 
-      {/* Credito Fenascol */}
-      <Card style={{
-        marginBottom: 20,
-        background: 'var(--violet-light)',
-        border: 'none',
-        padding: '14px 20px',
-        display: 'flex', gap: 12, alignItems: 'flex-start',
-      }}>
-        <div style={{ fontSize: '1.5rem', flexShrink: 0 }}>&#127482;&#127480;</div>
-        <div>
-          <p style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--violet)', marginBottom: 3 }}>
-            Colaboracion con Fenascol
-          </p>
-          <p style={{ fontSize: '0.8rem', color: 'var(--gray-600)', lineHeight: 1.6, margin: 0 }}>
-            Las sennas de este diccionario estan siendo validadas en colaboracion con la
-            Federacion Nacional de Sordos de Colombia (Fenascol). El vocabulario se
-            amplia y verifica continuamente.{' '}
-            
-              href="https://www.fenascol.org.co"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ color: 'var(--violet)', fontWeight: 600 }}
-            >
-              Mas informacion sobre Fenascol
-            </a>
-          </p>
-        </div>
-      </Card>
 
       {loading && (
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
@@ -494,24 +438,6 @@ export default function Vocabulary() {
                     transition: 'all 0.12s',
                   }}>
                     {v === 'all' ? 'Todos' : v === 'with' ? 'Con video' : 'Sin video'}
-                  </button>
-                ))}
-              </div>
-
-              {/* Control de velocidad */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                <span style={{ fontSize: '0.78rem', color: 'var(--gray-400)', fontWeight: 600 }}>
-                  Vel:
-                </span>
-                {[0.5, 0.75, 1, 1.5].map(s => (
-                  <button key={s} onClick={() => setVideoSpeed(s)} style={{
-                    padding: '5px 10px', borderRadius: 6, border: 'none', cursor: 'pointer',
-                    fontWeight: 700, fontSize: '0.75rem', fontFamily: 'var(--font-body)',
-                    background: videoSpeed === s ? 'var(--violet)' : 'var(--gray-100)',
-                    color: videoSpeed === s ? 'white' : 'var(--gray-600)',
-                    transition: 'all 0.12s',
-                  }}>
-                    {s}x
                   </button>
                 ))}
               </div>
@@ -595,7 +521,6 @@ export default function Vocabulary() {
       {lightboxUnit && (
         <VideoLightbox
           unit={lightboxUnit}
-          videoSpeed={videoSpeed}
           onClose={() => setLightboxUnit(null)}
         />
       )}

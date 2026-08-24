@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { AppShell, ProtectedRoute, PublicRoute } from './components/layout';
 import { CookieBanner } from './components/CookieBanner';
+import AccessibilityWidget from './components/AccessibilityWidget';
 
 import Landing from './pages/Landing';
 import Login from './pages/Login';
@@ -10,6 +11,7 @@ import { ForgotPassword, ResetPassword } from './pages/PasswordPages';
 import Home from './pages/Home';
 import UserDashboard from './pages/UserDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import SupportDashboard from './pages/SupportDashboard';
 import Vocabulary from './pages/Vocabulary';
 import Stats from './pages/Stats';
 import VoiceToSign from './pages/VoiceToSign';
@@ -46,6 +48,11 @@ function AppRoutes() {
           <AppShell maxWidth={1100}><AdminDashboard /></AppShell>
         </ProtectedRoute>
       } />
+      <Route path="/support" element={
+        <ProtectedRoute supportOnly>
+          <AppShell maxWidth={1100}><SupportDashboard /></AppShell>
+        </ProtectedRoute>
+      } />
       <Route path="/vocabulary" element={
         <ProtectedRoute>
           <AppShell maxWidth={960}><Vocabulary /></AppShell>
@@ -79,6 +86,7 @@ export default function App() {
       <AuthProvider>
         <AppRoutes />
         <CookieBanner />
+        <AccessibilityWidget />
       </AuthProvider>
     </BrowserRouter>
   );

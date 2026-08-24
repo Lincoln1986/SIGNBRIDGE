@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardApi, feedbackApi, supportApi, favoritesApi } from '../api/client';
+import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession } from '../api/client';
 import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
@@ -11,13 +11,16 @@ import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 
 type DashTab = 'overview' | 'favorites' | 'support' | 'feedback';
 
-function TabBar({ active, onChange }: { active: DashTab; onChange: (t: DashTab) => void }) {
-  const tabs: { id: DashTab; label: string; icon: string }[] = [
+function TabBar({ active, onChange, isAdmin }: { active: DashTab; onChange: (t: DashTab) => void; isAdmin: boolean }) {
+  const allTabs: { id: DashTab; label: string; icon: string }[] = [
     { id: 'overview',  label: 'Mi panel',     icon: '\uD83D\uDCCA' },
     { id: 'favorites', label: 'Favoritos',    icon: '\u2B50' },
     { id: 'support',   label: 'Soporte',      icon: '\uD83C\uDFAB' },
     { id: 'feedback',  label: 'Valoraciones', icon: '\uD83D\uDCAC' },
   ];
+  // El rol Admin no gestiona tickets desde su propio panel — eso le corresponde al rol Soporte.
+  const tabs = isAdmin ? allTabs.filter(t => t.id !== 'support') : allTabs;
+
   return (
     <div style={{
       display: 'flex', background: 'var(--gray-50)',
@@ -341,7 +344,7 @@ function FavoritesTab() {
             )}
           </h2>
         </div>
-        
+        <a
           href="/vocabulary"
           style={{ fontSize: '0.85rem', color: 'var(--violet)', fontWeight: 600, textDecoration: 'none' }}
         >
@@ -429,8 +432,10 @@ function FavoritesTab() {
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   open:        { label: 'Abierto',    color: '#b45309', bg: '#fef3c7' },
+  pending:     { label: 'Pendiente',  color: '#b45309', bg: '#fef3c7' },
   in_progress: { label: 'En proceso', color: '#7c3aed', bg: 'var(--violet-light)' },
-  closed:      { label: 'Cerrado',   color: '#15803d', bg: '#f0fdf4' },
+  resolved:    { label: 'Resuelto',   color: '#15803d', bg: '#f0fdf4' },
+  closed:      { label: 'Cerrado',    color: 'var(--gray-500)', bg: 'var(--gray-100)' },
 };
 
 function SupportTab() {
@@ -591,7 +596,7 @@ function SupportTab() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {tickets.map((t, i) => {
-            const st = STATUS_META[t.status ?? 'open'] ?? STATUS_META.open;
+            const st = STATUS_META[t.status ?? 'pending'] ?? STATUS_META.pending;
             // SupportOut del backend: id_support, subject, message, status, date
             const bodyText = t.message ?? t.description ?? '';
             const dateStr = t.date ?? t.created_at;
@@ -655,6 +660,9 @@ function FeedbackTab() {
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  // Sesión de traducción más reciente (guardada por VoiceToSign.tsx), necesaria
+  // porque el backend exige id_session al crear un feedback.
+  const [sessionId] = useState<string | null>(() => lastSession.get());
 
   useEffect(() => {
     feedbackApi.list()
@@ -666,10 +674,15 @@ function FeedbackTab() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (rating === 0) { setFormError('Selecciona una puntuacion'); return; }
+    if (!sessionId) {
+      setFormError('Traduce algo en "Voz a Señas" primero para poder valorar esa sesión.');
+      return;
+    }
     setSubmitting(true);
     setFormError('');
     try {
       const { data } = await feedbackApi.create({
+        id_session: sessionId,
         rating,
         comment: comment.trim() || undefined,
       });
@@ -712,13 +725,16 @@ function FeedbackTab() {
             Valoraciones de sesion
           </h2>
         </div>
-        <Btn size="sm" onClick={() => setShowForm(f => !f)}>
-          {showForm ? 'Cancelar' : '+ Nueva valoracion'}
+        <Btn size="sm" onClick={() => setShowForm(f => !f)} disabled={!sessionId}>
+          {showForm ? 'Cancelar' : (sessionId ? '+ Nueva valoracion' : 'Traduce algo primero')}
         </Btn>
       </div>
 
       {error && <Alert type="error" message={error} />}
       {success && <Alert type="success" message={success} />}
+      {!sessionId && !error && (
+        <Alert type="info" message='Para dejar una valoracion, primero traduce algo en "Voz a Señas".' />
+      )}
 
       {/* Promedio */}
       {avgRating !== null && (
@@ -865,7 +881,7 @@ function FeedbackTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function UserDashboard() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [activeTab, setActiveTab] = useState<DashTab>('overview');
   const [data, setData] = useState<UserDashboardRow | null>(null);
   const [loading, setLoading] = useState(true);
@@ -877,6 +893,14 @@ export default function UserDashboard() {
       .catch(() => setError('No se pudo cargar el panel'))
       .finally(() => setLoading(false));
   }, []);
+
+  // Si el rol es Admin y por algún motivo quedó activa la pestaña "support"
+  // (p. ej. quedó guardada de una sesión anterior), la regresamos a "overview".
+  useEffect(() => {
+    if (isAdmin && activeTab === 'support') {
+      setActiveTab('overview');
+    }
+  }, [isAdmin, activeTab]);
 
   return (
     <>
@@ -898,11 +922,11 @@ export default function UserDashboard() {
         </p>
       </div>
 
-      <TabBar active={activeTab} onChange={setActiveTab} />
+      <TabBar active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
 
       {activeTab === 'overview'  && <OverviewTab data={data} loading={loading} error={error} />}
       {activeTab === 'favorites' && <FavoritesTab />}
-      {activeTab === 'support'   && <SupportTab />}
+      {activeTab === 'support' && !isAdmin && <SupportTab />}
       {activeTab === 'feedback'  && <FeedbackTab />}
     </>
   );

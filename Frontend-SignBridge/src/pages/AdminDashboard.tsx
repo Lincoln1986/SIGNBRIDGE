@@ -5,6 +5,7 @@ import type { AdminDashboardRow, SystemStats, LexicalUnitAdmin, RoleOption } fro
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 import { VideoModal, NewWordModal, DeleteConfirmModal } from '../components/VocabModals';
 import { useAuth } from '../context/AuthContext';
+import { MetricsBarChart, RatingGauge, RoleDistributionChart, RegionDistributionChart } from '../components/StatsCharts';
 
 const PAGE_SIZE = 8;
 
@@ -93,27 +94,23 @@ function RoleModal({
 }) {
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [rolesLoading, setRolesLoading] = useState(true);
-  const [selected, setSelected] = useState(user.role_name);  // guardamos role_name
+  const [selected, setSelected] = useState(user.role_name);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
 
-  // Cargar roles reales del backend al abrir el modal
   useEffect(() => {
     dashboardApi.roles()
       .then(r => {
         const data = r.data;
-        // El endpoint puede devolver distintas formas — normalizar
         if (Array.isArray(data) && data.length > 0) {
           setRoles(data);
         }
       })
       .catch(() => {
-        // Fallback: roles conocidos sin ID (el submit usará role_name de todos modos)
         setRoles([
-          { id_role: 'usuario',       role_name: 'Usuario' },
+          { id_role: 'cliente',       role_name: 'Cliente' },
           { id_role: 'administrador', role_name: 'Administrador' },
           { id_role: 'soporte',       role_name: 'Soporte' },
-          { id_role: 'moderador',     role_name: 'Moderador' },
         ]);
       })
       .finally(() => setRolesLoading(false));
@@ -124,7 +121,6 @@ function RoleModal({
     setSaving(true);
     setErr('');
     try {
-      // Usa PATCH /dashboard/users/:id/role con { role_name } — acepta el nombre directamente
       await adminUsersApi.updateRole(user.id_user, selected);
       onSaved(user.id_user, selected);
       onClose();
@@ -226,7 +222,6 @@ function UsersTab({
     setTimeout(() => setFlashMsg(''), 3000);
   };
 
-  // Toggle activo/inactivo
   const handleToggleStatus = async (row: AdminDashboardRow) => {
     if (!row.id_user) return;
     const newStatus = !row.is_active;
@@ -244,7 +239,6 @@ function UsersTab({
     }
   };
 
-  // Exportar CSV con fetch + blob (para enviar Authorization header)
   const handleExportCsv = async () => {
     setExportLoading(true);
     try {
@@ -280,7 +274,6 @@ function UsersTab({
   const roleVariant = (role: string): 'default' | 'amber' | 'success' | 'danger' => {
     if (role.toLowerCase().includes('admin')) return 'danger';
     if (role.toLowerCase().includes('soporte')) return 'amber';
-    if (role.toLowerCase().includes('moderador')) return 'success';
     return 'default';
   };
 
@@ -305,7 +298,6 @@ function UsersTab({
       )}
 
       <Card style={{ padding: 0, overflow: 'hidden' }}>
-        {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
           <div>
             <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', color: 'var(--gray-800)' }}>
@@ -345,7 +337,6 @@ function UsersTab({
           </div>
         </div>
 
-        {/* Table */}
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
@@ -374,7 +365,6 @@ function UsersTab({
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    {/* Usuario */}
                     <td style={{ padding: '14px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
@@ -400,34 +390,22 @@ function UsersTab({
                       </div>
                     </td>
 
-                    {/* Correo */}
                     <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.email}</td>
-
-                    {/* Rol */}
                     <td style={{ padding: '14px 16px' }}><Badge label={row.role_name} variant={roleVariant(row.role_name)} /></td>
-
-                    {/* Región */}
                     <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.region}</td>
 
-                    {/* Traducciones */}
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{row.total_translations}</span>
                     </td>
-
-                    {/* Soporte */}
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: row.support_tickets > 0 ? 'var(--amber-dark)' : 'var(--gray-400)' }}>{row.support_tickets}</span>
                     </td>
-
-                    {/* Feedback */}
                     <td style={{ padding: '14px 16px', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{row.feedback_count}</span>
                     </td>
 
-                    {/* Acciones */}
                     <td style={{ padding: '14px 16px' }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-                        {/* Editar rol */}
                         {(() => {
                           const isSelf = !!(row.id_user && currentUserId && row.id_user === currentUserId);
                           return (
@@ -450,7 +428,6 @@ function UsersTab({
                           );
                         })()}
 
-                        {/* Toggle estado */}
                         <button
                           onClick={() => handleToggleStatus(row)}
                           disabled={!row.id_user || isToggling}
@@ -479,7 +456,6 @@ function UsersTab({
           </table>
         </div>
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div style={{ padding: '16px 24px', borderTop: '1px solid var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
             <PaginationBtn onClick={() => setPage(1)} disabled={safePage === 1}>«</PaginationBtn>
@@ -495,7 +471,6 @@ function UsersTab({
         )}
       </Card>
 
-      {/* Modal de edición de rol */}
       {roleTarget && (
         <RoleModal
           user={roleTarget}
@@ -655,7 +630,7 @@ function VocabularyTab() {
 
 // ── Stats tab ──────────────────────────────────────────────────────────────
 
-function StatsTab({ stats, loading }: { stats: SystemStats | null; loading: boolean }) {
+function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: AdminDashboardRow[]; loading: boolean }) {
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><Spinner size={36} /></div>;
 
   if (!stats) return (
@@ -668,11 +643,11 @@ function StatsTab({ stats, loading }: { stats: SystemStats | null; loading: bool
   );
 
   const statItems = [
-    { label: 'Usuarios registrados', value: stats.total_users, icon: '👥', accent: false, desc: 'Total de cuentas activas en la plataforma' },
-    { label: 'Traducciones realizadas', value: stats.total_translations, icon: '🤟', accent: true, desc: 'Total acumulado de traducciones LSC' },
-    { label: 'Tickets de soporte', value: stats.total_support_requests, icon: '🎫', accent: false, desc: 'Solicitudes de ayuda enviadas por usuarios' },
-    { label: 'Feedback recibido', value: stats.total_feedback, icon: '💬', accent: true, desc: 'Valoraciones y comentarios de sesiones' },
-    { label: 'Valoración promedio', value: stats.average_rating ? `${stats.average_rating.toFixed(1)} / 5` : '—', icon: '⭐', accent: false, desc: 'Satisfacción media de los usuarios' },
+    { label: 'Usuarios registrados', value: stats.total_users, icon: '👥', accent: false },
+    { label: 'Traducciones realizadas', value: stats.total_translations, icon: '🤟', accent: true },
+    { label: 'Tickets de soporte', value: stats.total_support_requests, icon: '🎫', accent: false },
+    { label: 'Feedback recibido', value: stats.total_feedback, icon: '💬', accent: true },
+    { label: 'Valoración promedio', value: stats.average_rating ? `${stats.average_rating.toFixed(1)} / 5` : '—', icon: '⭐', accent: false },
   ];
 
   return (
@@ -683,26 +658,36 @@ function StatsTab({ stats, loading }: { stats: SystemStats | null; loading: bool
         ))}
       </div>
 
-      {/* Detail cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-        {statItems.map(s => (
-          <Card key={s.label} style={{ display: 'flex', gap: 14, alignItems: 'center', padding: 18 }}>
-            <div style={{
-              width: 44, height: 44, borderRadius: 12, flexShrink: 0,
-              background: s.accent ? 'var(--amber-light)' : 'var(--violet-light)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem',
-            }}>
-              {s.icon}
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '1.3rem', fontFamily: 'var(--font-display)', color: 'var(--gray-800)' }}>
-                {s.value}
-              </div>
-              <div style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--gray-800)' }}>{s.label}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: 2 }}>{s.desc}</div>
-            </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
+        <Card>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: 'var(--gray-800)' }}>
+            Comparativa de métricas
+          </h3>
+          <MetricsBarChart stats={stats} />
+        </Card>
+
+        <Card>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: 'var(--gray-800)' }}>
+            Usuarios por rol
+          </h3>
+          <RoleDistributionChart rows={rows} />
+        </Card>
+
+        <Card>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: 'var(--gray-800)' }}>
+            Usuarios por región
+          </h3>
+          <RegionDistributionChart rows={rows} />
+        </Card>
+
+        {stats.average_rating != null && (
+          <Card>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 4, color: 'var(--gray-800)' }}>
+              Valoración promedio
+            </h3>
+            <RatingGauge rating={stats.average_rating} />
           </Card>
-        ))}
+        )}
       </div>
     </div>
   );
@@ -720,12 +705,10 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     Promise.all([
-      adminUsersApi.list(),       // GET /admin/users — incluye id_user
-      dashboardApi.stats(),       // GET /dashboard/stats — estadísticas globales
+      adminUsersApi.list(),
+      dashboardApi.stats(),
     ])
       .then(([r1, r2]) => {
-        // UserAdminRow no tiene métricas (traducciones, tickets, feedback).
-        // Combinamos con /dashboard/admin por email para completar los conteos.
         const adminRows = r1.data;
         dashboardApi.admin()
           .then(r3 => {
@@ -739,7 +722,6 @@ export default function AdminDashboard() {
             setRows(merged);
           })
           .catch(() => {
-            // Si falla /dashboard/admin igual mostramos usuarios sin métricas
             setRows(adminRows.map(u => ({
               ...u,
               total_translations: 0,
@@ -755,7 +737,6 @@ export default function AdminDashboard() {
 
   return (
     <>
-      {/* Header */}
       <div style={{ marginBottom: 24 }}>
         <p style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--amber)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           Panel de administración
@@ -765,10 +746,8 @@ export default function AdminDashboard() {
         </h1>
       </div>
 
-      {/* Tab bar */}
       <TabBar active={activeTab} onChange={setActiveTab} />
 
-      {/* Tab content */}
       {activeTab === 'users' && (
         <UsersTab
           rows={rows}
@@ -779,7 +758,7 @@ export default function AdminDashboard() {
         />
       )}
       {activeTab === 'vocabulary' && <VocabularyTab />}
-      {activeTab === 'stats' && <StatsTab stats={stats} loading={loading} />}
+      {activeTab === 'stats' && <StatsTab stats={stats} rows={rows} loading={loading} />}
     </>
   );
 }

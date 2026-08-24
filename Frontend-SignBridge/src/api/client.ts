@@ -308,7 +308,21 @@ export const feedbackApi = {
       rating: data.rating,
       comment: data.comment ?? null,
     }),
+  /** GET /feedback/all — todas las valoraciones con datos del usuario (rol Soporte/Admin) */
+  listAll: () => api.get<FeedbackItemWithUser[]>('/feedback/all'),
+  /** PATCH /feedback/{id}/review — marca/desmarca una valoración como revisada (rol Soporte/Admin) */
+  setReviewed: (id_feedback: string, is_reviewed: boolean) =>
+    api.patch<FeedbackItem>(`/feedback/${id_feedback}/review`, { is_reviewed }),
+  /** DELETE /feedback/{id} — elimina (oculta) una valoración (rol Soporte/Admin) */
+  remove: (id_feedback: string) =>
+    api.delete(`/feedback/${id_feedback}`),
 };
+
+export interface FeedbackItemWithUser extends FeedbackItem {
+  user_full_name: string;
+  user_email: string;
+  is_reviewed?: boolean;
+}
 
 // ── Support tickets ────────────────────────────────────────────────────────
 
@@ -323,7 +337,17 @@ export const supportApi = {
       subject: data.subject,
       message: data.description,
     }),
+  /** GET /support/all — todos los tickets con datos del usuario (rol Soporte/Admin) */
+  listAll: () => api.get<SupportTicketWithUser[]>('/support/all'),
+  /** PATCH /support/{id}/status — cambia el estado de un ticket (rol Soporte/Admin) */
+  updateStatus: (id_support: string, status: 'pending' | 'in_progress' | 'resolved' | 'closed') =>
+    api.patch<SupportTicket>(`/support/${id_support}/status`, { status }),
 };
+
+export interface SupportTicketWithUser extends SupportTicket {
+  user_full_name: string;
+  user_email: string;
+}
 
 // ── Favorite words ─────────────────────────────────────────────────────────
 
@@ -343,4 +367,17 @@ export const favoritesApi = {
   /** No existe DELETE — usar toggle() que hace remove si ya es favorito */
   remove: (id_lexicalunit: string) =>
     api.post<FavoriteWordToggle>(`/favorites/${id_lexicalunit}`),
+};
+
+// ── Última sesión de traducción (para feedback general en "Mi Panel") ──────
+// Se guarda el id_session real cada vez que VoiceToSign.tsx genera una
+// traducción exitosa. UserDashboard.tsx (pestaña Valoraciones) la usa como
+// sesión a valorar, ya que ese formulario no tiene contexto de sesión propio.
+
+const LAST_SESSION_KEY = 'lastSessionId';
+
+export const lastSession = {
+  get: (): string | null => localStorage.getItem(LAST_SESSION_KEY),
+  set: (id: string) => localStorage.setItem(LAST_SESSION_KEY, id),
+  clear: () => localStorage.removeItem(LAST_SESSION_KEY),
 };
