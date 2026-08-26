@@ -62,7 +62,8 @@ SIGNBRIDGE/
 │   └── Dockerfile                # Imagen Docker del frontend
 │
 ├── Base-de-datos/               # Estructura y respaldos de PostgreSQL
-│   └── schema.sql                # Estructura actual de la base (referencia rápida)
+│   ├── schema.sql                # Estructura actual de la base (referencia rápida, sin datos)
+│   └── full_backup.sql           # Respaldo completo (estructura + datos reales) — NO se sube al repo
 │
 ├── DOCS/                         # Documentos del proyecto formativo
 ├── docker-compose.yml            # Levanta backend + frontend + postgres juntos
@@ -104,7 +105,7 @@ Todos los modelos usan UUIDs como PK y campos `created_at`, `updated_at`, `delet
 | Modelo | Tabla | Descripción |
 |---|---|---|
 | `User` | `User` | Nombre, email, contraseña hasheada, rol, región, estado activo |
-| `Role` | `Role` | Roles del sistema (`Administrador`, `Soporte`, `Usuario`) |
+| `Role` | `Role` | Roles del sistema (`Administrador`, `Soporte`, `Cliente`) |
 | `Region` | `Region` | Regiones/ciudades de Colombia |
 | `TranslationSession` | `TranslationSession` | Sesiones de traducción vinculadas a un usuario |
 | `TranslationDetail` | `TranslationDetail` | Señas traducidas dentro de cada sesión (orden preservado) |
@@ -280,12 +281,33 @@ Cliente Axios con interceptor que inyecta el `Bearer` token en cada petición y 
 
 ## Base de datos
 
-PostgreSQL. La estructura actual de tablas está respaldada en `Base-de-datos/schema.sql` (solo estructura, sin datos) — útil como referencia rápida sin tener que levantar Docker. Los cambios incrementales al esquema viven versionados en `Backend-SignBridge/migrations/`, aplicados en el orden en que aparecen ahí.
+PostgreSQL 17+. La estructura actual de tablas está respaldada en `Base-de-datos/schema.sql` (solo estructura, sin datos) — útil como referencia rápida sin tener que levantar Docker. Los cambios incrementales al esquema viven versionados en `Backend-SignBridge/migrations/`, aplicados en el orden en que aparecen ahí.
 
 Para regenerar `schema.sql` después de un cambio importante en la base:
 
 ```bash
 docker exec -t signbridge_postgres pg_dump -U postgres -d signbridge --schema-only > Base-de-datos/schema.sql
+```
+
+### Respaldo completo (`full_backup.sql`)
+
+Además del `schema.sql`, existe un `full_backup.sql`: un `pg_dump` completo (estructura **+ datos reales** — usuarios, mensajes, feedback). Es un dump generado con PostgreSQL 17.11 y usa las directivas `\restrict` / `\unrestrict`, por lo que **requiere Postgres 17 o superior** para restaurarse sin errores.
+
+Este archivo hace `DROP TABLE`/`DROP VIEW`/`DROP TRIGGER` antes de recrear todo, así que reemplaza por completo el contenido de la base al restaurarse — no hace falta correr migraciones ni `seed.sql` por separado si se usa este archivo.
+
+> ⚠️ **`full_backup.sql` contiene datos reales de usuarios (emails, hashes de contraseña) y NO debe subirse al repositorio público.** Se comparte solo entre el equipo por un canal privado (ej. Google Drive).
+
+Para restaurarlo dentro del contenedor de Docker:
+
+```bash
+docker cp full_backup.sql signbridge_postgres:/tmp/full_backup.sql
+docker exec -it signbridge_postgres psql -U postgres -d signbridge -f /tmp/full_backup.sql
+```
+
+Verificación rápida después de restaurar:
+
+```bash
+docker exec -it signbridge_postgres psql -U postgres -d signbridge -c "SELECT role_name FROM \"Role\";"
 ```
 
 ---
@@ -296,7 +318,7 @@ docker exec -t signbridge_postgres pg_dump -U postgres -d signbridge --schema-on
 |---|---|
 | Frontend | React 19, TypeScript 6, Vite 8, React Router 7, Axios |
 | Backend | Python 3.11, FastAPI 0.111, SQLAlchemy 2, Pydantic v2 |
-| Base de datos | PostgreSQL (vistas SQL para dashboards) |
+| Base de datos | PostgreSQL 17+ (vistas SQL para dashboards) |
 | Autenticación | JWT Bearer (HS256), bcrypt |
 | IA / Visión | MediaPipe 0.10 (detección de manos), Pillow, NumPy |
 | Correo | aiosmtplib + Mailtrap SMTP (plantillas HTML responsivas) |
@@ -341,13 +363,49 @@ FRONTEND_URL=http://localhost:5173
 
 ### Opción recomendada: Docker Compose (levanta todo junto)
 
-Desde la raíz del repo:
+El `docker-compose.yml` de la raíz levanta únicamente tres servicios: `postgres` (imagen `postgres:17`), `backend` y `frontend`. Requiere que las carpetas `Backend-SignBridge/` y `Frontend-SignBridge/` existan como hermanas de la carpeta donde vive el `docker-compose.yml` (los `context:` del compose apuntan con rutas relativas `../Backend-SignBridge` y `../Frontend-SignBridge`).
 
-```bash
-docker-compose up
-```
+1. **Clonar el repo y verificar la estructura de carpetas**
 
-Esto levanta backend (`:8000`), frontend (`:5173`) y PostgreSQL (`:5432`) juntos, con el código montado en vivo (los cambios se reflejan sin reconstruir la imagen).
+   ```bash
+   git clone https://github.com/Lincoln1986/SIGNBRIDGE.git
+   cd SIGNBRIDGE
+   ```
+
+   Confirma que `Backend-SignBridge/` y `Frontend-SignBridge/` quedaron con esos nombres exactos (sensibles a mayúsculas/minúsculas en Linux/Mac); si tu copia local usa otros nombres, ajusta las rutas `context:` y `volumes:` del `docker-compose.yml` para que coincidan.
+
+2. **Levantar los contenedores**
+
+   ```bash
+   docker-compose up -d --build
+   ```
+
+   Esto levanta backend (`:8000`), frontend (`:5173`) y PostgreSQL (`:5432`) juntos, con el código montado en vivo (los cambios se reflejan sin reconstruir la imagen, salvo cambios en dependencias).
+
+3. **Verificar que los tres contenedores están arriba**
+
+   ```bash
+   docker ps
+   ```
+
+   Deberías ver `signbridge_postgres`, `signbridge_backend` y `signbridge_frontend` con estado `Up`. Si alguno falla, revisa `docker-compose logs <servicio>`.
+
+4. **Cargar los datos en la base**
+
+   Elige una de las dos opciones:
+
+   - **Con datos reales** (recomendado si tienes acceso al respaldo del equipo): restaura `full_backup.sql` como se explica en la sección [Respaldo completo](#respaldo-completo-full_backupsql) más arriba.
+   - **Con datos ficticios de demo**: aplica primero la estructura (`Base-de-datos/schema.sql` y las migraciones de `Backend-SignBridge/migrations/` en orden) y luego corre `seed.sql`:
+
+     ```bash
+     docker exec -i signbridge_postgres psql -U postgres -d signbridge < seed.sql
+     ```
+
+     Esto crea vocabulario de ejemplo y una cuenta demo por rol (`admin@demo.signbridge.com`, `soporte@demo.signbridge.com`, `cliente@demo.signbridge.com`), todas con contraseña `Demo1234!`.
+
+5. **Probar la aplicación**
+
+   Entra a `http://localhost:5173`. El backend queda disponible en `http://localhost:8000/docs` (Swagger) para probar endpoints directamente.
 
 ### Backend (manual, sin Docker)
 
@@ -378,16 +436,6 @@ npm run dev
 ```
 
 La app queda en `http://localhost:5173`. El cliente Axios apunta por defecto a `http://localhost:8000`.
-
-### Compartir la app fuera de la red local (túnel temporal)
-
-Con backend y frontend corriendo, en una tercera terminal:
-
-```bash
-cloudflared tunnel --url http://localhost:5173
-```
-
-Copiá la URL `https://algo-random.trycloudflare.com` que imprime, actualizá `FRONTEND_URL` en `Backend-SignBridge/.env` con esa URL, y reiniciá el backend para que tome el cambio (obligatorio — sin este paso el registro/login falla por CORS).
 
 ---
 
