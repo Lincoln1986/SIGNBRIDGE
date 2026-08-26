@@ -1,50 +1,6 @@
 version: "3.9"
 
 services:
-  mysql:
-    image: mysql:8
-    container_name: signbridge_mysql
-    restart: always
-    environment:
-      MYSQL_ROOT_PASSWORD: admin
-      MYSQL_DATABASE: signbridge
-      MYSQL_USER: user
-      MYSQL_PASSWORD: user123
-    ports:
-      - "3306:3306"
-    volumes:
-      - mysql_data:/var/lib/mysql
-
-  mongo:
-    image: mongo:7
-    container_name: signbridge_mongo
-    restart: always
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-
-  mongo-express:
-    image: mongo-express
-    container_name: signbridge_mongo_ui
-    restart: always
-    ports:
-      - "8081:8081"
-    environment:
-      ME_CONFIG_MONGODB_SERVER: mongo
-      ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-      ME_CONFIG_MONGODB_ADMINPASSWORD: admin
-
-  redis:
-    image: redis:7
-    container_name: signbridge_redis
-    restart: always
-    ports:
-      - "6379:6379"
-    command: redis-server --requirepass admin
-    volumes:
-      - redis_data:/data
-
   postgres:
     image: postgres:17
     container_name: signbridge_postgres
@@ -60,14 +16,14 @@ services:
 
   backend:
     build:
-      context: ../Backend-signbringe
+      context: ../Backend-SignBridge
       dockerfile: Dockerfile
     container_name: signbridge_backend
     restart: always
     ports:
       - "8000:8000"
     volumes:
-      - ../Backend-signbringe:/app
+      - ../Backend-SignBridge:/app
     environment:
       DATABASE_URL: postgresql://postgres:admin@postgres:5432/signbridge
       SECRET_KEY: cualquier_clave_larga_aqui_ej_signbridge2026
@@ -82,7 +38,7 @@ services:
 
   frontend:
     build:
-      context: ../signbridge-frontend
+      context: ../Frontend-SignBridge
       dockerfile: Dockerfile
     container_name: signbridge_frontend
     restart: always
@@ -91,13 +47,10 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000
     volumes:
-      - ../signbridge-frontend:/app
+      - ../Frontend-SignBridge:/app
       - /app/node_modules
     depends_on:
       - backend
 
 volumes:
-  mysql_data:
-  mongo_data:
-  redis_data:
   postgres_data:
