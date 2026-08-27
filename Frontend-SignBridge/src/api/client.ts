@@ -44,10 +44,8 @@ export interface UserProfile {
   city?: string;
 }
 
-// ── Admin user management ──────────────────────────────────────────────────
-
 export interface AdminDashboardRow {
-  id_user?: string;      // presente en UserAdminRow (/admin/users), ausente en AdminDashboardRow (/dashboard/admin)
+  id_user?: string;
   full_name: string;
   email: string;
   role_name: string;
@@ -82,7 +80,7 @@ export interface SystemStats {
 }
 
 export interface LexicalUnit {
-  id_lexicalunit?: string;   // presente si el backend lo incluye en la respuesta pública
+  id_lexicalunit?: string;
   text: string;
   language: string;
   created_at: string;
@@ -99,8 +97,6 @@ export interface LexicalUnitAdmin {
   video_url?: string;
 }
 
-// ── Translation Types ──────────────────────────────────────────────────────
-
 export interface SignToTextResponse {
   detected_sign?: string | null;
   confidence?: number | null;
@@ -109,18 +105,17 @@ export interface SignToTextResponse {
 
 export interface TextToSignResponse {
   original_text?: string;
-  id_session: string;           // el backend siempre lo devuelve — guardarlo para feedback
+  id_session: string;
   signs: SignUnit[];
   untranslated_words?: string[];
   message?: string;
-  // campos legacy que usaba el frontend antes de conectar al backend real
   video_url?: string;
   animation_url?: string;
 }
 
 export interface VozToSignResponse {
   texto_reconocido?: string;
-  id_session: string;           // igual que texto — guardarlo para feedback
+  id_session: string;
   signs: SignUnit[];
   untranslated_words?: string[];
   message?: string;
@@ -132,47 +127,104 @@ export interface SignUnit {
   found: boolean;
 }
 
-// ── Feedback, Support & Favorites ─────────────────────────────────────────
-
 export interface FeedbackItem {
   id_feedback?: string;
   id_session?: string;
-  rating: number;         // 1-5
+  rating: number;
   comment?: string;
-  date?: string;          // el backend devuelve "date", no "created_at"
-  created_at?: string;    // alias por compatibilidad
+  date?: string;
+  created_at?: string;
 }
 
 export interface SupportTicket {
-  id_support?: string;    // el backend devuelve "id_support"
-  id_ticket?: string;     // alias por compatibilidad
+  id_support?: string;
+  id_ticket?: string;
   id_user?: string;
   subject: string;
-  message?: string;       // el backend usa "message", no "description"
-  description?: string;   // alias por compatibilidad
-  status?: 'open' | 'in_progress' | 'closed' | string;
-  date?: string;          // el backend devuelve "date"
-  created_at?: string;    // alias por compatibilidad
+  message?: string;
+  description?: string;
+  status?: 'open' | 'in_progress' | 'resolved' | 'closed' | string;
+  date?: string;
+  created_at?: string;
+  has_response?: boolean;
 }
 
 export interface FavoriteWord {
   id_favorite: string;
-  id_lexicalunit: string;   // el backend devuelve "id_lexicalunit"
-  lexical_unit_id?: string; // alias por compatibilidad
-  word_text: string;        // el backend devuelve "word_text", no "text"
-  text?: string;            // alias por compatibilidad
+  id_lexicalunit: string;
+  lexical_unit_id?: string;
+  word_text: string;
+  text?: string;
   language?: string;
   video_url?: string;
   times_used?: number;
   created_at?: string;
 }
 
-// Schema FavoriteWordToggle — respuesta del POST toggle
 export interface FavoriteWordToggle {
   action: 'added' | 'removed';
   id_lexicalunit: string;
   word_text?: string;
   id_favorite?: string;
+}
+
+export interface SupportResponseItem {
+  id_response: string;
+  id_support: string;
+  id_responder: string;
+  content: string;
+  is_auto: boolean;
+  created_at: string;
+  responder_name?: string;
+}
+
+export interface NotificationItem {
+  id_notification: string;
+  title: string;
+  message: string;
+  type: string;
+  is_read: boolean;
+  link?: string;
+  created_at: string;
+}
+
+export interface WordRatingItem {
+  id_word_rating: string;
+  id_lexicalunit: string;
+  rating: number;
+  comment?: string;
+  created_at: string;
+}
+
+export interface WordRatingStats {
+  id_lexicalunit: string;
+  word: string;
+  language: string;
+  total_ratings: number;
+  avg_rating: number | null;
+  rated_by_users: number;
+}
+
+export interface MostUsedPhrase {
+  id_lexicalunit: string;
+  phrase: string;
+  language: string;
+  times_used: number;
+  unique_users: number;
+  video_url?: string;
+}
+
+export interface UserInteractionStats {
+  id_user: string;
+  full_name: string;
+  email: string;
+  total_sessions: number;
+  voice_to_sign_sessions: number;
+  sign_to_text_sessions: number;
+  favorites_count: number;
+  words_translated: number;
+  feedbacks_given: number;
+  last_session_date?: string;
 }
 
 // ── Auth ───────────────────────────────────────────────────────────────────
@@ -182,32 +234,22 @@ export const authApi = {
     first_name: string;
     last_name: string;
     phone: string;
-    city: string;       // requerido por el backend
-    address: string;    // requerido por el backend
+    city: string;
+    address: string;
     email: string;
     password: string;
     middle_name?: string;
     second_last_name?: string;
     id_region?: string;
   }) => api.post('/auth/register', data),
-
   login: (email: string, password: string) =>
     api.post<TokenResponse>('/auth/login', { email, password }),
-
   me: () => api.get<UserProfile>('/auth/me'),
-
   forgotPassword: (email: string) =>
     api.post('/auth/forgot-password', { email }),
-
   resetPassword: (token: string, new_password: string) =>
     api.post('/auth/reset-password', { token, new_password }),
-
-  /** Devuelve lista de ciudades colombianas desde el backend.
-   *  Soporta dos formatos de respuesta:
-   *  - string[]  (e.g. ["Bogotá","Medellín",...])
-   *  - {id_region, region_name, department}[]  */
-  getCities: () =>
-    api.get<string[] | { id_region?: string; region_name?: string; name?: string; city?: string; department?: string }[]>('/auth/cities'),
+  getCities: () => api.get('/regions'),
 };
 
 // ── Dashboard ──────────────────────────────────────────────────────────────
@@ -230,64 +272,33 @@ export const dashboardApi = {
 // ── Admin users CRUD ───────────────────────────────────────────────────────
 
 export const adminUsersApi = {
-  /** GET /admin/users — lista usuarios, filtro opcional por estado */
   list: (is_active?: boolean) =>
     api.get<AdminDashboardRow[]>('/admin/users', {
       params: is_active !== undefined ? { is_active } : undefined,
     }),
-
-  /**
-   * PATCH /dashboard/users/:id/role — cambia el rol usando el nombre del rol.
-   * Usa este endpoint (no /admin/users/:id/role) porque acepta { role_name }
-   * directamente sin necesitar el UUID del rol.
-   */
   updateRole: (id: string, role_name: string) =>
     api.patch(`/dashboard/users/${id}/role`, { role_name }),
-
-  /** PATCH /admin/users/:id/status — activa o desactiva el usuario */
   setActive: (id: string, is_active: boolean) =>
     api.patch(`/admin/users/${id}/status`, { is_active }),
-
-  /**
-   * GET /admin/users/export — descarga CSV con Authorization Bearer.
-   * Devuelve un Blob para forzar la descarga en el cliente.
-   */
-  exportCsv: () =>
-    api.get('/admin/users/export', { responseType: 'blob' }),
+  exportCsv: () => api.get('/admin/users/export', { responseType: 'blob' }),
 };
 
 // ── Translation ────────────────────────────────────────────────────────────
 
 export const translationApi = {
-  /**
-   * POST /api/traduccion/frame — detecta seña desde frame base64.
-   * Campo del backend: "frame_base64" (no "frame").
-   * FrameResponse NO devuelve id_session — SignToText no puede vincular feedback.
-   */
   signToText: (frame_base64: string, session_id?: string) =>
     api.post<SignToTextResponse>('/api/traduccion/frame', {
       frame_base64,
       ...(session_id ? { session_id } : {}),
     }),
-
-  /**
-   * POST /api/traduccion/texto — traduce texto a secuencia de señas LSC.
-   * Devuelve id_session — guardarlo en el frontend para feedback.
-   */
   textToSign: (texto: string, session_id?: string) =>
     api.post<TextToSignResponse>('/api/traduccion/texto', {
       texto,
       ...(session_id ? { session_id } : {}),
     }),
-
-  /**
-   * POST /api/traduccion/voz — traduce texto dictado por voz a señas LSC.
-   * Devuelve id_session — guardarlo en el frontend para feedback.
-   */
   vozToSign: (texto_dictado: string, session_id?: string, idioma = 'es-CO') =>
     api.post<VozToSignResponse>('/api/traduccion/voz', {
-      texto_dictado,
-      idioma,
+      texto_dictado, idioma,
       ...(session_id ? { session_id } : {}),
     }),
 };
@@ -295,27 +306,15 @@ export const translationApi = {
 // ── Feedback ───────────────────────────────────────────────────────────────
 
 export const feedbackApi = {
-  /** GET /feedback/my — historial de valoraciones del usuario */
   list: () => api.get<FeedbackItem[]>('/feedback/my'),
-  /**
-   * POST /feedback — registra feedback para una sesión de traducción.
-   * id_session es obligatorio y debe venir de la respuesta de /api/traduccion/texto
-   * o /api/traduccion/voz — no se genera artificialmente.
-   */
   create: (data: { id_session: string; rating: number; comment?: string }) =>
     api.post<FeedbackItem>('/feedback', {
-      id_session: data.id_session,
-      rating: data.rating,
-      comment: data.comment ?? null,
+      id_session: data.id_session, rating: data.rating, comment: data.comment ?? null,
     }),
-  /** GET /feedback/all — todas las valoraciones con datos del usuario (rol Soporte/Admin) */
   listAll: () => api.get<FeedbackItemWithUser[]>('/feedback/all'),
-  /** PATCH /feedback/{id}/review — marca/desmarca una valoración como revisada (rol Soporte/Admin) */
   setReviewed: (id_feedback: string, is_reviewed: boolean) =>
     api.patch<FeedbackItem>(`/feedback/${id_feedback}/review`, { is_reviewed }),
-  /** DELETE /feedback/{id} — elimina (oculta) una valoración (rol Soporte/Admin) */
-  remove: (id_feedback: string) =>
-    api.delete(`/feedback/${id_feedback}`),
+  remove: (id_feedback: string) => api.delete(`/feedback/${id_feedback}`),
 };
 
 export interface FeedbackItemWithUser extends FeedbackItem {
@@ -327,52 +326,67 @@ export interface FeedbackItemWithUser extends FeedbackItem {
 // ── Support tickets ────────────────────────────────────────────────────────
 
 export const supportApi = {
-  /** GET /support/my — tickets del usuario autenticado */
   list: () => api.get<SupportTicket[]>('/support/my'),
-  /**
-   * POST /support — crea ticket. Backend espera { subject, message } (no description).
-   */
   create: (data: { subject: string; description: string }) =>
-    api.post<SupportTicket>('/support', {
-      subject: data.subject,
-      message: data.description,
-    }),
-  /** GET /support/all — todos los tickets con datos del usuario (rol Soporte/Admin) */
+    api.post<SupportTicket>('/support', { subject: data.subject, message: data.description }),
   listAll: () => api.get<SupportTicketWithUser[]>('/support/all'),
-  /** PATCH /support/{id}/status — cambia el estado de un ticket (rol Soporte/Admin) */
-  updateStatus: (id_support: string, status: 'pending' | 'in_progress' | 'resolved' | 'closed') =>
-    api.patch<SupportTicket>(`/support/${id_support}/status`, { status }),
+  updateStatus: (id_support: string, status: 'pending' | 'in_progress' | 'resolved' | 'closed', response?: string) =>
+    api.patch<SupportTicket>(`/support/${id_support}/status`, { status, response }),
+  getResponses: (id_support: string) =>
+    api.get<SupportResponseItem[]>(`/support/${id_support}/responses`),
+  respond: (id_support: string, content: string) =>
+    api.post<SupportResponseItem>(`/support/${id_support}/respond`, { content }),
+  autoRespond: (id_support: string, response_type: string = 'default') =>
+    api.post<SupportResponseItem>(`/support/${id_support}/auto-respond`, null, { params: { response_type } }),
 };
 
 export interface SupportTicketWithUser extends SupportTicket {
   user_full_name: string;
   user_email: string;
+  has_response?: boolean;
 }
 
 // ── Favorite words ─────────────────────────────────────────────────────────
 
 export const favoritesApi = {
-  /** GET /favorites/my — palabras favoritas del usuario */
   list: () => api.get<FavoriteWord[]>('/favorites/my'),
-  /**
-   * POST /favorites/:id_lexicalunit — toggle favorito.
-   * El backend lo agrega si no existe, o lo elimina si ya existe.
-   * Devuelve { action: "added" | "removed", ... }
-   */
-  toggle: (id_lexicalunit: string) =>
-    api.post<FavoriteWordToggle>(`/favorites/${id_lexicalunit}`),
-  // Mantenemos "add" como alias de toggle para compatibilidad
-  add: (id_lexicalunit: string) =>
-    api.post<FavoriteWordToggle>(`/favorites/${id_lexicalunit}`),
-  /** No existe DELETE — usar toggle() que hace remove si ya es favorito */
-  remove: (id_lexicalunit: string) =>
-    api.post<FavoriteWordToggle>(`/favorites/${id_lexicalunit}`),
+  toggle: (id_lexicalunit: string) => api.post<FavoriteWordToggle>(`/favorites/${id_lexicalunit}`),
+  add: (id_lexicalunit: string) => api.post<FavoriteWordToggle>(`/favorites/${id_lexicalunit}`),
+  remove: (id_lexicalunit: string) => api.post<FavoriteWordToggle>(`/favorites/${id_lexicalunit}`),
 };
 
-// ── Última sesión de traducción (para feedback general en "Mi Panel") ──────
-// Se guarda el id_session real cada vez que VoiceToSign.tsx genera una
-// traducción exitosa. UserDashboard.tsx (pestaña Valoraciones) la usa como
-// sesión a valorar, ya que ese formulario no tiene contexto de sesión propio.
+// ── Notifications ──────────────────────────────────────────────────────────
+
+export const notificationsApi = {
+  list: (unread_only = false, limit = 50) =>
+    api.get<NotificationItem[]>('/notifications', { params: { unread_only, limit } }),
+  unreadCount: () => api.get<{ count: number }>('/notifications/unread-count'),
+  markRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch('/notifications/read-all'),
+  remove: (id: string) => api.delete(`/notifications/${id}`),
+};
+
+// ── Word Ratings ───────────────────────────────────────────────────────────
+
+export const wordRatingsApi = {
+  create: (data: { id_lexicalunit: string; rating: number; comment?: string }) =>
+    api.post<WordRatingItem>('/word-ratings', data),
+  my: () => api.get<WordRatingItem[]>('/word-ratings/my'),
+  stats: () => api.get<WordRatingStats[]>('/word-ratings/stats'),
+  statsFor: (id_lexicalunit: string) =>
+    api.get<WordRatingStats>(`/word-ratings/stats/${id_lexicalunit}`),
+};
+
+// ── Stats ──────────────────────────────────────────────────────────────────
+
+export const statsApi = {
+  mostUsedPhrases: (limit = 20) =>
+    api.get<MostUsedPhrase[]>('/stats/most-used-phrases', { params: { limit } }),
+  userInteraction: () => api.get<UserInteractionStats[]>('/stats/user-interaction'),
+  myInteraction: () => api.get<UserInteractionStats>('/stats/my-interaction'),
+};
+
+// ── Last session ───────────────────────────────────────────────────────────
 
 const LAST_SESSION_KEY = 'lastSessionId';
 

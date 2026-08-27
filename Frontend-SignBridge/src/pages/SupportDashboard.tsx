@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { supportApi, feedbackApi } from '../api/client';
 import type { SupportTicketWithUser, FeedbackItemWithUser } from '../api/client';
 import { Card, Spinner, Alert, Badge, StatCard } from '../components/UI';
@@ -54,12 +55,15 @@ function TabBar({ active, onChange }: { active: SupportTab; onChange: (t: Suppor
 
 // ── Tickets ──────────────────────────────────────────────────────────────────
 
-function TicketsTab() {
+function TicketsTab({ isAdmin }: { isAdmin: boolean }) {
   const [tickets, setTickets] = useState<SupportTicketWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [resolveResponse, setResolveResponse] = useState('');
+  const [showResolveFor, setShowResolveFor] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -85,6 +89,28 @@ function TicketsTab() {
     }
   };
 
+  const handleResolve = async (id_support: string) => {
+    if (!resolveResponse.trim()) {
+      setError('Debes escribir una respuesta para resolver el ticket.');
+      return;
+    }
+    setUpdatingId(id_support);
+    try {
+      await supportApi.updateStatus(id_support, 'resolved', resolveResponse.trim());
+      setTickets(prev => prev.map(t =>
+        (t.id_support ?? t.id_ticket) === id_support
+          ? { ...t, status: 'resolved', has_response: true }
+          : t
+      ));
+      setShowResolveFor(null);
+      setResolveResponse('');
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'No se pudo resolver el ticket.');
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>;
   if (error) return <Alert type="error" message={error} />;
 
@@ -97,6 +123,12 @@ function TicketsTab() {
         <StatCard label="Total tickets" value={tickets.length} icon="🎫" />
         <StatCard label="Pendientes" value={pendingCount} icon="⏳" accent={pendingCount > 0} />
       </div>
+
+      {isAdmin && (
+        <div style={{ padding: '10px 16px', marginBottom: 16, borderRadius: 8, background: 'var(--violet-light)', border: '1px solid var(--violet)', fontSize: '0.82rem', color: 'var(--violet)', fontWeight: 600 }}>
+          ℹ️ Como administrador, solo puedes visualizar los tickets. El equipo de soporte es quien responde y resuelve.
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
         <button onClick={() => setStatusFilter('all')} style={{
@@ -134,6 +166,7 @@ function TicketsTab() {
                   <div style={{ flex: 1, minWidth: 220 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--gray-800)', marginBottom: 4 }}>
                       {t.subject}
+                      {t.has_response && <Badge label="Respondido" variant="success" />}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 8 }}>
                       {t.user_full_name} · {t.user_email} · {formatDate(t.date)}
@@ -149,19 +182,56 @@ function TicketsTab() {
                     }}>
                       {st.label}
                     </span>
-                    <select
-                      value={t.status ?? 'pending'}
-                      disabled={updatingId === id}
-                      onChange={e => handleStatusChange(id, e.target.value)}
-                      style={{
-                        padding: '5px 8px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
-                        fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer',
-                      }}
-                    >
-                      {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    {!isAdmin && (
+                      <select
+                        value={t.status ?? 'pending'}
+                        disabled={updatingId === id}
+                        onChange={e => handleStatusChange(id, e.target.value)}
+                        style={{
+                          padding: '5px 8px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
+                          fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer',
+                        }}
+                      >
+                        {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    )}
+                    {!isAdmin && t.status !== 'resolved' && (
+                      <button onClick={() => setShowResolveFor(showResolveFor === id ? null : id)}
+                        style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid #15803d', background: '#f0fdf4', color: '#15803d', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                        Resolver
+                      </button>
+                    )}
+                    <button onClick={() => setExpandedId(expandedId === id ? null : id)}
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--gray-200)', background: 'white', color: 'var(--gray-600)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                      {expandedId === id ? 'Ocultar respuestas' : 'Ver respuestas'}
+                    </button>
                   </div>
                 </div>
+
+                {showResolveFor === id && (
+                  <div style={{ marginTop: 12, padding: 12, background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#15803d', marginBottom: 8 }}>
+                      Resolver ticket (requiere respuesta)
+                    </div>
+                    <textarea
+                      value={resolveResponse}
+                      onChange={e => setResolveResponse(e.target.value)}
+                      placeholder="Escribe la respuesta para resolver el ticket..."
+                      rows={2}
+                      style={{ width: '100%', padding: '8px 12px', border: '1.5px solid #bbf7d0', borderRadius: 6, fontSize: '0.82rem', outline: 'none', fontFamily: 'var(--font-body)', resize: 'vertical', marginBottom: 8 }}
+                    />
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      <button onClick={() => { setShowResolveFor(null); setResolveResponse(''); }}
+                        style={{ padding: '5px 12px', borderRadius: 6, border: '1px solid var(--gray-200)', background: 'white', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)', color: 'var(--gray-600)' }}>
+                        Cancelar
+                      </button>
+                      <button onClick={() => handleResolve(id)} disabled={updatingId === id || !resolveResponse.trim()}
+                        style={{ padding: '5px 12px', borderRadius: 6, border: 'none', background: '#15803d', color: 'white', fontSize: '0.78rem', fontWeight: 600, cursor: updatingId === id ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)', opacity: !resolveResponse.trim() ? 0.5 : 1 }}>
+                        {updatingId === id ? 'Resolviendo...' : 'Confirmar resolucion'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </Card>
             );
           })}
@@ -320,6 +390,7 @@ function FeedbackAdminTab() {
 // ── Página principal ─────────────────────────────────────────────────────────
 
 export default function SupportDashboard() {
+  const { isAdmin } = useAuth();
   const [tab, setTab] = useState<SupportTab>('tickets');
 
   return (
@@ -328,10 +399,12 @@ export default function SupportDashboard() {
         Panel de Soporte
       </h1>
       <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', marginBottom: 24 }}>
-        Tickets y valoraciones de todos los usuarios de la plataforma.
+        {isAdmin
+          ? 'Visualizacion de tickets y valoraciones (solo lectura).'
+          : 'Tickets y valoraciones de todos los usuarios de la plataforma.'}
       </p>
       <TabBar active={tab} onChange={setTab} />
-      {tab === 'tickets' ? <TicketsTab /> : <FeedbackAdminTab />}
+      {tab === 'tickets' ? <TicketsTab isAdmin={isAdmin} /> : <FeedbackAdminTab />}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { dashboardApi, favoritesApi } from '../api/client';
-import type { LexicalUnit, FavoriteWord } from '../api/client';
+import { dashboardApi, favoritesApi, wordRatingsApi } from '../api/client';
+import type { LexicalUnit, FavoriteWord, WordRatingStats } from '../api/client';
 import { Card, Spinner, Alert, Badge } from '../components/UI';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -154,11 +154,13 @@ function WordCard({
   isFavorite,
   onToggleFavorite,
   onOpenLightbox,
+  ratingStats,
 }: {
   unit: LexicalUnit & { id_lexicalunit?: string };
   isFavorite: boolean;
   onToggleFavorite: (unit: LexicalUnit & { id_lexicalunit?: string }) => void;
   onOpenLightbox: (unit: LexicalUnit & { id_lexicalunit?: string }) => void;
+  ratingStats?: WordRatingStats;
 }) {
   return (
     <div
@@ -183,10 +185,10 @@ function WordCard({
         <button
           onClick={() => onOpenLightbox(unit)}
           style={{
-            display: 'block', width: '100%', aspectRatio: '16/9',
+            display: 'flex', width: '100%', aspectRatio: '16/9',
             background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
             border: 'none', cursor: 'pointer',
-            display: 'flex', flexDirection: 'column',
+            flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: 6,
           }}
         >
@@ -247,6 +249,17 @@ function WordCard({
           <div style={{ fontSize: '0.73rem', color: 'var(--gray-400)', fontWeight: 500 }}>
             {unit.language}
           </div>
+          {ratingStats && ratingStats.total_ratings > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+              <span style={{ fontSize: '0.7rem', color: '#f59e0b' }}>{'\u2605'}</span>
+              <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--gray-800)' }}>
+                {ratingStats.avg_rating?.toFixed(1)}
+              </span>
+              <span style={{ fontSize: '0.65rem', color: 'var(--gray-400)' }}>
+                ({ratingStats.total_ratings} {ratingStats.total_ratings === 1 ? 'voto' : 'votos'})
+              </span>
+            </div>
+          )}
           <div style={{ fontSize: '0.7rem', color: 'var(--gray-400)' }}>
             {formatDate(unit.created_at)}
           </div>
@@ -270,17 +283,25 @@ export default function Vocabulary() {
   const [favorites, setFavorites] = useState<FavoriteWord[]>([]);
   const [toastMsg, setToastMsg] = useState('');
   const [lightboxUnit, setLightboxUnit] = useState<(LexicalUnit & { id_lexicalunit?: string }) | null>(null);
+  const [wordRatings, setWordRatings] = useState<Map<string, WordRatingStats>>(new Map());
 
   useEffect(() => {
-    // Usar directamente el endpoint público que ya incluye id_lexicalunit.
     dashboardApi.lexicalUnits()
       .then(r => setUnits(r.data))
       .catch(() => setError('No se pudo cargar el vocabulario'))
       .finally(() => setLoading(false));
 
-    // Carga favoritos del usuario (silencioso si falla)
     favoritesApi.list()
       .then(r => setFavorites(r.data))
+      .catch(() => {});
+
+    // Cargar calificaciones promedio por palabra
+    wordRatingsApi.stats()
+      .then(r => {
+        const map = new Map<string, WordRatingStats>();
+        r.data.forEach(s => map.set(s.id_lexicalunit, s));
+        setWordRatings(map);
+      })
       .catch(() => {});
   }, []);
 
@@ -510,6 +531,7 @@ export default function Vocabulary() {
                   isFavorite={isFav(u)}
                   onToggleFavorite={handleToggleFavorite}
                   onOpenLightbox={setLightboxUnit}
+                  ratingStats={u.id_lexicalunit ? wordRatings.get(u.id_lexicalunit) : undefined}
                 />
               ))}
             </div>

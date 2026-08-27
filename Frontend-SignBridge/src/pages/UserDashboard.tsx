@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession } from '../api/client';
-import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord } from '../api/client';
+import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord, SupportResponseItem } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 
@@ -448,6 +448,9 @@ function SupportTab() {
   const [description, setDescription] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [responses, setResponses] = useState<Record<string, SupportResponseItem[]>>({});
+  const [loadingResponses, setLoadingResponses] = useState<string | null>(null);
 
   useEffect(() => {
     supportApi.list()
@@ -597,9 +600,26 @@ function SupportTab() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {tickets.map((t, i) => {
             const st = STATUS_META[t.status ?? 'pending'] ?? STATUS_META.pending;
-            // SupportOut del backend: id_support, subject, message, status, date
             const bodyText = t.message ?? t.description ?? '';
             const dateStr = t.date ?? t.created_at;
+            const ticketId = t.id_support ?? t.id_ticket ?? '';
+            const isExpanded = expandedId === ticketId;
+            const ticketResponses = responses[ticketId] ?? [];
+            const isLoadingResp = loadingResponses === ticketId;
+
+            const toggleExpand = async () => {
+              if (isExpanded) { setExpandedId(null); return; }
+              setExpandedId(ticketId);
+              if (!responses[ticketId] && ticketId) {
+                setLoadingResponses(ticketId);
+                try {
+                  const { data } = await supportApi.getResponses(ticketId);
+                  setResponses(prev => ({ ...prev, [ticketId]: data }));
+                } catch {}
+                finally { setLoadingResponses(null); }
+              }
+            };
+
             return (
               <Card key={t.id_support ?? t.id_ticket ?? i} style={{ padding: '16px 20px' }}>
                 <div style={{
@@ -609,6 +629,7 @@ function SupportTab() {
                   <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--gray-800)', marginBottom: 4 }}>
                       {t.subject}
+                      {t.has_response && <Badge label="Respuesta disponible" variant="success" />}
                     </div>
                     <p style={{ fontSize: '0.85rem', color: 'var(--gray-400)', lineHeight: 1.5, margin: 0 }}>
                       {bodyText}
@@ -621,14 +642,50 @@ function SupportTab() {
                       </div>
                     )}
                   </div>
-                  <span style={{
-                    background: st.bg, color: st.color,
-                    padding: '4px 12px', borderRadius: 20,
-                    fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
-                  }}>
-                    {st.label}
-                  </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                    <span style={{
+                      background: st.bg, color: st.color,
+                      padding: '4px 12px', borderRadius: 20,
+                      fontSize: '0.75rem', fontWeight: 700, flexShrink: 0,
+                    }}>
+                      {st.label}
+                    </span>
+                    <button onClick={toggleExpand}
+                      style={{ padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--gray-200)', background: 'white', color: 'var(--gray-600)', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                      {isExpanded ? 'Ocultar' : 'Ver respuestas'}
+                    </button>
+                  </div>
                 </div>
+                {isExpanded && (
+                  <div style={{ marginTop: 12, borderTop: '1px solid var(--gray-100)', paddingTop: 12 }}>
+                    {isLoadingResp ? (
+                      <div style={{ padding: 16, textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.82rem' }}>Cargando respuestas...</div>
+                    ) : ticketResponses.length === 0 ? (
+                      <div style={{ fontSize: '0.82rem', color: 'var(--gray-400)' }}>Sin respuestas aun.</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {ticketResponses.map(r => (
+                          <div key={r.id_response} style={{
+                            padding: '10px 14px', borderRadius: 8,
+                            background: r.is_auto ? '#fef3c7' : 'var(--violet-light)',
+                            fontSize: '0.82rem',
+                          }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                              <span style={{ fontWeight: 700, color: 'var(--gray-800)' }}>
+                                {r.responder_name || 'Soporte'}
+                                {r.is_auto && <Badge label="Auto" variant="amber" />}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--gray-400)' }}>
+                                {new Date(r.created_at).toLocaleString('es-CO')}
+                              </span>
+                            </div>
+                            <div style={{ color: 'var(--gray-600)', lineHeight: 1.5 }}>{r.content}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </Card>
             );
           })}

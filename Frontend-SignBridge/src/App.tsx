@@ -14,6 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import SupportDashboard from './pages/SupportDashboard';
 import Vocabulary from './pages/Vocabulary';
 import Stats from './pages/Stats';
+import Notifications from './pages/Notifications';
 import VoiceToSign from './pages/VoiceToSign';
 import SignToText from './pages/SignToText';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -66,6 +67,11 @@ function AppRoutes() {
       <Route path="/sign-to-text" element={
         <ProtectedRoute>
           <AppShell maxWidth={960}><SignToText /></AppShell>
+        </ProtectedRoute>
+      } />
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <AppShell maxWidth={960}><Notifications /></AppShell>
         </ProtectedRoute>
       } />
       <Route path="/stats" element={

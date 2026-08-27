@@ -124,6 +124,7 @@ async def _send(to_email: str, subject: str, html_body: str) -> None:
             username  = settings.MAIL_USERNAME,
             password  = settings.MAIL_PASSWORD,
             start_tls = True,
+            timeout   = 5,
         )
         logger.info("Correo enviado a %s — asunto: %s", to_email, subject)
     except Exception as exc:

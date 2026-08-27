@@ -4,6 +4,7 @@ from app.core.config import get_settings
 from app.routers import auth, dashboard, traduccion
 from app.routers import regions, messages, feedback, support, favorites
 from app.routers import admin_users
+from app.routers import notifications, word_ratings, stats
 
 # Importar todos los modelos para registrar relaciones en SQLAlchemy
 from app.models import user, session  # noqa: F401
@@ -22,7 +23,7 @@ app = FastAPI(
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080"],
+    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000", "http://localhost:8080", "http://localhost:5173", "http://localhost:5174", "http://localhost:5175", "http://localhost:5176", "http://localhost:5177"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -38,6 +39,9 @@ app.include_router(feedback.router)
 app.include_router(support.router)
 app.include_router(favorites.router)
 app.include_router(admin_users.router)
+app.include_router(notifications.router)
+app.include_router(word_ratings.router)
+app.include_router(stats.router)
 
 # Aliases de dashboard con prefijos directos (GET /admin/dashboard, etc.)
 from fastapi import Depends

@@ -340,9 +340,8 @@ function UsersTab({
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
-              <tr style={{ background: 'var(--gray-50)' }}>
-                {['Usuario', 'Correo', 'Rol', 'Región', 'Traducciones', 'Soporte', 'Feedback', 'Acciones'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)', whiteSpace: 'nowrap' }}>
+              <tr style={{ background: 'var(--gray-50)' }}>                    {['Usuario', 'Correo', 'Rol', 'Region', 'Trad.', 'Soporte', 'Feedback', 'Acciones'].map(h => (
+                  <th key={h} style={{ padding: '12px 10px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
                 ))}
@@ -365,10 +364,10 @@ function UsersTab({
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <td style={{ padding: '14px 16px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <td style={{ padding: '12px 10px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <div style={{
-                          width: 32, height: 32, borderRadius: '50%',
+                          width: 28, height: 28, borderRadius: '50%',
                           background: inactive ? 'var(--gray-300)' : 'var(--violet)',
                           color: 'white', display: 'flex', alignItems: 'center',
                           justifyContent: 'center', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0,
@@ -390,21 +389,21 @@ function UsersTab({
                       </div>
                     </td>
 
-                    <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.email}</td>
-                    <td style={{ padding: '14px 16px' }}><Badge label={row.role_name} variant={roleVariant(row.role_name)} /></td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.region}</td>
+                    <td style={{ padding: '12px 10px', fontSize: '0.82rem', color: 'var(--gray-600)' }}>{row.email}</td>
+                    <td style={{ padding: '12px 10px' }}><Badge label={row.role_name} variant={roleVariant(row.role_name)} /></td>
+                    <td style={{ padding: '12px 10px', fontSize: '0.82rem', color: 'var(--gray-600)' }}>{row.region}</td>
 
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{row.total_translations}</span>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--violet)', fontSize: '0.85rem' }}>{row.total_translations}</span>
                     </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <span style={{ fontWeight: 700, color: row.support_tickets > 0 ? 'var(--amber-dark)' : 'var(--gray-400)' }}>{row.support_tickets}</span>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      <span style={{ fontWeight: 700, color: row.support_tickets > 0 ? 'var(--amber-dark)' : 'var(--gray-400)', fontSize: '0.85rem' }}>{row.support_tickets}</span>
                     </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                      <span style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{row.feedback_count}</span>
+                    <td style={{ padding: '12px 8px', textAlign: 'center' }}>
+                      <span style={{ fontWeight: 700, color: 'var(--gray-600)', fontSize: '0.85rem' }}>{row.feedback_count}</span>
                     </td>
 
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '12px 8px', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         {(() => {
                           const isSelf = !!(row.id_user && currentUserId && row.id_user === currentUserId);
@@ -414,16 +413,16 @@ function UsersTab({
                               disabled={!row.id_user || isSelf}
                               title={isSelf ? 'No puedes cambiar tu propio rol' : 'Cambiar rol'}
                               style={{
-                                padding: '5px 10px', borderRadius: 6,
+                                padding: '6px 10px', borderRadius: 6,
                                 border: `1.5px solid ${isSelf ? 'var(--gray-200)' : 'var(--violet)'}`,
-                                background: 'none',
+                                background: isSelf ? 'var(--gray-100)' : 'none',
                                 color: isSelf ? 'var(--gray-400)' : 'var(--violet)',
                                 fontSize: '0.78rem', fontWeight: 600,
                                 cursor: (row.id_user && !isSelf) ? 'pointer' : 'not-allowed',
                                 fontFamily: 'var(--font-body)',
                               }}
                             >
-                              {isSelf ? '🚫 Rol' : '✏️ Rol'}
+                              {isSelf ? '🔒' : '✏️ Rol'}
                             </button>
                           );
                         })()}
@@ -433,14 +432,14 @@ function UsersTab({
                           disabled={!row.id_user || isToggling}
                           title={inactive ? 'Activar usuario' : 'Desactivar usuario'}
                           style={{
-                            padding: '5px 10px', borderRadius: 6,
+                            padding: '6px 10px', borderRadius: 6,
                             border: `1.5px solid ${inactive ? '#BBF7D0' : '#FECACA'}`,
                             background: 'none',
                             color: inactive ? '#15803D' : '#DC2626',
                             fontSize: '0.78rem', fontWeight: 600,
                             cursor: (row.id_user && !isToggling) ? 'pointer' : 'not-allowed',
                             fontFamily: 'var(--font-body)',
-                            minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
                           }}
                         >
                           {isToggling

@@ -56,6 +56,9 @@ class User(Base):
     access_logs = relationship("AccessLog", back_populates="user")
     sent_messages     = relationship("Message", foreign_keys="Message.id_sender",   back_populates="sender")
     received_messages = relationship("Message", foreign_keys="Message.id_receiver", back_populates="receiver")
+    support_responses = relationship("SupportResponse", back_populates="responder")
+    word_ratings      = relationship("WordRating", back_populates="user")
+    notifications     = relationship("Notification", back_populates="user")
 
 
 class TranslationSession(Base):
@@ -193,12 +196,14 @@ class Support(Base):
     subject = Column(String(150))
     message = Column(Text)
     status = Column(String(20), default="pending")
+    has_response = Column(Boolean, nullable=False, server_default=text("false"))
     date = Column(DateTime, server_default=func.now())
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     deleted_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="support_tickets")
+    responses = relationship("SupportResponse", back_populates="ticket", order_by="SupportResponse.created_at")
 
 
 class FavoriteWords(Base):
@@ -228,6 +233,55 @@ class AccessLog(Base):
     deleted_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="access_logs")
+
+
+class SupportResponse(Base):
+    __tablename__ = "SupportResponse"
+
+    id_response = Column(String(36), primary_key=True)
+    id_support = Column(String(36), ForeignKey("Support.id_support"), nullable=False)
+    id_responder = Column(String(36), ForeignKey("User.id_user"), nullable=False)
+    content = Column(Text, nullable=False)
+    is_auto = Column(Boolean, nullable=False, server_default=text("false"))
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    ticket = relationship("Support", back_populates="responses")
+    responder = relationship("User", back_populates="support_responses")
+
+
+class WordRating(Base):
+    __tablename__ = "WordRating"
+
+    id_word_rating = Column(String(36), primary_key=True)
+    id_lexicalunit = Column(String(36), ForeignKey("LexicalUnit.id_lexicalunit"), nullable=False)
+    id_user = Column(String(36), ForeignKey("User.id_user"), nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="word_ratings")
+    lexical_unit = relationship("LexicalUnit")
+
+
+class Notification(Base):
+    __tablename__ = "Notification"
+
+    id_notification = Column(String(36), primary_key=True)
+    id_user = Column(String(36), ForeignKey("User.id_user"), nullable=False)
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    type = Column(String(50), nullable=False, default="info")
+    is_read = Column(Boolean, nullable=False, server_default=text("false"))
+    link = Column(String(500), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="notifications")
 
 
 class SystemErrorLog(Base):

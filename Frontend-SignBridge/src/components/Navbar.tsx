@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Logo, Btn } from './UI';
+import NotificationsBell from './NotificationsBell';
 
 export function Navbar() {
   const { user, logout, isAdmin, isSupport } = useAuth();
@@ -64,6 +65,19 @@ export function Navbar() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <NotificationsBell />
+        <button
+          onClick={() => navigate('/notifications')}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-500)',
+            fontFamily: 'var(--font-body)', padding: '6px 0',
+            borderBottom: pathname === '/notifications' ? '2px solid var(--amber)' : '2px solid transparent',
+            transition: 'all 0.15s', whiteSpace: 'nowrap',
+          }}
+        >
+          {'\uD83D\uDD14'} Notificaciones
+        </button>
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--gray-800)' }}>
             {user?.full_name}
