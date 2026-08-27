@@ -183,6 +183,7 @@ class Feedback(Base):
 
     user = relationship("User", back_populates="feedbacks")
     session = relationship("TranslationSession", back_populates="feedbacks")
+    replies = relationship("FeedbackReply", back_populates="feedback")
 
 
 class Support(Base):
@@ -197,6 +198,8 @@ class Support(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     deleted_at = Column(DateTime, nullable=True)
+
+    response = Column(Text, nullable=True)
 
     user = relationship("User", back_populates="support_tickets")
 
@@ -241,3 +244,37 @@ class SystemErrorLog(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     deleted_at = Column(DateTime, nullable=True)
+
+
+class FeedbackReply(Base):
+    __tablename__ = "FeedbackReply"
+
+    id_reply = Column(String(36), primary_key=True)
+    id_feedback = Column(String(36), ForeignKey("Feedback.id_feedback"), nullable=False)
+    id_user = Column(String(36), ForeignKey("User.id_user"), nullable=False)
+    reply_text = Column(Text, nullable=False)
+    is_automatic = Column(Boolean, nullable=False, server_default=text("false"))
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    feedback = relationship("Feedback", back_populates="replies")
+    user = relationship("User")
+
+
+class Notification(Base):
+    __tablename__ = "Notification"
+
+    id_notification = Column(String(36), primary_key=True)
+    id_user = Column(String(36), ForeignKey("User.id_user"), nullable=False)
+    title = Column(String(200), nullable=False)
+    message = Column(Text, nullable=False)
+    type = Column(String(50), default="info")
+    is_read = Column(Boolean, nullable=False, server_default=text("false"))
+    related_id = Column(String(36), nullable=True)
+    related_type = Column(String(50), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now())
+    deleted_at = Column(DateTime, nullable=True)
+
+    user = relationship("User")

@@ -44,3 +44,30 @@ class FeedbackOutWithUser(FeedbackOut):
 
 class FeedbackReviewUpdate(BaseModel):
     is_reviewed: bool
+
+
+class FeedbackReplyCreate(BaseModel):
+    reply_text: str
+    is_automatic: bool = False
+
+    @field_validator("reply_text")
+    @classmethod
+    def validate_reply(cls, v: str) -> str:
+        v = v.strip()
+        if not v:
+            raise ValueError("El texto de la respuesta es obligatorio")
+        if len(v) > 2000:
+            raise ValueError("La respuesta no puede superar 2000 caracteres")
+        return v
+
+
+class FeedbackReplyOut(BaseModel):
+    id_reply: str
+    id_feedback: str
+    id_user: str
+    reply_text: str
+    is_automatic: bool = False
+    user_full_name: str = ""
+    created_at: datetime
+
+    model_config = {"from_attributes": True}

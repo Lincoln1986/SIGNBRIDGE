@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:17
@@ -16,14 +14,14 @@ services:
 
   backend:
     build:
-      context: ../Backend-SignBridge
+      context: ./Backend-SignBridge
       dockerfile: Dockerfile
     container_name: signbridge_backend
     restart: always
     ports:
       - "8000:8000"
     volumes:
-      - ../Backend-SignBridge:/app
+      - ./Backend-SignBridge:/app
     environment:
       DATABASE_URL: postgresql://postgres:admin@postgres:5432/signbridge
       SECRET_KEY: cualquier_clave_larga_aqui_ej_signbridge2026
@@ -38,7 +36,7 @@ services:
 
   frontend:
     build:
-      context: ../Frontend-SignBridge
+      context: ./Frontend-SignBridge
       dockerfile: Dockerfile
     container_name: signbridge_frontend
     restart: always
@@ -47,7 +45,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:8000
     volumes:
-      - ../Frontend-SignBridge:/app
+      - ./Frontend-SignBridge:/app
       - /app/node_modules
     depends_on:
       - backend

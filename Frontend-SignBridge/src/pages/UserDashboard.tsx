@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession } from '../api/client';
-import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord } from '../api/client';
+import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession, feedbackReplyApi, notificationsApi } from '../api/client';
+import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord, FeedbackReply, NotificationItem } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 
@@ -620,6 +620,20 @@ function SupportTab() {
                         })}
                       </div>
                     )}
+                    {/* Mostrar respuesta del equipo si existe */}
+                    {t.response && (
+                      <div style={{
+                        marginTop: 10, padding: '10px 14px', borderRadius: 8,
+                        background: '#f0fdf4', border: '1px solid #bbf7d0',
+                      }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Respuesta del equipo de soporte
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--gray-700)', lineHeight: 1.5 }}>
+                          {t.response}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <span style={{
                     background: st.bg, color: st.color,
@@ -641,6 +655,47 @@ function SupportTab() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Feedback tab
 // ─────────────────────────────────────────────────────────────────────────────
+
+// ── Feedback replies (visible to user) ─────────────────────────────────────
+
+function FeedbackReplyList({ feedbackId }: { feedbackId: string }) {
+  const [replies, setReplies] = useState<FeedbackReply[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    feedbackReplyApi.list(feedbackId)
+      .then(r => setReplies(r.data))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [feedbackId]);
+
+  if (loading || replies.length === 0) return null;
+
+  return (
+    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {replies.map(r => (
+        <div key={r.id_reply} style={{
+          padding: '8px 12px', borderRadius: 8,
+          background: '#f0fdf4', border: '1px solid #bbf7d0',
+          fontSize: '0.8rem',
+        }}>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+            <span style={{ fontWeight: 700, color: '#15803d', fontSize: '0.78rem' }}>{r.user_full_name}</span>
+            {r.is_automatic && (
+              <span style={{ fontSize: '0.65rem', background: 'var(--gray-100)', color: 'var(--gray-500)', padding: '1px 6px', borderRadius: 4 }}>
+                Automática
+              </span>
+            )}
+            <span style={{ fontSize: '0.68rem', color: 'var(--gray-400)' }}>
+              {new Date(r.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' })}
+            </span>
+          </div>
+          <div style={{ color: 'var(--gray-700)', lineHeight: 1.5 }}>{r.reply_text}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 const RATING_LABEL: Record<number, string> = {
   1: 'Muy malo',
@@ -851,13 +906,15 @@ function FeedbackTab() {
                   }}>
                     &#9733;
                   </div>
-                  <div>
+                  <div style={{ flex: 1 }}>
                     <StarRating value={fb.rating} size={18} />
                     {fb.comment && (
                       <p style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginTop: 6, lineHeight: 1.5 }}>
                         &ldquo;{fb.comment}&rdquo;
                       </p>
                     )}
+                    {/* Respuestas del equipo */}
+                    {fb.id_feedback && <FeedbackReplyList feedbackId={fb.id_feedback} />}
                   </div>
                 </div>
                 {(fb.date ?? fb.created_at) && (

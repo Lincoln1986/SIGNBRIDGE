@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { dashboardApi, favoritesApi } from '../api/client';
-import type { LexicalUnit, FavoriteWord } from '../api/client';
+import { dashboardApi, favoritesApi, statsApi } from '../api/client';
+import type { LexicalUnit, FavoriteWord, WordRating } from '../api/client';
 import { Card, Spinner, Alert, Badge } from '../components/UI';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -154,11 +154,13 @@ function WordCard({
   isFavorite,
   onToggleFavorite,
   onOpenLightbox,
+  wordRating,
 }: {
   unit: LexicalUnit & { id_lexicalunit?: string };
   isFavorite: boolean;
   onToggleFavorite: (unit: LexicalUnit & { id_lexicalunit?: string }) => void;
   onOpenLightbox: (unit: LexicalUnit & { id_lexicalunit?: string }) => void;
+  wordRating?: number | null;
 }) {
   return (
     <div
@@ -244,8 +246,21 @@ function WordCard({
           </div>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <div style={{ fontSize: '0.73rem', color: 'var(--gray-400)', fontWeight: 500 }}>
-            {unit.language}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: '0.73rem', color: 'var(--gray-400)', fontWeight: 500 }}>
+              {unit.language}
+            </div>
+            {wordRating !== null && wordRating !== undefined && (
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 3,
+                fontSize: '0.7rem', fontWeight: 700,
+                color: wordRating >= 4 ? '#15803d' : wordRating >= 3 ? '#b45309' : '#dc2626',
+                background: wordRating >= 4 ? '#f0fdf4' : wordRating >= 3 ? '#fef3c7' : '#fef2f2',
+                padding: '2px 6px', borderRadius: 6,
+              }}>
+                ⭐ {wordRating.toFixed(1)}
+              </div>
+            )}
           </div>
           <div style={{ fontSize: '0.7rem', color: 'var(--gray-400)' }}>
             {formatDate(unit.created_at)}
@@ -269,6 +284,7 @@ export default function Vocabulary() {
   const [filterVideo, setFilterVideo] = useState<'all' | 'with' | 'without'>('all');
   const [favorites, setFavorites] = useState<FavoriteWord[]>([]);
   const [toastMsg, setToastMsg] = useState('');
+  const [wordRatings, setWordRatings] = useState<Record<string, number>>({});
   const [lightboxUnit, setLightboxUnit] = useState<(LexicalUnit & { id_lexicalunit?: string }) | null>(null);
 
   useEffect(() => {
@@ -281,6 +297,15 @@ export default function Vocabulary() {
     // Carga favoritos del usuario (silencioso si falla)
     favoritesApi.list()
       .then(r => setFavorites(r.data))
+      .catch(() => {});
+
+    // Carga calificaciones por palabra (silencioso si falla)
+    statsApi.wordRatings(200, 1)
+      .then(r => {
+        const map: Record<string, number> = {};
+        r.data.forEach(wr => { if (wr.avg_rating !== null) map[wr.word.toLowerCase()] = wr.avg_rating; });
+        setWordRatings(map);
+      })
       .catch(() => {});
   }, []);
 
@@ -510,6 +535,7 @@ export default function Vocabulary() {
                   isFavorite={isFav(u)}
                   onToggleFavorite={handleToggleFavorite}
                   onOpenLightbox={setLightboxUnit}
+                  wordRating={u.text ? wordRatings[u.text.toLowerCase()] ?? null : null}
                 />
               ))}
             </div>

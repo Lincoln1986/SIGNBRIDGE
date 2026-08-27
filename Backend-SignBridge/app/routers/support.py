@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin, require_support_or_admin
-from app.models.user import Support, User
+from app.models.user import Support, User, Notification
 from app.schemas.support import SupportCreate, SupportOut, SupportOutWithUser, SupportStatusUpdate
 
 router = APIRouter(prefix="/support", tags=["Soporte"])
@@ -117,8 +117,50 @@ def update_ticket_status_support(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
 
+    # Si el estado es "resolved", se requiere una respuesta/retroalimentación
+    if payload.status == "resolved":
+        if not payload.response or not payload.response.strip():
+            raise HTTPException(
+                status_code=422,
+                detail="Se requiere una respuesta/retroalimentación para marcar un ticket como resuelto",
+            )
+        ticket.response = payload.response.strip()
+
+    # Si se proporciona respuesta, guardarla (para in_progress también)
+    if payload.response and payload.response.strip() and payload.status != "resolved":
+        ticket.response = payload.response.strip()
+
     ticket.status     = payload.status
     ticket.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ticket)
+
+    # Crear notificación al usuario dueño del ticket
+    if ticket.id_user:
+        STATUS_LABELS = {
+            "pending": "Pendiente",
+            "in_progress": "En proceso",
+            "resolved": "Resuelto",
+            "closed": "Cerrado",
+        }
+        status_label = STATUS_LABELS.get(payload.status, payload.status)
+        notif_title = f"Tu ticket '{ticket.subject}' cambió a: {status_label}"
+        notif_msg = (
+            f"Tu ticket de soporte '{ticket.subject}' ha sido actualizado a estado '{status_label}'."
+        )
+        if payload.response:
+            notif_msg += f"\n\nRespuesta del equipo: {payload.response}"
+
+        notif = Notification(
+            id_notification=str(uuid.uuid4()),
+            id_user=ticket.id_user,
+            title=notif_title,
+            message=notif_msg,
+            type="ticket_update",
+            related_id=ticket.id_support,
+            related_type="support",
+        )
+        db.add(notif)
+        db.commit()
+
     return ticket

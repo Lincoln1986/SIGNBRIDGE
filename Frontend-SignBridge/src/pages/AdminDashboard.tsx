@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { dashboardApi, adminUsersApi } from '../api/client';
-import type { AdminDashboardRow, SystemStats, LexicalUnitAdmin, RoleOption } from '../api/client';
+import { dashboardApi, adminUsersApi, supportApi } from '../api/client';
+import type { AdminDashboardRow, SystemStats, LexicalUnitAdmin, RoleOption, SupportTicketWithUser } from '../api/client';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 import { VideoModal, NewWordModal, DeleteConfirmModal } from '../components/VocabModals';
 import { useAuth } from '../context/AuthContext';
@@ -33,7 +33,7 @@ function PaginationBtn({ children, onClick, active = false, disabled = false }: 
   );
 }
 
-type AdminTab = 'users' | 'vocabulary' | 'stats';
+type AdminTab = 'users' | 'vocabulary' | 'stats' | 'tickets';
 
 // ── Tab bar ────────────────────────────────────────────────────────────────
 
@@ -42,6 +42,7 @@ function TabBar({ active, onChange }: { active: AdminTab; onChange: (t: AdminTab
     { id: 'users',      label: 'Usuarios',     icon: '👥' },
     { id: 'vocabulary', label: 'Vocabulario',  icon: '📚' },
     { id: 'stats',      label: 'Estadísticas', icon: '📊' },
+    { id: 'tickets',    label: 'Tickets',      icon: '🎫' },
   ];
   return (
     <div style={{
@@ -628,6 +629,122 @@ function VocabularyTab() {
   );
 }
 
+// ── Admin Tickets Tab (READ-ONLY) ──────────────────────────────────────────
+const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
+  pending:     { label: 'Pendiente',  color: '#b45309', bg: '#fef3c7' },
+  in_progress: { label: 'En proceso', color: '#7c3aed', bg: 'var(--violet-light)' },
+  resolved:    { label: 'Resuelto',   color: '#15803d', bg: '#f0fdf4' },
+  closed:      { label: 'Cerrado',    color: 'var(--gray-500)', bg: 'var(--gray-100)' },
+};
+
+function AdminTicketsTab() {
+  const [tickets, setTickets] = useState<SupportTicketWithUser[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
+
+  useEffect(() => {
+    supportApi.listAll()
+      .then(({ data }) => setTickets(data))
+      .catch(() => setError('No se pudieron cargar los tickets.'))
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>;
+  if (error) return <Alert type="error" message={error} />;
+
+  const filtered = statusFilter === 'all' ? tickets : tickets.filter(t => t.status === statusFilter);
+  const pendingCount = tickets.filter(t => t.status === 'pending').length;
+
+  function formatDate(iso?: string) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  }
+
+  return (
+    <>
+      <Alert type="info" message="Solo puedes visualizar los tickets. Para gestionarlos, usa el Panel de Soporte (/support)." />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20, marginTop: 12 }}>
+        <StatCard label="Total tickets" value={tickets.length} icon="🎫" />
+        <StatCard label="Pendientes" value={pendingCount} icon="⏳" accent={pendingCount > 0} />
+      </div>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+        <button onClick={() => setStatusFilter('all')} style={{
+          padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+          fontWeight: 600, fontSize: '0.78rem', fontFamily: 'var(--font-body)',
+          background: statusFilter === 'all' ? 'var(--violet)' : 'var(--gray-100)',
+          color: statusFilter === 'all' ? 'white' : 'var(--gray-600)',
+        }}>
+          Todos
+        </button>
+        {Object.entries(STATUS_META).map(([val, meta]) => (
+          <button key={val} onClick={() => setStatusFilter(val)} style={{
+            padding: '6px 12px', borderRadius: 6, border: 'none', cursor: 'pointer',
+            fontWeight: 600, fontSize: '0.78rem', fontFamily: 'var(--font-body)',
+            background: statusFilter === val ? 'var(--violet)' : 'var(--gray-100)',
+            color: statusFilter === val ? 'white' : 'var(--gray-600)',
+          }}>
+            {meta.label}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <Card style={{ padding: 32, textAlign: 'center', color: 'var(--gray-400)' }}>
+          No hay tickets con este filtro.
+        </Card>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {filtered.map((t, i) => {
+            const id = t.id_support ?? t.id_ticket ?? String(i);
+            const st = STATUS_META[t.status ?? 'pending'] ?? STATUS_META.pending;
+            return (
+              <Card key={id} style={{ padding: '16px 20px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ flex: 1, minWidth: 220 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--gray-800)', marginBottom: 4 }}>
+                      {t.subject}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginBottom: 8 }}>
+                      {t.user_full_name} · {t.user_email} · {formatDate(t.date)}
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>
+                      {t.message ?? t.description}
+                    </div>
+                    {(t as any).response && (
+                      <div style={{ marginTop: 10, padding: '10px 14px', borderRadius: 8, background: '#f0fdf4', border: '1px solid #bbf7d0' }}>
+                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#15803d', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                          Respuesta del equipo
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--gray-700)', lineHeight: 1.5 }}>
+                          {(t as any).response}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                    <span style={{
+                      padding: '4px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700,
+                      color: st.color, background: st.bg, whiteSpace: 'nowrap',
+                    }}>
+                      {st.label}
+                    </span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--gray-400)', fontStyle: 'italic' }}>
+                      👁 Solo lectura
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+}
+
 // ── Stats tab ──────────────────────────────────────────────────────────────
 
 function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: AdminDashboardRow[]; loading: boolean }) {
@@ -759,6 +876,7 @@ export default function AdminDashboard() {
       )}
       {activeTab === 'vocabulary' && <VocabularyTab />}
       {activeTab === 'stats' && <StatsTab stats={stats} rows={rows} loading={loading} />}
+      {activeTab === 'tickets' && <AdminTicketsTab />}
     </>
   );
 }

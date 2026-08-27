@@ -151,6 +151,7 @@ export interface SupportTicket {
   message?: string;       // el backend usa "message", no "description"
   description?: string;   // alias por compatibilidad
   status?: 'open' | 'in_progress' | 'closed' | string;
+  response?: string | null;  // retroalimentación del equipo de soporte
   date?: string;          // el backend devuelve "date"
   created_at?: string;    // alias por compatibilidad
 }
@@ -340,14 +341,107 @@ export const supportApi = {
   /** GET /support/all — todos los tickets con datos del usuario (rol Soporte/Admin) */
   listAll: () => api.get<SupportTicketWithUser[]>('/support/all'),
   /** PATCH /support/{id}/status — cambia el estado de un ticket (rol Soporte/Admin) */
-  updateStatus: (id_support: string, status: 'pending' | 'in_progress' | 'resolved' | 'closed') =>
-    api.patch<SupportTicket>(`/support/${id_support}/status`, { status }),
+  updateStatus: (id_support: string, status: 'pending' | 'in_progress' | 'resolved' | 'closed', response?: string) =>
+    api.patch<SupportTicket>(`/support/${id_support}/status`, {
+      status,
+      ...(response !== undefined ? { response } : {}),
+    }),
 };
 
 export interface SupportTicketWithUser extends SupportTicket {
   user_full_name: string;
   user_email: string;
+  response?: string | null;
 }
+
+// ── Most used phrases & Word ratings ──────────────────────────────────────
+
+export interface MostUsedPhrase {
+  word: string;
+  language: string;
+  video_url?: string | null;
+  times_translated: number;
+  unique_users: number;
+}
+
+export interface WordRating {
+  id_lexicalunit: string;
+  word: string;
+  language: string;
+  total_ratings: number;
+  avg_rating: number | null;
+  min_rating: number | null;
+  max_rating: number | null;
+}
+
+export interface MyUsage {
+  total_sessions: number;
+  total_words_translated: number;
+  unique_words: number;
+  last_translation?: string | null;
+}
+
+export const statsApi = {
+  /** GET /api/stats/most-used — ranking de palabras más traducidas */
+  mostUsed: (limit = 20) =>
+    api.get<MostUsedPhrase[]>('/api/stats/most-used', { params: { limit } }),
+  /** GET /api/stats/word-ratings — calificación promedio por palabra */
+  wordRatings: (limit = 50, minRatings = 1) =>
+    api.get<WordRating[]>('/api/stats/word-ratings', { params: { limit, min_ratings: minRatings } }),
+  /** GET /api/stats/my-usage — estadísticas del usuario actual */
+  myUsage: () => api.get<MyUsage>('/api/stats/my-usage'),
+};
+
+// ── Notifications ──────────────────────────────────────────────────────────
+
+export interface NotificationItem {
+  id_notification: string;
+  title: string;
+  message: string;
+  type: string;
+  is_read: boolean;
+  related_id?: string | null;
+  related_type?: string | null;
+  created_at?: string | null;
+}
+
+export const notificationsApi = {
+  /** GET /notifications — lista notificaciones del usuario */
+  list: () => api.get<NotificationItem[]>('/notifications'),
+  /** GET /notifications/unread-count */
+  unreadCount: () => api.get<{ count: number }>('/notifications/unread-count'),
+  /** PATCH /notifications/:id/read — marcar como leída */
+  markRead: (id: string) => api.patch(`/notifications/${id}/read`),
+  /** PATCH /notifications/read-all — marcar todas como leídas */
+  markAllRead: () => api.patch('/notifications/read-all'),
+};
+
+// ── Feedback replies ───────────────────────────────────────────────────────
+
+export interface FeedbackReply {
+  id_reply: string;
+  id_feedback: string;
+  id_user: string;
+  reply_text: string;
+  is_automatic: boolean;
+  user_full_name: string;
+  created_at: string;
+}
+
+export const feedbackReplyApi = {
+  /** GET /feedback/:id/replies — respuestas de una valoración */
+  list: (id_feedback: string) =>
+    api.get<FeedbackReply[]>(`/feedback/${id_feedback}/replies`),
+  /** POST /feedback/:id/replies — responder a una valoración */
+  create: (id_feedback: string, reply_text: string, is_automatic = false) =>
+    api.post<FeedbackReply>(`/feedback/${id_feedback}/replies`, {
+      reply_text,
+      is_automatic,
+    }),
+  /** DELETE /feedback/:id/replies/:idReply */
+  remove: (id_feedback: string, idReply: string) =>
+    api.delete(`/feedback/${id_feedback}/replies/${idReply}`),
+};
 
 // ── Favorite words ─────────────────────────────────────────────────────────
 

@@ -10,9 +10,11 @@ python-multipart==0.0.9
 aiosmtplib==3.0.1
 jinja2==3.1.4
 python-dotenv==1.0.1
-bcrypt==4.0.1
+bcrypt==3.2.2
 
 # Procesamiento de imágenes y detección de señas (H03)
-Pillow==10.3.0
-numpy==1.26.4
-mediapipe==0.10.14
+# Opcionales: si falla la instalación, la detección de señas (H03)
+# retornará None pero el resto del sistema funciona correctamente.
+Pillow>=10.0.0
+numpy>=1.24.0
+mediapipe>=0.10.9
