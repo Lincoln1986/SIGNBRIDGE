@@ -103,13 +103,25 @@ def list_lexical_units(
     """
     Lista el vocabulario del sistema.
     Incluye id_lexicalunit para que los usuarios puedan marcar favoritos.
+    Incluye average_rating y total_ratings: el promedio de estrellas que la
+    gente le ha dado a la traducción de cada palabra (calificación por separado
+    de la palabra, no de la sesión completa).
     """
     rows = db.execute(
         text("""
-            SELECT id_lexicalunit, text, language, video_url, created_at, updated_at
-            FROM "LexicalUnit"
-            WHERE deleted_at IS NULL
-            ORDER BY text
+            SELECT
+                lu.id_lexicalunit, lu.text, lu.language, lu.video_url,
+                lu.created_at, lu.updated_at,
+                ROUND(AVG(f.rating)::numeric, 2) AS average_rating,
+                COUNT(f.id_feedback) AS total_ratings
+            FROM "LexicalUnit" lu
+            LEFT JOIN "Feedback" f
+                ON f.id_lexicalunit = lu.id_lexicalunit
+                AND f.deleted_at IS NULL
+            WHERE lu.deleted_at IS NULL
+            GROUP BY lu.id_lexicalunit, lu.text, lu.language, lu.video_url,
+                     lu.created_at, lu.updated_at
+            ORDER BY lu.text
         """)
     ).mappings().all()
     return [dict(r) for r in rows]

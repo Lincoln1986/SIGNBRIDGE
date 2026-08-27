@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { dashboardApi, favoritesApi } from '../api/client';
+import { dashboardApi, favoritesApi, feedbackApi } from '../api/client';
 import type { LexicalUnit, FavoriteWord } from '../api/client';
 import { Card, Spinner, Alert, Badge } from '../components/UI';
 
@@ -149,16 +149,71 @@ function VideoLightbox({ unit, onClose }: LightboxProps) {
 // Word card — el botón "Ver seña" abre el VideoLightbox
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Estrellas para calificar la traducción de UNA palabra (por separado de la sesión). */
+function WordRating({
+  unit,
+  onRated,
+}: {
+  unit: LexicalUnit & { id_lexicalunit?: string };
+  onRated: (id_lexicalunit: string, average_rating: number, total_ratings: number) => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+  const [hover, setHover] = useState(0);
+
+  const handleRate = async (rating: number) => {
+    if (!unit.id_lexicalunit || submitting) return;
+    setSubmitting(true);
+    try {
+      await feedbackApi.create({ id_lexicalunit: unit.id_lexicalunit, rating });
+      const { data } = await feedbackApi.wordSummary(unit.id_lexicalunit);
+      onRated(unit.id_lexicalunit, data.average_rating, data.total_ratings);
+    } catch {
+      // silencioso: no bloquea la vista del diccionario si falla la calificación
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const rounded = Math.round(unit.average_rating ?? 0);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }} onClick={e => e.stopPropagation()}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <button
+          key={n}
+          disabled={submitting}
+          onMouseEnter={() => setHover(n)}
+          onMouseLeave={() => setHover(0)}
+          onClick={() => handleRate(n)}
+          title={`Calificar la seña de "${unit.text}" con ${n} estrella(s)`}
+          style={{
+            background: 'none', border: 'none', padding: 0, lineHeight: 1,
+            cursor: submitting ? 'not-allowed' : 'pointer', fontSize: '0.8rem',
+            color: n <= (hover || rounded) ? '#f59e0b' : '#d1d5db',
+          }}
+        >
+          &#9733;
+        </button>
+      ))}
+      <span style={{ fontSize: '0.68rem', color: 'var(--gray-400)', marginLeft: 2 }}>
+        {unit.average_rating ? `${unit.average_rating.toFixed(1)} (${unit.total_ratings})` : 'Sin calificar'}
+      </span>
+    </div>
+  );
+}
+
 function WordCard({
   unit,
   isFavorite,
   onToggleFavorite,
   onOpenLightbox,
+  onRated,
 }: {
   unit: LexicalUnit & { id_lexicalunit?: string };
   isFavorite: boolean;
   onToggleFavorite: (unit: LexicalUnit & { id_lexicalunit?: string }) => void;
   onOpenLightbox: (unit: LexicalUnit & { id_lexicalunit?: string }) => void;
+  onRated: (id_lexicalunit: string, average_rating: number, total_ratings: number) => void;
 }) {
   return (
     <div
@@ -250,6 +305,7 @@ function WordCard({
           <div style={{ fontSize: '0.7rem', color: 'var(--gray-400)' }}>
             {formatDate(unit.created_at)}
           </div>
+          {unit.id_lexicalunit && <WordRating unit={unit} onRated={onRated} />}
         </div>
       </div>
     </div>
@@ -281,8 +337,7 @@ export default function Vocabulary() {
     // Carga favoritos del usuario (silencioso si falla)
     favoritesApi.list()
       .then(r => setFavorites(r.data))
-      .catch(() => {});
-  }, []);
+      .catch(() => {});  }, []);
 
   // ── Filtros ──────────────────────────────────────────────────────────────
 
@@ -306,6 +361,13 @@ export default function Vocabulary() {
   const flash = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 2500);
+  };
+
+  // Actualiza en memoria el promedio de una palabra tras calificarla (sin recargar todo el listado)
+  const handleWordRated = (id_lexicalunit: string, average_rating: number, total_ratings: number) => {
+    setUnits(prev => prev.map(u =>
+      u.id_lexicalunit === id_lexicalunit ? { ...u, average_rating, total_ratings } : u
+    ));
   };
 
   const handleToggleFavorite = async (unit: LexicalUnit & { id_lexicalunit?: string }) => {
@@ -510,6 +572,7 @@ export default function Vocabulary() {
                   isFavorite={isFav(u)}
                   onToggleFavorite={handleToggleFavorite}
                   onOpenLightbox={setLightboxUnit}
+                  onRated={handleWordRated}
                 />
               ))}
             </div>

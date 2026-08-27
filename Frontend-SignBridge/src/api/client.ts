@@ -88,6 +88,8 @@ export interface LexicalUnit {
   created_at: string;
   updated_at: string;
   video_url?: string;
+  average_rating?: number;  // promedio de estrellas de la traducción de esta palabra
+  total_ratings?: number;
 }
 
 export interface LexicalUnitAdmin {
@@ -137,10 +139,13 @@ export interface SignUnit {
 export interface FeedbackItem {
   id_feedback?: string;
   id_session?: string;
+  id_lexicalunit?: string;   // si viene, es una valoración de una palabra puntual
   rating: number;         // 1-5
   comment?: string;
   date?: string;          // el backend devuelve "date", no "created_at"
   created_at?: string;    // alias por compatibilidad
+  is_reviewed?: boolean;
+  support_response?: string | null; // respuesta que dio Soporte al revisarla
 }
 
 export interface SupportTicket {
@@ -151,8 +156,21 @@ export interface SupportTicket {
   message?: string;       // el backend usa "message", no "description"
   description?: string;   // alias por compatibilidad
   status?: 'open' | 'in_progress' | 'closed' | string;
+  solution?: string | null; // solución que da Soporte al resolver el ticket
   date?: string;          // el backend devuelve "date"
   created_at?: string;    // alias por compatibilidad
+}
+
+export interface WordRatingSummary {
+  id_lexicalunit: string;
+  word: string;
+  average_rating: number;
+  total_ratings: number;
+}
+
+export interface QuickReply {
+  key: string;
+  text: string;
 }
 
 export interface FavoriteWord {
@@ -298,21 +316,34 @@ export const feedbackApi = {
   /** GET /feedback/my — historial de valoraciones del usuario */
   list: () => api.get<FeedbackItem[]>('/feedback/my'),
   /**
-   * POST /feedback — registra feedback para una sesión de traducción.
-   * id_session es obligatorio y debe venir de la respuesta de /api/traduccion/texto
-   * o /api/traduccion/voz — no se genera artificialmente.
+   * POST /feedback — registra feedback para una sesión de traducción o para
+   * la traducción de una palabra puntual (envía id_session o id_lexicalunit).
    */
-  create: (data: { id_session: string; rating: number; comment?: string }) =>
+  create: (data: { id_session?: string; id_lexicalunit?: string; rating: number; comment?: string }) =>
     api.post<FeedbackItem>('/feedback', {
-      id_session: data.id_session,
+      id_session: data.id_session ?? null,
+      id_lexicalunit: data.id_lexicalunit ?? null,
       rating: data.rating,
       comment: data.comment ?? null,
     }),
+  /** GET /feedback/word/{id}/summary — promedio de estrellas de la traducción de una palabra */
+  wordSummary: (id_lexicalunit: string) =>
+    api.get<WordRatingSummary>(`/feedback/word/${id_lexicalunit}/summary`),
   /** GET /feedback/all — todas las valoraciones con datos del usuario (rol Soporte/Admin) */
   listAll: () => api.get<FeedbackItemWithUser[]>('/feedback/all'),
-  /** PATCH /feedback/{id}/review — marca/desmarca una valoración como revisada (rol Soporte/Admin) */
-  setReviewed: (id_feedback: string, is_reviewed: boolean) =>
-    api.patch<FeedbackItem>(`/feedback/${id_feedback}/review`, { is_reviewed }),
+  /** GET /feedback/quick-replies — catálogo de respuestas rápidas (rol Soporte/Admin) */
+  quickReplies: () => api.get<QuickReply[]>('/feedback/quick-replies'),
+  /**
+   * PATCH /feedback/{id}/review — marca/desmarca una valoración como revisada (exclusivo Soporte).
+   * Para marcar como revisada hay que enviar `response` (manual) o, si el rating es 4-5,
+   * `quickReplyKey` (clave del catálogo de respuestas rápidas).
+   */
+  setReviewed: (id_feedback: string, is_reviewed: boolean, opts?: { response?: string; quickReplyKey?: string }) =>
+    api.patch<FeedbackItem>(`/feedback/${id_feedback}/review`, {
+      is_reviewed,
+      response: opts?.response ?? null,
+      quick_reply: opts?.quickReplyKey ?? null,
+    }),
   /** DELETE /feedback/{id} — elimina (oculta) una valoración (rol Soporte/Admin) */
   remove: (id_feedback: string) =>
     api.delete(`/feedback/${id_feedback}`),
@@ -337,11 +368,14 @@ export const supportApi = {
       subject: data.subject,
       message: data.description,
     }),
-  /** GET /support/all — todos los tickets con datos del usuario (rol Soporte/Admin) */
+  /** GET /support/all — todos los tickets con datos del usuario (rol Soporte/Admin, solo lectura para Admin) */
   listAll: () => api.get<SupportTicketWithUser[]>('/support/all'),
-  /** PATCH /support/{id}/status — cambia el estado de un ticket (rol Soporte/Admin) */
-  updateStatus: (id_support: string, status: 'pending' | 'in_progress' | 'resolved' | 'closed') =>
-    api.patch<SupportTicket>(`/support/${id_support}/status`, { status }),
+  /**
+   * PATCH /support/{id}/status — cambia el estado de un ticket (exclusivo rol Soporte).
+   * Para pasar a 'resolved' es obligatorio enviar `solution` con el texto de la solución.
+   */
+  updateStatus: (id_support: string, status: 'pending' | 'in_progress' | 'resolved' | 'closed', solution?: string) =>
+    api.patch<SupportTicket>(`/support/${id_support}/status`, { status, solution: solution ?? null }),
 };
 
 export interface SupportTicketWithUser extends SupportTicket {

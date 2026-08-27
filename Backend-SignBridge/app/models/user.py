@@ -118,6 +118,7 @@ class LexicalUnit(Base):
 
     details = relationship("TranslationDetail", back_populates="lexical_unit")
     favorite_words = relationship("FavoriteWords", back_populates="lexical_unit")
+    word_feedbacks = relationship("Feedback", back_populates="lexical_unit")
 
 
 class TranslationDetail(Base):
@@ -172,17 +173,20 @@ class Feedback(Base):
 
     id_feedback = Column(String(36), primary_key=True)
     id_user = Column(String(36), ForeignKey("User.id_user"))
-    id_session = Column(String(36), ForeignKey("TranslationSession.id_session"))
+    id_session = Column(String(36), ForeignKey("TranslationSession.id_session"), nullable=True)
+    id_lexicalunit = Column(String(36), ForeignKey("LexicalUnit.id_lexicalunit"), nullable=True)
     rating = Column(Integer)
     comment = Column(Text)
     date = Column(DateTime, server_default=func.now())
     is_reviewed = Column(Boolean, nullable=False, server_default=text("false"))
+    support_response = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     deleted_at = Column(DateTime, nullable=True)
 
     user = relationship("User", back_populates="feedbacks")
     session = relationship("TranslationSession", back_populates="feedbacks")
+    lexical_unit = relationship("LexicalUnit", back_populates="word_feedbacks")
 
 
 class Support(Base):
@@ -193,6 +197,7 @@ class Support(Base):
     subject = Column(String(150))
     message = Column(Text)
     status = Column(String(20), default="pending")
+    solution = Column(Text, nullable=True)
     date = Column(DateTime, server_default=func.now())
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())

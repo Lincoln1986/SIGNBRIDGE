@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { supportApi, feedbackApi } from '../api/client';
-import type { SupportTicketWithUser, FeedbackItemWithUser } from '../api/client';
-import { Card, Spinner, Alert, Badge, StatCard } from '../components/UI';
+import type { SupportTicketWithUser, FeedbackItemWithUser, QuickReply } from '../api/client';
+import { Card, Spinner, Alert, Badge, StatCard, Btn } from '../components/UI';
+import { useAuth } from '../context/AuthContext';
 
 type SupportTab = 'tickets' | 'feedback';
 
@@ -55,11 +56,15 @@ function TabBar({ active, onChange }: { active: SupportTab; onChange: (t: Suppor
 // ── Tickets ──────────────────────────────────────────────────────────────────
 
 function TicketsTab() {
+  const { isSupport } = useAuth();
   const [tickets, setTickets] = useState<SupportTicketWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  // Estado local del cambio de estado en curso por ticket (para el select + solución)
+  const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({});
+  const [solutionDrafts, setSolutionDrafts] = useState<Record<string, string>>({});
 
   const load = () => {
     setLoading(true);
@@ -71,28 +76,46 @@ function TicketsTab() {
 
   useEffect(load, []);
 
-  const handleStatusChange = async (id_support: string, status: string) => {
+  const handleStatusSelect = (id_support: string, status: string) => {
+    setPendingStatus(prev => ({ ...prev, [id_support]: status }));
+  };
+
+  const handleConfirmStatus = async (id_support: string, status: string) => {
+    const solution = solutionDrafts[id_support]?.trim();
+    if (status === 'resolved' && !solution) {
+      setError('Para marcar el ticket como resuelto debes escribir la solución.');
+      return;
+    }
     setUpdatingId(id_support);
+    setError('');
     try {
-      await supportApi.updateStatus(id_support, status as any);
+      await supportApi.updateStatus(id_support, status as any, solution || undefined);
       setTickets(prev => prev.map(t =>
-        (t.id_support ?? t.id_ticket) === id_support ? { ...t, status: status as any } : t
+        (t.id_support ?? t.id_ticket) === id_support
+          ? { ...t, status: status as any, solution: solution || t.solution }
+          : t
       ));
+      setPendingStatus(prev => { const { [id_support]: _drop, ...rest } = prev; return rest; });
     } catch {
-      setError('No se pudo actualizar el estado del ticket.');
+      setError('No se pudo actualizar el estado del ticket. Solo Soporte puede solucionar tickets.');
     } finally {
       setUpdatingId(null);
     }
   };
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>;
-  if (error) return <Alert type="error" message={error} />;
+  if (error && tickets.length === 0) return <Alert type="error" message={error} />;
 
   const filtered = statusFilter === 'all' ? tickets : tickets.filter(t => t.status === statusFilter);
   const pendingCount = tickets.filter(t => t.status === 'pending').length;
 
   return (
     <>
+      {!isSupport && (
+        <Alert type="info" message="Como Administrador puedes ver todos los tickets, pero solo Soporte puede solucionarlos." />
+      )}
+      {error && <div style={{ marginBottom: 12 }}><Alert type="error" message={error} /></div>}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
         <StatCard label="Total tickets" value={tickets.length} icon="🎫" />
         <StatCard label="Pendientes" value={pendingCount} icon="⏳" accent={pendingCount > 0} />
@@ -128,6 +151,8 @@ function TicketsTab() {
           {filtered.map((t, i) => {
             const id = t.id_support ?? t.id_ticket ?? String(i);
             const st = STATUS_META[t.status ?? 'pending'] ?? STATUS_META.pending;
+            const draftStatus = pendingStatus[id];
+            const needsSolutionDraft = draftStatus === 'resolved';
             return (
               <Card key={id} style={{ padding: '16px 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -141,25 +166,54 @@ function TicketsTab() {
                     <div style={{ fontSize: '0.85rem', color: 'var(--gray-600)' }}>
                       {t.message ?? t.description}
                     </div>
+                    {t.solution && (
+                      <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', fontSize: '0.82rem', color: '#15803d' }}>
+                        <strong>Solución de Soporte:</strong> {t.solution}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, minWidth: 180 }}>
                     <span style={{
                       padding: '4px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700,
                       color: st.color, background: st.bg, whiteSpace: 'nowrap',
                     }}>
                       {st.label}
                     </span>
-                    <select
-                      value={t.status ?? 'pending'}
-                      disabled={updatingId === id}
-                      onChange={e => handleStatusChange(id, e.target.value)}
-                      style={{
-                        padding: '5px 8px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
-                        fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer',
-                      }}
-                    >
-                      {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
+                    {isSupport ? (
+                      <>
+                        <select
+                          value={draftStatus ?? t.status ?? 'pending'}
+                          disabled={updatingId === id}
+                          onChange={e => handleStatusSelect(id, e.target.value)}
+                          style={{
+                            padding: '5px 8px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
+                            fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer',
+                          }}
+                        >
+                          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        {needsSolutionDraft && (
+                          <textarea
+                            placeholder="Escribe la solución del ticket (obligatorio)…"
+                            value={solutionDrafts[id] ?? ''}
+                            onChange={e => setSolutionDrafts(prev => ({ ...prev, [id]: e.target.value }))}
+                            rows={3}
+                            style={{
+                              width: '100%', minWidth: 220, padding: '6px 8px', borderRadius: 6,
+                              border: '1.5px solid var(--gray-200)', fontSize: '0.8rem', fontFamily: 'var(--font-body)',
+                              resize: 'vertical',
+                            }}
+                          />
+                        )}
+                        {draftStatus && draftStatus !== t.status && (
+                          <Btn size="sm" loading={updatingId === id} onClick={() => handleConfirmStatus(id, draftStatus)}>
+                            Guardar
+                          </Btn>
+                        )}
+                      </>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>Solo lectura</span>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -174,11 +228,14 @@ function TicketsTab() {
 // ── Valoraciones ─────────────────────────────────────────────────────────────
 
 function FeedbackAdminTab() {
+  const { isSupport } = useAuth();
   const [items, setItems] = useState<FeedbackItemWithUser[]>([]);
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'reviewed'>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [responseDrafts, setResponseDrafts] = useState<Record<string, string>>({});
 
   const load = () => {
     setLoading(true);
@@ -186,16 +243,39 @@ function FeedbackAdminTab() {
       .then(({ data }) => setItems(data))
       .catch(() => setError('No se pudieron cargar las valoraciones.'))
       .finally(() => setLoading(false));
+    if (isSupport) {
+      feedbackApi.quickReplies().then(({ data }) => setQuickReplies(data)).catch(() => {});
+    }
   };
 
   useEffect(load, []);
 
-  const handleToggleReviewed = async (fb: FeedbackItemWithUser) => {
+  const handleMarkReviewed = async (fb: FeedbackItemWithUser, quickReplyKey?: string) => {
+    const id = fb.id_feedback!;
+    const response = responseDrafts[id]?.trim();
+    if (!quickReplyKey && !response) {
+      setError('Debes escribir una respuesta manual (o elegir una respuesta rápida si la calificación es de 4-5 estrellas).');
+      return;
+    }
+    setBusyId(id);
+    setError('');
+    try {
+      const { data } = await feedbackApi.setReviewed(id, true, { response, quickReplyKey });
+      setItems(prev => prev.map(f => f.id_feedback === id ? { ...f, is_reviewed: true, support_response: data.support_response } : f));
+      setResponseDrafts(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+    } catch {
+      setError('No se pudo marcar la valoración como revisada. Solo Soporte puede hacerlo.');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleUnmarkReviewed = async (fb: FeedbackItemWithUser) => {
     const id = fb.id_feedback!;
     setBusyId(id);
     try {
-      await feedbackApi.setReviewed(id, !fb.is_reviewed);
-      setItems(prev => prev.map(f => f.id_feedback === id ? { ...f, is_reviewed: !fb.is_reviewed } : f));
+      await feedbackApi.setReviewed(id, false);
+      setItems(prev => prev.map(f => f.id_feedback === id ? { ...f, is_reviewed: false } : f));
     } catch {
       setError('No se pudo actualizar el estado de revisión.');
     } finally {
@@ -218,7 +298,6 @@ function FeedbackAdminTab() {
   };
 
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={32} /></div>;
-  if (error) return <Alert type="error" message={error} />;
 
   const average = items.length > 0 ? items.reduce((s, f) => s + f.rating, 0) / items.length : 0;
   const lowRatings = items.filter(f => f.rating <= 2).length;
@@ -232,6 +311,11 @@ function FeedbackAdminTab() {
 
   return (
     <>
+      {!isSupport && (
+        <Alert type="info" message="Como Administrador puedes ver las valoraciones, pero revisarlas y responderlas es una acción exclusiva de Soporte." />
+      )}
+      {error && <div style={{ marginBottom: 12 }}><Alert type="error" message={error} /></div>}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
         <StatCard label="Promedio general" value={average.toFixed(1) + ' / 5'} icon="⭐" />
         <StatCard label="Total valoraciones" value={items.length} icon="💬" />
@@ -265,6 +349,7 @@ function FeedbackAdminTab() {
           {filtered.map((f, i) => {
             const id = f.id_feedback ?? String(i);
             const isBusy = busyId === id;
+            const unlocksQuickReplies = f.rating >= 4;
             return (
               <Card key={id} style={{ padding: '14px 18px', opacity: f.is_reviewed ? 0.75 : 1 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, flexWrap: 'wrap' }}>
@@ -273,6 +358,9 @@ function FeedbackAdminTab() {
                       {f.user_full_name} <span style={{ fontWeight: 400, color: 'var(--gray-400)' }}>· {f.user_email}</span>
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--gray-400)' }}>{formatDate(f.date ?? f.created_at)}</div>
+                    {f.id_lexicalunit && (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--violet)', marginTop: 2 }}>Valoración de una palabra puntual</div>
+                    )}
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                     <Badge label={'⭐'.repeat(f.rating) + ' ' + f.rating + '/5'} variant={f.rating <= 2 ? 'danger' : f.rating === 3 ? 'amber' : 'success'} />
@@ -282,19 +370,62 @@ function FeedbackAdminTab() {
                 {f.comment && (
                   <div style={{ marginTop: 8, fontSize: '0.85rem', color: 'var(--gray-600)' }}>{f.comment}</div>
                 )}
+                {f.support_response && (
+                  <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'var(--violet-light)', fontSize: '0.82rem', color: 'var(--violet)' }}>
+                    <strong>Respuesta de Soporte:</strong> {f.support_response}
+                  </div>
+                )}
+
+                {isSupport && !f.is_reviewed && (
+                  <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <textarea
+                      placeholder="Respuesta manual para esta valoración…"
+                      value={responseDrafts[id] ?? ''}
+                      onChange={e => setResponseDrafts(prev => ({ ...prev, [id]: e.target.value }))}
+                      rows={2}
+                      style={{
+                        width: '100%', padding: '6px 8px', borderRadius: 6,
+                        border: '1.5px solid var(--gray-200)', fontSize: '0.8rem', fontFamily: 'var(--font-body)',
+                        resize: 'vertical',
+                      }}
+                    />
+                    {unlocksQuickReplies && quickReplies.length > 0 && (
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)', alignSelf: 'center' }}>Respuestas rápidas (4-5⭐):</span>
+                        {quickReplies.map(q => (
+                          <button
+                            key={q.key}
+                            disabled={isBusy}
+                            onClick={() => handleMarkReviewed(f, q.key)}
+                            style={{
+                              padding: '4px 10px', borderRadius: 999, border: '1.5px solid var(--violet)',
+                              background: 'white', color: 'var(--violet)', fontSize: '0.72rem', fontWeight: 600,
+                              cursor: isBusy ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)',
+                            }}
+                          >
+                            {q.text.length > 40 ? q.text.slice(0, 40) + '…' : q.text}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, justifyContent: 'flex-end' }}>
-                  <button
-                    onClick={() => handleToggleReviewed(f)}
-                    disabled={isBusy}
-                    style={{
-                      padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
-                      background: 'white', cursor: isBusy ? 'not-allowed' : 'pointer',
-                      fontSize: '0.78rem', fontWeight: 600, fontFamily: 'var(--font-body)',
-                      color: 'var(--gray-600)', opacity: isBusy ? 0.5 : 1,
-                    }}
-                  >
-                    {f.is_reviewed ? 'Marcar como no revisada' : '✓ Marcar como revisada'}
-                  </button>
+                  {isSupport && (
+                    <button
+                      onClick={() => f.is_reviewed ? handleUnmarkReviewed(f) : handleMarkReviewed(f)}
+                      disabled={isBusy}
+                      style={{
+                        padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
+                        background: 'white', cursor: isBusy ? 'not-allowed' : 'pointer',
+                        fontSize: '0.78rem', fontWeight: 600, fontFamily: 'var(--font-body)',
+                        color: 'var(--gray-600)', opacity: isBusy ? 0.5 : 1,
+                      }}
+                    >
+                      {f.is_reviewed ? 'Marcar como no revisada' : '✓ Marcar como revisada'}
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDelete(f)}
                     disabled={isBusy}
@@ -321,6 +452,7 @@ function FeedbackAdminTab() {
 
 export default function SupportDashboard() {
   const [tab, setTab] = useState<SupportTab>('tickets');
+  const { isAdmin } = useAuth();
 
   return (
     <div>
@@ -328,7 +460,9 @@ export default function SupportDashboard() {
         Panel de Soporte
       </h1>
       <p style={{ color: 'var(--gray-400)', fontSize: '0.9rem', marginBottom: 24 }}>
-        Tickets y valoraciones de todos los usuarios de la plataforma.
+        {isAdmin
+          ? 'Tickets y valoraciones de todos los usuarios (solo lectura para tu rol).'
+          : 'Tickets y valoraciones de todos los usuarios de la plataforma.'}
       </p>
       <TabBar active={tab} onChange={setTab} />
       {tab === 'tickets' ? <TicketsTab /> : <FeedbackAdminTab />}

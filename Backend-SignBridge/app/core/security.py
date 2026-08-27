@@ -72,3 +72,15 @@ def require_support_or_admin(current_user=Depends(get_current_user)):
     if role_name not in ("admin", "administrador", "soporte"):
         raise HTTPException(status_code=403, detail="Acceso denegado: se requiere rol soporte o admin")
     return current_user
+
+
+def require_support(current_user=Depends(get_current_user)):
+    """Dependencia que exige rol Soporte (exclusivo).
+
+    El Administrador puede ver tickets y valoraciones (usa require_support_or_admin),
+    pero solucionar tickets y responder valoraciones es una acción exclusiva de Soporte.
+    """
+    role_name = current_user.role.role_name.lower()
+    if role_name not in ("soporte",):
+        raise HTTPException(status_code=403, detail="Acceso denegado: esta acción es exclusiva del rol soporte")
+    return current_user

@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user, require_admin, require_support_or_admin
+from app.core.security import get_current_user, require_admin, require_support_or_admin, require_support
 from app.models.user import Support, User
 from app.schemas.support import SupportCreate, SupportOut, SupportOutWithUser, SupportStatusUpdate
 
@@ -100,16 +100,20 @@ def all_tickets_for_support(
 
 
 @router.patch("/{id_support}/status", response_model=SupportOut,
-              summary="Cambiar estado de un ticket (Soporte o Admin)",
+              summary="Cambiar estado de un ticket (exclusivo de Soporte)",
               tags=["Soporte"])
 def update_ticket_status_support(
     id_support: str,
     payload: SupportStatusUpdate,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_support_or_admin),
+    _user: User = Depends(require_support),
 ):
     """Actualiza el estado de un ticket. Estados válidos: pending, in_progress, resolved, closed.
-    Accesible para los roles Soporte y Admin."""
+
+    Solucionar un ticket (pasarlo a 'resolved') es una acción exclusiva del rol Soporte,
+    y requiere que se envíe el texto de la solución. El Admin puede ver los tickets
+    (GET /support/all) pero no puede cambiar su estado.
+    """
     ticket = db.query(Support).filter(
         Support.id_support  == id_support,
         Support.deleted_at.is_(None),
@@ -118,6 +122,8 @@ def update_ticket_status_support(
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
 
     ticket.status     = payload.status
+    if payload.solution:
+        ticket.solution = payload.solution
     ticket.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ticket)
