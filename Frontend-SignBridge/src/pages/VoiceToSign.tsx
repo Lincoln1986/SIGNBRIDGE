@@ -3,6 +3,7 @@ import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { translationApi, dashboardApi, feedbackApi, lastSession } from '../api/client';
 import type { TextToSignResponse, VozToSignResponse, SignUnit, LexicalUnit } from '../api/client';
 import { Btn, Card, Alert, Spinner } from '../components/UI';
+import SignSequencePlayer from '../components/SignSequencePlayer';
 
 // ── Tipos locales ──────────────────────────────────────────────────────────
 
@@ -23,158 +24,7 @@ interface ConversationEntry {
   timestamp: Date;
 }
 
-// ── Reproductor de señas ───────────────────────────────────────────────────
 
-function SignPlayer({
-  result,
-  isLoading,
-  lexicon,
-}: {
-  result: NormalizedResult | null;
-  isLoading: boolean;
-  lexicon: LexicalUnit[];
-}) {
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  // Busca el primer video disponible: primero en la respuesta del backend,
-  // luego en el diccionario local por nombre de seña
-  const findVideo = (signs: SignUnit[]): string | null => {
-    for (const sign of signs) {
-      if (sign.video_url) return sign.video_url;
-    }
-    for (const sign of signs) {
-      const match = lexicon.find(
-        u => u.text?.toLowerCase() === sign.word.toLowerCase() && u.video_url
-      );
-      if (match?.video_url) return match.video_url;
-    }
-    return null;
-  };
-
-  const videoUrl = result?.signs?.length ? findVideo(result.signs) : null;
-
-  const isYouTube = videoUrl
-    ? videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')
-    : false;
-
-  const getEmbed = (url: string) => {
-    if (url.includes('youtube.com/embed/')) return url;
-    const s = url.match(/youtu\.be\/([^?&]+)/);
-    if (s) return `https://www.youtube.com/embed/${s[1]}`;
-    const w = url.match(/[?&]v=([^?&]+)/);
-    if (w) return `https://www.youtube.com/embed/${w[1]}`;
-    return url;
-  };
-
-  useEffect(() => {
-    if (videoUrl && !isYouTube && videoRef.current) {
-      videoRef.current.load();
-      videoRef.current.play().catch(() => null);
-    }
-  }, [videoUrl, isYouTube]);
-
-  const noVideoYet = result && !isLoading && !videoUrl;
-
-  return (
-    <div style={{
-      background: 'var(--gray-800)',
-      borderRadius: 'var(--radius)',
-      minHeight: 300,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      {/* Cargando */}
-      {isLoading && (
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <Spinner size={40} color="white" />
-          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', marginTop: 16 }}>
-            Buscando seña…
-          </p>
-        </div>
-      )}
-
-      {/* Video del diccionario o de la respuesta */}
-      {!isLoading && videoUrl && (
-        isYouTube ? (
-          <iframe
-            src={`${getEmbed(videoUrl)}?autoplay=1`}
-            style={{ width: '100%', height: '100%', minHeight: 300, border: 'none', display: 'block' }}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowFullScreen
-          />
-        ) : (
-          <video
-            ref={videoRef}
-            src={videoUrl}
-            controls
-            autoPlay
-            loop
-            playsInline
-            style={{ width: '100%', objectFit: 'contain' }}
-          />
-        )
-      )}
-
-      {/* Seña no disponible — mensaje claro, sin error técnico */}
-      {noVideoYet && (
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <div style={{
-            width: 72, height: 72, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '2rem', margin: '0 auto 16px',
-          }}>
-            🤟
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 8 }}>
-            Seña no disponible todavía
-          </p>
-          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: 1.6, maxWidth: 260, margin: '0 auto' }}>
-            Esta seña aún no tiene video en el diccionario LSC.
-            Puedes consultar el vocabulario disponible en la sección{' '}
-            <a href="/vocabulary" style={{ color: 'var(--amber)', fontWeight: 600 }}>
-              Vocabulario
-            </a>.
-          </p>
-          {/* Chips de señas detectadas */}
-          {result.signs.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 14 }}>
-              {result.signs.map((sign, i) => (
-                <span key={i} style={{
-                  background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)',
-                  padding: '4px 12px', borderRadius: 20, fontSize: '0.82rem', fontWeight: 600,
-                }}>
-                  {sign.word}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Estado vacío inicial */}
-      {!isLoading && !result && (
-        <div style={{ textAlign: 'center', padding: 32 }}>
-          <div style={{
-            width: 80, height: 80, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.08)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '2.2rem', margin: '0 auto 20px',
-          }}>
-            🤟
-          </div>
-          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-            Escribe texto o usa tu voz<br />para ver la traducción a señas
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ── Componente principal ───────────────────────────────────────────────────
 
@@ -623,7 +473,7 @@ export default function VoiceToSign() {
                 {isTranslating && <Spinner size={16} />}
               </h2>
             </div>
-            <SignPlayer result={result} isLoading={isTranslating} lexicon={lexicon} />
+            <SignSequencePlayer signs={(result?.signs ?? []).map(s => ({ word: s.word, video_url: s.video_url, found: s.found }))} isLoading={isTranslating} />
           </Card>
 
           {/* Señas detectadas como chips */}
