@@ -79,6 +79,23 @@ def create_feedback(
         if not word:
             raise HTTPException(status_code=404, detail="Palabra no encontrada")
 
+        # Voto único por palabra: si el usuario ya la había calificado, se
+        # actualiza ese voto en vez de crear uno nuevo. Si no fuera así, cada
+        # clic en las estrellas sumaba un feedback distinto e inflaba el
+        # promedio sin límite (ver bug: 29 votos de la misma persona en "agua").
+        existing_word_vote = db.query(Feedback).filter(
+            Feedback.id_lexicalunit == payload.id_lexicalunit,
+            Feedback.id_user        == current_user.id_user,
+            Feedback.deleted_at.is_(None),
+        ).first()
+        if existing_word_vote:
+            existing_word_vote.rating     = payload.rating
+            existing_word_vote.comment    = payload.comment
+            existing_word_vote.updated_at = datetime.now(timezone.utc)
+            db.commit()
+            db.refresh(existing_word_vote)
+            return existing_word_vote
+
     fb = Feedback(
         id_feedback    = str(uuid.uuid4()),
         id_user        = current_user.id_user,
