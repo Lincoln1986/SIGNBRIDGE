@@ -1,6 +1,7 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Logo, Btn } from './UI';
+import { NotificationBell } from './NotificationBell';
 
 export function Navbar() {
   const { user, logout, isAdmin, isSupport } = useAuth();
@@ -64,6 +65,8 @@ export function Navbar() {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <NotificationBell />
+
         <div style={{ textAlign: 'right' }}>
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--gray-800)' }}>
             {user?.full_name}

@@ -56,6 +56,7 @@ class User(Base):
     access_logs = relationship("AccessLog", back_populates="user")
     sent_messages     = relationship("Message", foreign_keys="Message.id_sender",   back_populates="sender")
     received_messages = relationship("Message", foreign_keys="Message.id_receiver", back_populates="receiver")
+    notifications     = relationship("Notification", back_populates="user")
 
 
 class TranslationSession(Base):
@@ -246,3 +247,25 @@ class SystemErrorLog(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now())
     deleted_at = Column(DateTime, nullable=True)
+
+
+class Notification(Base):
+    """Aviso in-app para el usuario (la campana del menú).
+
+    Complementa el correo: el punto de corrección pedía que el usuario
+    "reciba una notificación" cuando le resuelven el ticket, y el correo
+    solo funciona si el SMTP está configurado. Esto siempre funciona.
+    """
+    __tablename__ = "Notification"
+
+    id_notification = Column(String(36), primary_key=True)
+    id_user         = Column(String(36), ForeignKey("User.id_user"), nullable=False)
+    type            = Column(String(40), nullable=False)   # ticket_resolved | feedback_answered
+    title           = Column(String(150), nullable=False)
+    body            = Column(Text, nullable=True)
+    reference_id    = Column(String(36), nullable=True)    # id del ticket o de la valoración
+    read_at         = Column(DateTime, nullable=True)
+    created_at      = Column(DateTime, server_default=func.now())
+    deleted_at      = Column(DateTime, nullable=True)
+
+    user = relationship("User", back_populates="notifications")
