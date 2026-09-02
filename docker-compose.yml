@@ -1,53 +1,74 @@
-version: "3.9"
+# ==============================================================================
+# SignBridge — stack completo (PostgreSQL + backend FastAPI + frontend Vite)
+#
+#   cp .env.example .env      # y editá SECRET_KEY
+#   docker compose up -d --build
+#
+#   Frontend  → http://localhost:5173
+#   API docs  → http://localhost:8000/docs
+# ==============================================================================
 
 services:
   postgres:
     image: postgres:17
     container_name: signbridge_postgres
-    restart: always
+    restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: signbridge
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-signbridge}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-signbridge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   backend:
     build:
-      context: ../Backend-SignBridge
+      context: ./Backend-SignBridge
       dockerfile: Dockerfile
     container_name: signbridge_backend
-    restart: always
+    restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "${BACKEND_PORT:-8000}:8000"
     volumes:
-      - ../Backend-SignBridge:/app
+      - ./Backend-SignBridge:/app
     environment:
-      DATABASE_URL: postgresql://postgres:admin@postgres:5432/signbridge
-      SECRET_KEY: cualquier_clave_larga_aqui_ej_signbridge2026
-      MAIL_USERNAME: bfde1fb57370b5
-      MAIL_PASSWORD: d45df76c4baced
-      MAIL_FROM: noreply@signbridge.com
-      MAIL_SERVER: sandbox.smtp.mailtrap.io
-      MAIL_PORT: 2525
-      FRONTEND_URL: http://localhost:5173
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DB:-signbridge}
+      SECRET_KEY: ${SECRET_KEY:?falta SECRET_KEY - copiá .env.example a .env}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-noreply@signbridge.com}
+      MAIL_SERVER: ${MAIL_SERVER:-sandbox.smtp.mailtrap.io}
+      MAIL_PORT: ${MAIL_PORT:-2525}
+      APP_NAME: ${APP_NAME:-Sign_Bridge}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    # Espera a que Postgres acepte conexiones, no solo a que arranque el
+    # contenedor: de lo contrario el backend entra en un bucle de reinicios.
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
   frontend:
     build:
-      context: ../Frontend-SignBridge
+      context: ./Frontend-SignBridge
       dockerfile: Dockerfile
     container_name: signbridge_frontend
-    restart: always
+    restart: unless-stopped
     ports:
-      - "5173:5173"
+      - "${FRONTEND_PORT:-5173}:5173"
     environment:
-      VITE_API_URL: http://localhost:8000
+      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
     volumes:
-      - ../Frontend-SignBridge:/app
+      - ./Frontend-SignBridge:/app
       - /app/node_modules
     depends_on:
       - backend
