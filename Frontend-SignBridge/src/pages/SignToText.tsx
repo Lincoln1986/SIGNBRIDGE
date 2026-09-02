@@ -6,7 +6,32 @@ import { Btn, Card, Alert, Spinner } from '../components/UI';
 
 // ── Constantes ─────────────────────────────────────────────────────────────
 
-const CAPTURE_INTERVAL_MS = 1500; // Capturar un frame cada 1.5 segundos
+const CAPTURE_INTERVAL_MS = 400;   // Capturar un frame cada 0.4 segundos
+
+// Cuántas lecturas seguidas tienen que coincidir para dar una letra por buena.
+//
+// Sin esto, cada frame se agregaba al historial y la mano en movimiento entre
+// una letra y otra producía basura del tipo "LSLEBLSEBABESBESESE". Exigir que
+// la letra se mantenga estable filtra las poses de transición.
+//
+// Cada nivel de velocidad define cuántas lecturas hacen falta y cuánto se
+// pausa después de aceptar una letra. La pausa es lo que da tiempo a cambiar
+// de seña sin que la anterior se registre dos veces.
+const VELOCIDADES = {
+  lenta:   { lecturas: 5, pausaMs: 2000, etiqueta: 'Lenta' },
+  normal:  { lecturas: 3, pausaMs: 1200, etiqueta: 'Normal' },
+  rapida:  { lecturas: 2, pausaMs: 600,  etiqueta: 'Rápida' },
+} as const;
+
+type Velocidad = keyof typeof VELOCIDADES;
+
+// Tras confirmar una letra se ignoran las lecturas durante este tiempo, para
+// que el usuario pueda cambiar de seña sin que la mano en movimiento genere
+// letras sueltas. Sin esta pausa, deletrear una palabra era una carrera.
+
+// Por debajo de esta confianza la lectura se descarta: son los casos en que el
+// clasificador no pudo desempatar entre letras parecidas.
+const CONFIANZA_MINIMA = 0.60;
 
 // ── Componente principal ───────────────────────────────────────────────────
 
@@ -19,7 +44,23 @@ export default function SignToText() {
   const [lastResult, setLastResult] = useState<SignToTextResponse | null>(null);
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [history, setHistory] = useState<string[]>([]);
+  const [candidata, setCandidata] = useState<{ letra: string; veces: number } | null>(null);
+  const [velocidad, setVelocidad] = useState<Velocidad>('normal');
+  const [enPausa, setEnPausa] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // El intervalo se registra una sola vez, así que el contador de lecturas
+  // seguidas vive en un ref: si estuviera en el estado, el callback quedaría
+  // congelado con el valor del primer render.
+  const repeticionesRef = useRef<{ letra: string; veces: number } | null>(null);
+
+  // Momento hasta el cual se ignoran las lecturas, para dar tiempo a cambiar
+  // de seña después de aceptar una letra.
+  const pausaHastaRef = useRef<number>(0);
+  const velocidadRef = useRef<Velocidad>('normal');
+
+
+  useEffect(() => { velocidadRef.current = velocidad; }, [velocidad]);
 
   // Conectar el stream al <video> cuando se habilite la cámara
   const handleVideoRef = useCallback(
@@ -46,13 +87,42 @@ export default function SignToText() {
       const data = res.data;
       setLastResult(data);
 
-      if (data.detected_sign && data.detected_sign.trim()) {
-        setTranslatedText(data.detected_sign);
-        setHistory(prev => {
-          const last = prev[prev.length - 1];
-          return last === data.detected_sign ? prev : [...prev, data.detected_sign!];
-        });
-        setTranslationError(null);
+      // Ventana de descanso tras aceptar una letra: sin esto, mantener la mano
+      // quieta un instante de más registraba la misma letra varias veces.
+      if (Date.now() < pausaHastaRef.current) {
+        setEnPausa(true);
+        return;
+      }
+      setEnPausa(false);
+
+      const letra = data.detected_sign?.trim();
+      const confianza = data.confidence ?? 0;
+
+      // Sin mano en cuadro, o pose que no corresponde a ninguna letra:
+      // se reinicia el conteo para no arrastrar lecturas viejas.
+      if (!letra || confianza < CONFIANZA_MINIMA) {
+        repeticionesRef.current = null;
+        setCandidata(null);
+        return;
+      }
+
+      setTranslatedText(letra);
+      setTranslationError(null);
+
+      // Contar cuántas lecturas seguidas devolvieron la misma letra
+      const previo = repeticionesRef.current;
+      const veces = previo && previo.letra === letra ? previo.veces + 1 : 1;
+      repeticionesRef.current = { letra, veces };
+      setCandidata({ letra, veces });
+
+      // Solo se agrega al historial cuando la letra se mantuvo estable.
+      const config = VELOCIDADES[velocidadRef.current];
+      if (veces === config.lecturas) {
+        setHistory(prev => [...prev, letra]);
+        // Descanso: da tiempo a bajar la mano y formar la siguiente seña.
+        pausaHastaRef.current = Date.now() + config.pausaMs;
+        repeticionesRef.current = null;
+        setCandidata(null);
       }
     } catch {
       // No mostrar error por cada frame fallido; solo si persiste
@@ -67,6 +137,10 @@ export default function SignToText() {
   }, [sendFrame]);
 
   const stopTranslation = useCallback(() => {
+    repeticionesRef.current = null;
+    pausaHastaRef.current = 0;
+    setEnPausa(false);
+    setCandidata(null);
     setIsTranslating(false);
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
@@ -226,7 +300,7 @@ export default function SignToText() {
                   padding: '5px 12px',
                 }}>
                   <span style={{ color: 'white', fontSize: '0.78rem', fontWeight: 600 }}>
-                    Confianza: {Math.round(lastResult.confidence * 100)}%
+                    Confianza: {Math.round((lastResult.confidence ?? 0) * 100)}%
                   </span>
                 </div>
               )}
@@ -235,7 +309,7 @@ export default function SignToText() {
 
           {/* Controles de cámara */}
           <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-            {permission === 'idle' || permission === 'denied' || permission === 'unavailable' ? (
+            {permission === 'idle' || permission === 'denied' || permission === 'unavailable' || permission === 'requesting' ? (
               <Btn
                 onClick={requestCamera}
                 disabled={permission === 'requesting'}
@@ -300,6 +374,82 @@ export default function SignToText() {
                 </span>
               )}
             </div>
+
+            {/* Ritmo de deletreo: cuántas lecturas hacen falta para aceptar
+                una letra y cuánto se espera después. La pausa es lo que da
+                tiempo a cambiar de seña sin repetir la anterior. */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8,
+                          flexWrap: 'wrap', marginBottom: 14 }}>
+              <span style={{ fontSize: '0.76rem', color: 'var(--gray-400)', fontWeight: 600 }}>
+                Ritmo:
+              </span>
+              {(Object.keys(VELOCIDADES) as Velocidad[]).map(v => (
+                <button
+                  key={v}
+                  onClick={() => setVelocidad(v)}
+                  title={`${VELOCIDADES[v].lecturas} lecturas · ${VELOCIDADES[v].pausaMs / 1000}s de pausa`}
+                  style={{
+                    padding: '4px 12px', borderRadius: 20, cursor: 'pointer',
+                    fontSize: '0.78rem', fontWeight: velocidad === v ? 700 : 500,
+                    fontFamily: 'var(--font-body)',
+                    border: `1.5px solid ${velocidad === v ? 'var(--violet)' : 'var(--gray-200)'}`,
+                    background: velocidad === v ? 'var(--violet)' : 'var(--white)',
+                    color: velocidad === v ? 'white' : 'var(--gray-800)',
+                  }}
+                >
+                  {VELOCIDADES[v].etiqueta}
+                </button>
+              ))}
+            </div>
+
+            {/* Descanso tras aceptar una letra */}
+            {isTranslating && enPausa && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12,
+                padding: '8px 12px', borderRadius: 8,
+                background: 'rgba(39,168,95,0.10)',
+              }}>
+                <span style={{ fontSize: '1rem' }}>✓</span>
+                <span style={{ fontSize: '0.8rem', color: '#1E7A47', fontWeight: 600 }}>
+                  Letra registrada — preparate para la siguiente
+                </span>
+              </div>
+            )}
+
+            {/* Indicador de confirmación: la letra solo se agrega al historial
+                cuando se mantiene estable varias lecturas seguidas. Mostrarlo
+                evita que el usuario crea que el sistema se colgó. */}
+            {isTranslating && enPausa && (
+              <div style={{
+                marginBottom: 12, padding: '8px 12px', borderRadius: 8,
+                background: 'rgba(39,168,95,0.10)', border: '1px solid rgba(39,168,95,0.3)',
+                fontSize: '0.82rem', color: '#27A85F', fontWeight: 600, textAlign: 'center',
+              }}>
+                ✓ Letra registrada — preparate para la siguiente
+              </div>
+            )}
+
+            {isTranslating && !enPausa && candidata && (
+              <div style={{ marginBottom: 12 }}>
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: '0.76rem', color: 'var(--gray-400)', marginBottom: 5,
+                }}>
+                  <span>Mantené la seña…</span>
+                  <span>{Math.min(candidata.veces, VELOCIDADES[velocidad].lecturas)} / {VELOCIDADES[velocidad].lecturas}</span>
+                </div>
+                <div style={{
+                  height: 6, borderRadius: 20, background: 'var(--gray-100)', overflow: 'hidden',
+                }}>
+                  <div style={{
+                    width: `${Math.min(100, (candidata.veces / VELOCIDADES[velocidad].lecturas) * 100)}%`,
+                    height: '100%', borderRadius: 20,
+                    background: candidata.veces >= VELOCIDADES[velocidad].lecturas ? '#27A85F' : 'var(--violet)',
+                    transition: 'width 150ms ease',
+                  }} />
+                </div>
+              </div>
+            )}
 
             <div style={{
               minHeight: 100,
