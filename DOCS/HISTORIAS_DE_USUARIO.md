@@ -1,440 +1,487 @@
-# HISTORIAS DE USUARIO
-## SignBridge
-### Aplicación de traducción de lengua de señas colombiana (LSC)
+# Historias de Usuario — SignBridge
 
-* **CREATE:** Crear/Registrar
-* **READ:** Consultar/Ver
-* **UPDATE:** Modificar/Actualizar
-* **DELETE:** Eliminar/Borrar
+**Aplicación de traducción de Lengua de Señas Colombiana (LSC)**
+Ficha 3228973 B · TG. Análisis y Desarrollo de Software · V Trimestre
 
 ---
 
+## Convenciones
+
+| Operación | Significado |
+|---|---|
+| CREATE | Crear / Registrar |
+| READ | Consultar / Ver |
+| UPDATE | Modificar / Actualizar |
+| DELETE | Eliminar / Borrar |
+
+| Estado | Significado |
+|---|---|
+| ✅ Terminada | Implementada y verificada |
+| 🔄 En curso | En desarrollo dentro del sprint actual |
+| 📋 Backlog | Planificada para un sprint posterior |
+
+---
+
+## Nota de reajuste de alcance
+
+Durante el Sprint 6 se replanteó el enfoque de representación de las señas.
+El diseño inicial (HU-04 y HU-14) contemplaba un **avatar animado 3D**, pero
+el equipo grabó **videos reales de personas señantes**, que resultan más
+fieles a la LSC y no dependen de modelado ni animación.
+
+Las historias de avatar se reemplazaron por historias de **reproducción de
+video**, que es lo que el producto usa hoy. El avatar queda documentado en el
+backlog por si en un trimestre posterior se retoma.
+
+También se incorporó **HU-25 (detección de manos con MediaPipe)**, que estaba
+implícita en HU-03 pero no documentada como historia propia. Separarla permite
+medir su avance de forma independiente.
+
+---
+
+## Alcance del V Trimestre — Sprints 1 a 7
+
 ### HU-01: Registro de usuario
-* **Operación CRUD:** CREATE
-* **Prioridad:** ALTA
+**CRUD:** CREATE · **Prioridad:** ALTA · **Sprint 1** · ✅ Terminada
 
-**Historia de usuario:**
-Como persona no oyente o persona oyente, quiero poder crear una cuenta en la aplicación ingresando mis datos básicos, para acceder a las funciones de traducción de forma personalizada y segura.
+Como persona no oyente u oyente, quiero crear una cuenta ingresando mis datos
+básicos, para acceder a las funciones de traducción de forma personalizada y
+segura.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario completa el formulario de registro con nombre, correo electrónico y contraseña, y confirma la contraseña. | El sistema crea la cuenta en la base de datos, envía confirmación y redirige al usuario a la pantalla principal. |
-| 2 | El usuario ingresa una contraseña que no cumple el formato mínimo (menos de 8 caracteres o sin números). | El sistema resalta el campo y muestra: 'La contraseña debe tener mínimo 8 caracteres e incluir al menos un número'. No completa el registro. |
-| 3 | El usuario intenta registrarse con un correo electrónico ya existente en el sistema. | El sistema muestra: 'Este correo ya está registrado. ¿Deseas iniciar sesión?' y no crea una cuenta duplicada. |
-| 4 | El usuario deja campos obligatorios vacíos e intenta continuar. | El sistema resalta los campos vacíos con borde rojo y muestra: 'Por favor completa todos los campos requeridos'. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Completa el formulario con nombre, correo y contraseña | El sistema crea la cuenta, envía correo de bienvenida y redirige al panel | ✅ |
+| 2 | Ingresa una contraseña que no cumple el formato | Muestra los requisitos incumplidos y no completa el registro | ✅ |
+| 3 | Usa un correo ya registrado | Muestra "Este correo ya está registrado" y no duplica la cuenta | ✅ |
+| 4 | Deja campos obligatorios vacíos | Resalta los campos y muestra el mensaje de validación | ✅ |
 
 ---
 
 ### HU-02: Inicio de sesión
-* **Operación CRUD:** READ
-* **Prioridad:** MEDIA
+**CRUD:** READ · **Prioridad:** ALTA · **Sprint 1** · ✅ Terminada
 
-**Historia de usuario:**
-Como usuario registrado, quiero iniciar sesión con mi correo electrónico y contraseña, para acceder a mi cuenta y retomar mi experiencia personalizada donde la dejó.
+Como usuario registrado, quiero iniciar sesión con mi correo y contraseña,
+para acceder a mi cuenta y retomar mi experiencia.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario ingresa correo y contraseña correctos y presiona 'Iniciar sesión'. | El sistema valida las credenciales y redirige al usuario a la pantalla principal con sesión activa. |
-| 2 | El usuario ingresa credenciales incorrectas. | El sistema muestra: 'Correo o contraseña incorrectos' sin especificar cuál campo falló, por razones de seguridad. |
-| 3 | El usuario presiona la opción 'Olvidé mi contraseña'. | El sistema redirige a la pantalla de recuperación donde el usuario puede ingresar su correo registrado para recibir instrucciones. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Ingresa credenciales correctas | Valida y entrega un token JWT; redirige según el rol | ✅ |
+| 2 | Ingresa credenciales incorrectas | Muestra "Credenciales incorrectas" sin indicar cuál campo falló | ✅ |
+| 3 | Presiona "Olvidé mi contraseña" | Redirige a la pantalla de recuperación | ✅ |
 
 ---
 
-### HU-03: Traducción de seña a texto
-* **Operación CRUD:** CREATE READ
-* **Prioridad:** ALTA
+### HU-05: Cambio y recuperación de contraseña
+**CRUD:** UPDATE · **Prioridad:** ALTA · **Sprint 1** · ✅ Terminada
 
-**Historia de usuario:**
-Como persona no oyente, quiero que la app capture mis señas a través de la cámara y las convierta en texto en tiempo real, para comunicarme con personas oyentes que no conocen la lengua de señas colombiana (LSC).
+Como usuario registrado, quiero cambiar mi contraseña o recuperarla si la
+olvidé, para mantener la seguridad de mi cuenta sin perder el acceso.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario activa la cámara y realiza una seña reconocida por el sistema. | La app traduce la seña y muestra el texto en pantalla con latencia máxima de 2 segundos, visible para ambos interlocutores. |
-| 2 | El usuario realiza una seña que el sistema no reconoce. | El sistema muestra: 'Seña no reconocida. Por favor intente de nuevo' sin generar texto incorrecto. |
-| 3 | El usuario intenta usar la cámara sin haber concedido el permiso. | El sistema solicita el permiso; si el usuario lo niega, muestra instrucciones para habilitarlo desde los ajustes del dispositivo. |
-| 4 | La seña es reconocida y el texto traducido aparece en pantalla. | El texto se muestra con fuente de mínimo 18pt y contraste suficiente para lectura cómoda del interlocutor oyente. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Solicita recuperación con su correo registrado | El sistema envía un enlace con token de un solo uso | ✅ |
+| 2 | La nueva contraseña no cumple los requisitos | Muestra los requisitos incumplidos y no realiza el cambio | ✅ |
+| 3 | Usa un token vencido o ya utilizado | Muestra "El enlace no es válido o ya expiró" | ✅ |
 
 ---
 
-### HU-04: Personalización del avatar
-* **Operación CRUD:** READ UPDATE
-* **Prioridad:** MEDIA
+### HU-18: Cierre de sesión
+**CRUD:** UPDATE · **Prioridad:** MEDIA · **Sprint 1** · ✅ Terminada
 
-**Historia de usuario:**
-Como persona no oyente, quiero personalizar los atributos visuales de mi avatar (tono de piel, ropa, género) para sentirme representado durante las traducciones y tener una experiencia más inclusiva.
+Como usuario, quiero cerrar mi sesión, para evitar que mi cuenta quede activa
+en dispositivos ajenos.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario accede a la sección de personalización y modifica el tono de piel del avatar. | El avatar se actualiza visualmente en tiempo real reflejando el atributo seleccionado. |
-| 2 | El usuario guarda los cambios realizados. | El sistema almacena la configuración y muestra: 'Cambios guardados exitosamente'. |
-| 3 | El usuario cierra sesión y vuelve a iniciarla. | El avatar mantiene la personalización guardada previamente, sin pérdida de datos. |
-| 4 | Ocurre un error al guardar los cambios. | El sistema muestra: 'No fue posible guardar los cambios. Inténtalo de nuevo' e indica que reintente la action. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Presiona "Salir" | Invalida el token local y redirige al inicio de sesión | ✅ |
+| 2 | Intenta acceder a una sección protegida sin sesión | Redirige al inicio de sesión | ✅ |
+| 3 | Un usuario con rol distinto entra a una ruta ajena | Redirige a su propio panel según el rol | ✅ |
 
 ---
 
-### HU-05: Cambio de contraseña
-* **Operación CRUD:** UPDATE
-* **Prioridad:** ALTA
+### HU-08: Traducción de texto a señas
+**CRUD:** CREATE READ · **Prioridad:** ALTA · **Sprint 2** · ✅ Terminada
 
-**Historia de usuario:**
-Como usuario registrado, quiero poder cambiar mi contraseña desde la configuración de mi cuenta o mediante un método de verificación, para mantener la seguridad de mi cuenta sin riesgo de perder el acceso.
+Como persona oyente, quiero escribir un texto y ver su representación en LSC,
+para comunicarme con personas no oyentes sin conocer previamente la lengua.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario ingresa su contraseña actual y una nueva contraseña válida, luego confirma el cambio. | El sistema valida la contraseña actual, actualiza la contraseña en la base de datos y muestra: 'Contraseña actualizada correctamente'. |
-| 2 | La nueva contraseña no cumple los requisitos mínimos | El sistema muestra los requisitos incumplidos (mínimo 8 caracteres, al menos un número) у no realiza el cambio. |
-| 3 | El usuario no recuerda su contraseña actual y solicita recuperación por correo o número de celular. | El sistema envía un código de verificación al medio registrado por el usuario y permite establecer una nueva contraseña tras validar el código. |
-| 4 | El usuario intenta cambiar la contraseña sin completar la verificación de identidad. | El sistema bloquea el proceso y muestra: 'Debes verificar tu identidad para continuar'. |
-
----
-
-### HU-06: Envío de feedback
-* **Operación CRUD:** CREATE
-* **Prioridad:** MEDIA
-
-**Historia de usuario:**
-Como usuario, quiero enviar mi opinión sobre la aplicación mediante una calificación de 1 a 5 estrellas y un comentario opcional, para que el equipo de desarrollo pueda identificar áreas de mejora.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario selecciona una calificación de 1 a 5 estrellas y presiona 'Enviar'. | El sistema registra la calificación con fecha y hora, y muestra: 'Gracias por tu opinión. Tu feedback fue enviado'. |
-| 2 | El usuario intenta enviar el formulario sin seleccionar una calificación. | El sistema muestra: 'Por favor selecciona una calificación antes de continuar' y no procesa el envío. |
-| 3 | El usuario escribe un comentario adicional de hasta 500 caracteres junto con la calificación. | El sistema guarda el comentario junto a la calificación y confirma el envío con el mensaje de confirmación. |
-| 4 | El usuario supera el límite de 500 caracteres en el comentario. | El sistema limita el ingreso al límite establecido y muestra: 'Has alcanzado el máximo de 500 caracteres'. |
-
----
-
-### HU-07: Envío de ticket de soporte
-* **Operación CRUD:** CREATE READ
-* **Prioridad:** MEDIA
-
-**Historia de usuario:**
-Como usuario, quiero enviar un ticket de soporte describiendo mi problema y adjuntando evidencia opcional, para recibir asistencia técnica con seguimiento del estado de mi solicitud.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario escribe una descripción del problema y opcionalmente adjunta una imagen o video, luego envía el ticket. | El sistema crea el ticket con número único, fecha y estado inicial 'Pendiente', y muestra confirmación: 'Tu ticket #[número] fue enviado'. |
-| 2 | El usuario intenta enviar un ticket con descripción vacía. | El sistema muestra: 'Por favor describe tu problema antes de enviar el ticket' y no procesa el envío. |
-| 3 | El usuario consulta el estado de un ticket previamente enviado. | El sistema muestra el ticket con su número, fecha, descripción y estado actual (Pendiente / En revisión / Resuelto). |
-| 4 | El estado del ticket es actualizado por el equipo de soporte. | El usuario recibe una notificación indicando el cambio de estado de su ticket. |
-
----
-
-### HU-08: Traducción de texto a seña
-* **Operación CRUD:** CREATE READ
-* **Prioridad:** ALTA
-
-**Historia de usuario:**
-Como persona oyente, quiero escribir un texto en la aplicación y ver cómo se representa en lengua de señas colombiana (LSC) mediante el avatar animado, para comunicarme con personas no oyentes sin necesidad de conocer previamente la LSC.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario escribe una frase en el campo de texto y presiona 'Traducir'. | El avatar ejecuta la animación de señas correspondiente en un tiempo máximo de 3 segundos. |
-| 2 | El texto contiene una palabra sin seña registrada en el sistema. | El sistema deletrea la palabra letra por letra en dactilología LSC y muestra: 'La palabra X fue deletreada letra por letra'. |
-| 3 | El usuario presiona el botón 'Repetir'. | El sistema reproduce la animación desde el inicio sin necesidad de volver a escribir el texto. |
-| 4 | El usuario deja el campo de texto vacío e intenta traducir. | El sistema muestra: 'Por favor ingresa un texto para traducir' y no inicia ninguna animación. |
-
----
-
-### HU-09: Historial de traducciones
-* **Operación CRUD:** READ DELETE
-* **Prioridad:** MEDIA
-
-**Historia de usuario:**
-Como usuario registrado, quiero ver un historial de mis traducciones anteriores ordenado cronológicamente, para revisar conversaciones pasadas sin tener que repetirlas, especialmente en contextos médicos o legales.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario accede a la sección de historial. | El sistema lista las traducciones de la más reciente a la más antigua, mostrando fecha, hora y tipo de traducción (seña a texto / texto a seña). |
-| 2 | El usuario busca una traducción por palabra clave o por fecha. | El sistema filtra y muestra únicamente las traducciones que coinciden con el criterio de búsqueda ingresado. |
-| 3 | El usuario elimina un registro individual del historial. | El sistema elimina únicamente ese registro, actualiza la lista inmediatamente y muestra: 'Registro eliminado'. |
-| 4 | El usuario elige limpiar todo el historial. | El sistema muestra: '¿Estás seguro? Esta acción no se puede deshacer'. Al confirmar, elimina todos los registros y muestra el historial vacío. |
-
----
-
-### HU-10: Modo sin conexión
-* **Operación CRUD:** CREATE READ
-* **Prioridad:** ALTA
-
-**Historia de usuario:**
-Como usuario, quiero que la aplicación realice traducciones básicas sin conexión a internet, para usarla en zonas rurales o con señal limitada sin perder su funcionalidad esencial.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario descarga el paquete de señas básicas desde Configuración con conexión activa. | El sistema descarga y almacena el paquete localmente, y muestra: 'Paquete descargado. Ya puedes usar la app sin conexión'. |
-| 2 | El dispositivo pierde la conexión a internet durante el uso de la app. | El sistema detecta la desconexión y activa el modo sin conexión mostrando el indicador: 'Modo sin conexión activado'. |
-| 3 | El usuario intenta traducir una seña no incluida en el paquete básico mientras está sin conexión. | El sistema muestra: 'Esta seña no está disponible sin conexión' sin generar un error crítico. |
-| 4 | El dispositivo recupera la conexión a internet. | El sistema detecta la reconexión, desactiva el modo sin conexión automáticamente y muestra: 'Conexión restaurada'. |
-
----
-
-### HU-11: Guía rápida de uso de cámara
-* **Operación CRUD:** READ
-* **Prioridad:** MEDIA
-
-**Historia de usuario:**
-Como usuario nuevo, quiero ver una guía rápida al abrir la función de cámara por primera vez, para entender cómo posicionarme y realizar correctamente las señas ante la cámara.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario abre la función de cámara por primera vez. | El sistema muestra automáticamente una ventana emergente con la guía de uso (ilustraciones de posición de manos, distancia recomendada e iluminación). |
-| 2 | El usuario presiona el botón 'Omitir' o cierra la guía. | La ventana emergente se cierra y el usuario accede directamente a la pantalla de cámara. La guía no vuelve a mostrarse automáticamente. |
-| 3 | El usuario desea volver a ver la guía desde la configuración. | El sistema permite acceder a la guía nuevamente desde el menú de Ayuda sin necesidad de reinstalar la app. |
-
----
-
-### HU-12: Buscador de señas (herramienta educativa)
-* **Operación CRUD:** READ
-* **Prioridad:** ALTA
-
-**Historia de usuario:**
-Como estudiante de lengua de señas, quiero buscar palabras específicas en un diccionario de señas, para aprender cómo se realiza cada seña de forma individual con una imagen o animación clara.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario escribe una palabra en el buscador. | El sistema filtra los resultados en tiempo real mostrando las palabras que coinciden con el texto ingresado. |
-| 2 | El usuario selecciona una palabra de los resultados. | El sistema muestra una imagen o animación clara de la seña correspondiente junto con la descripción del movimiento. |
-| 3 | El usuario busca una palabra que no existe en el diccionario. | El sistema muestra: 'No se encontró una seña para esta palabra. Puedes sugerirla a la comunidad'. |
-
----
-
-### HU-13: Variantes regionales de señas
-* **Operación CRUD:** READ
-* **Prioridad:** MEDIA
-
-**Historia de usuario:**
-Como usuario, quiero consultar las variantes regionales de una seña según mi departamento en Colombia, para comunicarme de forma más natural respetando el contexto cultural local.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario selecciona su región o departamento desde un menú desplegable. | El sistema muestra las variantes de señas correspondientes a la región seleccionada para las palabras consultadas. |
-| 2 | Una palabra tiene variantes en varias regiones. | El sistema muestra las variantes disponibles con la etiqueta de la región correspondiente (ej. 'Bogotá', 'Costa Atlántica'). |
-| 3 | El sistema incluye ejemplos de uso en frases cotidianas para cada variante. | El usuario puede ver al menos un ejemplo de frase en LSC que contenga la seña regional seleccionada. |
-
----
-
-### HU-14: Control de velocidad del avatar
-* **Operación CRUD:** READ UPDATE
-* **Prioridad:** ALTA
-
-**Historia de usuario:**
-Como aprendiz de LSC, quiero poder ajustar la velocidad de las animaciones del avatar (0.5x, 1x, 1.5x), para entender mejor los movimientos complejos durante el aprendizaje.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario mueve el control deslizante de velocidad a 0.5x. | La animación del avatar se reproduce a la mitad de la velocidad normal, manteniéndose fluida y sincronizada. |
-| 2 | El usuario mueve el control deslizante de velocidad a 1.5x. | La animación se reproduce a mayor velocidad sin perder la sincronización ni la fluidez del movimiento. |
-| 3 | El usuario cierra la sesión y vuelve a iniciarla. | El sistema recuerda la última velocidad elegida por el usuario y la aplica automáticamente al reiniciar la app. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Escribe una frase y presiona "Traducir a señas" | Muestra la secuencia de videos correspondiente | ✅ |
+| 2 | El texto contiene una palabra sin seña registrada | La reporta como "sin seña" e intenta deletrearla | ✅ |
+| 3 | Presiona "Repetir" en el historial de la sesión | Vuelve a reproducir sin reescribir el texto | ✅ |
+| 4 | Deja el campo vacío e intenta traducir | Muestra el mensaje de validación y no traduce | ✅ |
 
 ---
 
 ### HU-15: Traducción por voz a señas
-* **Operación CRUD:** CREATE READ
-* **Prioridad:** ALTA
+**CRUD:** CREATE READ · **Prioridad:** ALTA · **Sprint 2** · ✅ Terminada
 
-**Historia de usuario:**
-Como persona oyente, quiero dictar por voz lo que quiero decir para que el avatar lo traduzca a lengua de señas, sin necesidad de escribir, para agilizar la comunicación con personas no oyentes.
+Como persona oyente, quiero dictar por voz lo que quiero decir para que se
+traduzca a señas, sin necesidad de escribir.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario presiona el icono de micrófono y comienza a hablar. | El sistema transcribe la voz a texto en tiempo real y lo muestra en el campo de entrada antes de iniciar la traducción. |
-| 2 | El usuario presiona el botón 'Detener' durante la captura de audio. | El sistema detiene la escucha, muestra el texto capturado hasta ese momento y permite al usuario revisar o editar antes de traducir. |
-| 3 | El sistema no detecta voz o el audio es muy bajo. | El sistema muestra: 'No se detectó audio. Verifica el micrófono e inténtalo de nuevo' sin generar texto vacío. |
-| 4 | La transcripción de voz a texto es completada. | El avatar ejecuta la animación de señas correspondiente al texto transcrito en un máximo de 3 segundos. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Presiona el micrófono y habla | Transcribe la voz a texto en tiempo real en el campo de entrada | ✅ |
+| 2 | Presiona "Detener" | Muestra el texto capturado y permite revisarlo antes de traducir | ✅ |
+| 3 | No se detecta voz | Muestra "No se detectó audio" sin generar texto vacío | ✅ |
+| 4 | La transcripción se completa | Reproduce la secuencia de señas del texto transcrito | ✅ |
 
 ---
 
-### HU 16: Foro comunitario de dudas sobre señas
-* **Operación CRUD:** CREATE READ
-* **Prioridad:** BAJA
+### HU-26: Traducción de frases completas
+**CRUD:** READ · **Prioridad:** ALTA · **Sprint 2** · ✅ Terminada
 
-**Historia de usuario:**
-Como usuario interesado en aprender LSC, quiero publicar dudas sobre señas específicas con texto o video, para que expertos o la comunidad me ayuden a resolverlas.
+Como usuario, quiero traducir frases completas y no solo palabras sueltas,
+para comunicarme de forma más natural.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario publica una pregunta con texto o adjunta un video de la seña sobre la que tiene duda. | El sistema crea la publicación en la sección del foro con fecha, nombre de usuario y tipo de contenido adjunto. |
-| 2 | Otro usuario responde a la pregunta publicada. | El sistema registra la respuesta vinculada a la pregunta original y notifica al autor de la duda. |
-| 3 | Los usuarios votan la utilidad de una respuesta. | El sistema registra los votos y ordena las respuestas de mayor a menor utilidad dentro de la publicación. |
-| 4 | El autor de la pregunta recibe una respuesta. | El sistema envía una notificación push o en la app indicando: 'Alguien respondió tu pregunta sobre [seña]'. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Ingresa una frase de varias palabras | Genera la secuencia de señas de cada palabra, en orden | ✅ |
+| 2 | La frase contiene una entrada de varias palabras ("buenas noches") | La reconoce como **una sola seña**, no como dos palabras sueltas | ✅ |
+| 3 | La frase contiene palabras no reconocidas | Traduce las reconocidas e indica cuáles no pudo traducir | ✅ |
+| 4 | Ingresa una sola palabra | Mantiene compatibilidad y la traduce correctamente | ✅ |
 
----
-
-### HU 17: Exportar historial de traducciones
-* **Operación CRUD:** READ
-* **Prioridad:** MEDIA
-
-**Historia de usuario:**
-Como usuario registrado, quiero exportar mis traducciones guardadas en formato PDF, para compartirlas con terceros o usarlas como respaldo en trámites administrativos o médicos.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario presiona el botón 'Exportar' dentro del historial de traducciones. | El sistema genera un PDF que incluye fecha, hora, texto traducido y tipo de traducción de cada registro seleccionado. |
-| 2 | El usuario selecciona un rango de fechas específico antes de exportar. | El PDF contiene únicamente las traducciones comprendidas en el rango de fechas indicado. |
-| 3 | No hay registros en el historial para exportar. | El sistema muestra: 'No hay traducciones para exportar en el rango seleccionado' y no genera el archivo. |
+> El criterio 2 se resolvió cambiando el algoritmo: antes recorría palabra por
+> palabra, por lo que una entrada de dos palabras del diccionario era
+> imposible de encontrar. Ahora prueba primero el grupo más largo.
 
 ---
 
-### HU 18: Cierre de sesión
-* **Operación CRUD:** UPDATE
-* **Prioridad:** MEDIA
+### HU-04: Reproducción secuencial de señas *(reemplaza «Personalización del avatar»)*
+**CRUD:** READ · **Prioridad:** ALTA · **Sprint 2** · ✅ Terminada
 
-**Historia de usuario:**
-Como usuario, quiero cerrar mi sesión desde la aplicación, para evitar que mi cuenta quede activa en dispositivos ajenos y proteger mi información personal.
+Como usuario, quiero que los videos de todas las señas de una frase se
+reproduzcan uno tras otro automáticamente, para leer la frase completa sin
+tener que iniciar cada video a mano.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario presiona el botón 'Cerrar sesión' desde el menú de perfil. | El sistema invalida la sesión activa, redirige al usuario a la pantalla de inicio de sesión y elimina los datos de sesión del dispositivo. |
-| 2 | Otro usuario intenta usar la app en el mismo dispositivo después del cierre de sesión. | El sistema muestra la pantalla de inicio de sesión y requiere ingresar credenciales válidas para continuar. |
-| 3 | El usuario intenta acceder a una sección protegida sin sesión activa. | El sistema redirige automáticamente a la pantalla de inicio de sesión con el mensaje: 'Debes iniciar sesión para continuar'. |
-
----
-
-### HU 19: Modo oscuro / Modo claro
-* **Operación CRUD:** UPDATE
-* **Prioridad:** BAJA
-
-**Historia de usuario:**
-Como usuario, quiero poder alternar entre modo oscuro y modo claro desde la configuración de la aplicación, para adaptar la interfaz a mis condiciones visuales o de iluminación del entorno.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario activa el modo oscuro desde la configuración. | Toda la interfaz cambia al tema oscuro (fondos oscuros, texto claro) de forma inmediata sin reiniciar la app. |
-| 2 | El usuario activa el modo claro desde la configuración. | Toda la interfaz cambia al tema claro (fondos blancos, texto oscuro) de forma inmediata y con contraste adecuado para facilitar la lectura. |
-| 3 | El usuario cierra y vuelve a abrir la aplicación. | El sistema mantiene el tema seleccionado (oscuro o claro) sin regresar al valor predeterminado. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Traduce una frase con varias señas | Los videos se reproducen en secuencia sin intervención | ✅ |
+| 2 | Está viendo la secuencia | Un contador indica en qué seña va (ej. "2 / 3") | ✅ |
+| 3 | Quiere volver a una seña puntual | Puede tocar el nombre de cualquier seña para saltar a ella | ✅ |
+| 4 | Termina la secuencia | Puede reproducir todo de nuevo con un botón | ✅ |
 
 ---
 
-### HU 20: Accesibilidad: subtítulos y personalización visual
-* **Operación CRUD:** READ UPDATE
-* **Prioridad:** ALTA
+### HU-14: Controles de reproducción de video *(reemplaza «Velocidad del avatar»)*
+**CRUD:** READ UPDATE · **Prioridad:** MEDIA · **Sprint 7** · 🔄 En curso
 
-**Historia de usuario:**
-Como usuario, quiero activar subtítulos en tiempo real y personalizar el tamaño de texto, contraste e interfaz visual, para garantizar una experiencia inclusiva y adaptable a mis necesidades de accesibilidad.
+Como aprendiz de LSC, quiero controlar la reproducción de los videos de señas
+(velocidad, sonido, repetición), para entender mejor los movimientos complejos.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario activa los subtítulos mediante el botón visible en la barra de controles. | Los subtítulos aparecen en pantalla con un retraso máximo de 2 segundos respecto al audio o la seña capturada. |
-| 2 | Los subtítulos se muestran sobre cualquier tipo de fondo. | El texto de los subtítulos usa un sombreado o caja de fondo que garantiza legibilidad sobre fondos claros y oscuros. |
-| 3 | El usuario ajusta el tamaño del texto desde la configuración de accesibilidad. | El sistema aplica el tamaño seleccionado en toda la interfaz de forma inmediata, sin necesidad de reiniciar la app. |
-| 4 | El usuario activa alto contraste desde la configuración de accesibilidad. | El sistema aplica un esquema de alto contraste (fondo negro, texto blanco o amarillo) en toda la interfaz. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Activa o silencia el sonido | El video responde de inmediato | ✅ |
+| 2 | Avanza a la siguiente seña o reinicia la secuencia | Los controles responden sin recargar la página | ✅ |
+| 3 | Ajusta la velocidad a 0.5x o 1.5x | El video se reproduce a esa velocidad manteniendo la fluidez | 🔄 |
 
 ---
 
-### HU 21: Eliminación de cuenta de usuario
-* **Operación CRUD:** DELETE
-* **Prioridad:** ALTA
+### HU-03: Traducción de señas a texto
+**CRUD:** CREATE READ · **Prioridad:** ALTA · **Sprint 3** · 🔄 En curso
 
-**Historia de usuario:**
-Como usuario registrado, quiero poder eliminar permanentemente mi cuenta de la aplicación, para asegurarme de que mis datos personales sean borrados del sistema cuando ya no desee utilizar el servicio.
+Como persona no oyente, quiero que la app capture mis señas por la cámara y
+las convierta en texto, para comunicarme con personas oyentes.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario accede a la configuración de su cuenta y selecciona la opción ‘Eliminar cuenta’. | El sistema muestra un mensaje de confirmación: ‘¿Estás seguro? Esta acción es irreversible y eliminará todos tus datos’. El usuario debe confirmar para continuar. |
-| 2 | El usuario confirma la eliminación e ingresa su contraseña actual como verificación de identidad. | El sistema valida la contraseña, elimina la cuenta y todos los datos asociados, y muestra: ‘Tu cuenta ha sido eliminada exitosamente’. El usuario es redirigido a la pantalla de inicio. |
-| 3 | El usuario intenta eliminar la cuenta sin completar la verificación de identidad. | El sistema bloquea el proceso y muestra: ‘Debes verificar tu identidad para continuar’. La cuenta no es eliminada. |
-| 4 | Otro usuario intenta acceder a la cuenta eliminada usando las mismas credenciales. | El sistema muestra: ‘Correo o contraseña incorrectos’ sin revelar que la cuenta fue eliminada, por razones de seguridad y privacidad. |
-
-# Historias de usuario nuevas
-
-### HU-22: Carga de vocabulario con videos propios (Admin)
-* **Operación CRUD:** CREATE
-* **Prioridad:** MEDIA
-
-**Historia de usuario:**
-Como usuario con rol Admin, quiero poder cargar palabras de vocabulario junto con sus propios videos de YouTube, para enriquecer el contenido educativo sin depender únicamente de videos predefinidos.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El Admin accede a la sección de Vocabulario y selecciona "Agregar nueva palabra". | El sistema muestra un formulario con campo para el nombre de la palabra y un campo para la URL del video de YouTube. |
-| 2 | El Admin ingresa una URL válida de YouTube y guarda. | El sistema valida el enlace, lo asocia a la palabra y la guarda en el vocabulario. |
-| 3 | El Admin ingresa una URL inválida o de otro origen. | El sistema muestra el mensaje: "Enlace de video no válido". |
-| 4 | Un usuario visualiza la palabra cargada en la sección de Vocabulario. | El video embebido se reproduce correctamente dentro de la plataforma. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Activa la cámara y concede permisos | La app muestra el video en vivo y el estado de la detección | ✅ |
+| 2 | Niega el permiso de cámara | Muestra instrucciones para habilitarlo desde el navegador | ✅ |
+| 3 | Realiza una seña reconocida | Muestra el texto correspondiente | 🔄 Depende de HU-25 |
+| 4 | Realiza una seña no reconocida | Muestra "Seña no reconocida" sin generar texto incorrecto | 🔄 Depende de HU-25 |
 
 ---
 
-### HU-23: Visualización de reportes y estadísticas con gráficos (Admin)
-* **Operación CRUD:** READ
-* **Prioridad:** MEDIA
+### HU-25: Detección de manos con MediaPipe *(historia nueva)*
+**CRUD:** CREATE · **Prioridad:** ALTA · **Sprint 3** · 🔄 En curso
 
-**Historia de usuario:**
-Como usuario con rol Admin, quiero visualizar reportes y estadísticas de uso mediante gráficos, para tener una vista clara del comportamiento de los usuarios en la plataforma.
+Como sistema, necesito detectar la posición de las manos en el video de la
+cámara mediante MediaPipe, para poder interpretar las señas en lugar de
+devolver una respuesta simulada.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El Admin accede a la sección de Reportes. | El sistema muestra gráficos (barras/líneas) con estadísticas de uso de la plataforma. |
-| 2 | El Admin selecciona un rango de fechas. | Los gráficos se actualizan mostrando únicamente los datos del período seleccionado. |
-| 3 | No existen datos suficientes para el período consultado. | El sistema muestra el mensaje: "No hay datos disponibles para este período". |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | MediaPipe está instalado en el contenedor | El backend arranca sin el aviso "MediaPipe no instalado" | 📋 |
+| 2 | Se envía un frame con una mano visible | Devuelve los 21 puntos de referencia de la mano | 📋 |
+| 3 | Se envía un frame sin manos | Responde "No se detectó ninguna mano" sin error | 📋 |
+| 4 | El reconocimiento falla o la librería no está | El sistema degrada a modo simulado y lo informa en la respuesta | ✅ |
+
+> **Nota técnica.** MediaPipe requiere las librerías del sistema `libgl1` y
+> `libglib2.0-0` dentro del contenedor. El alcance de esta historia se acotó
+> al **abecedario dactilológico** (letras estáticas), que se puede clasificar
+> con reglas geométricas sobre los puntos de la mano y no necesita entrenar un
+> modelo. El reconocimiento de señas completas exige un dataset etiquetado que
+> el equipo no tiene, y queda en el backlog como HU-28.
+
+---
+
+### HU-12: Buscador de señas (diccionario)
+**CRUD:** READ · **Prioridad:** ALTA · **Sprint 4** · ✅ Terminada
+
+Como estudiante de LSC, quiero buscar palabras en un diccionario de señas,
+para aprender cómo se realiza cada una.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Escribe una palabra en el buscador | Filtra los resultados en tiempo real | ✅ |
+| 2 | Selecciona una palabra | Muestra el video de la seña correspondiente | ✅ |
+| 3 | Filtra por letra del abecedario dactilológico | Muestra solo las señas que empiezan por esa letra | ✅ |
+| 4 | Consulta la confiabilidad de una traducción | Ve el promedio de estrellas y la cantidad de votos de esa seña | ✅ |
+
+---
+
+### HU-06: Valoraciones y opiniones
+**CRUD:** CREATE READ UPDATE DELETE · **Prioridad:** MEDIA · **Sprint 4** · ✅ Terminada
+
+Como usuario, quiero calificar la aplicación y la traducción de cada palabra,
+para que el equipo identifique áreas de mejora y otros usuarios sepan qué
+señas son confiables.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Selecciona de 1 a 5 estrellas y envía | Registra la calificación con fecha y confirma el envío | ✅ |
+| 2 | Intenta enviar sin seleccionar calificación | Muestra el mensaje de validación y no procesa | ✅ |
+| 3 | Califica una palabra puntual del diccionario | El promedio de esa palabra queda visible para todos los usuarios | ✅ |
+| 4 | Vuelve a calificar la misma palabra | **Actualiza su voto anterior**, no suma uno nuevo | ✅ |
+| 5 | Soporte revisa una valoración | Debe responder (manual o con plantilla rápida) para marcarla revisada | ✅ |
+
+> El criterio 4 corrige un defecto detectado en pruebas: hacer clic repetido en
+> las estrellas insertaba una fila por cada clic, lo que permitía inflar el
+> promedio sin límite. Se resolvió con actualización del voto y un índice único
+> en base de datos.
+
+---
+
+### HU-07: Tickets de soporte
+**CRUD:** CREATE READ UPDATE DELETE · **Prioridad:** MEDIA · **Sprint 4** · ✅ Terminada
+
+Como usuario, quiero enviar un ticket describiendo mi problema y hacer
+seguimiento de su estado, para recibir asistencia técnica.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Escribe una descripción y envía el ticket | Crea el ticket con estado inicial "Pendiente" y confirma | ✅ |
+| 2 | Intenta enviar con la descripción vacía | Muestra el mensaje de validación y no procesa | ✅ |
+| 3 | Consulta el estado de un ticket enviado | Ve fecha, descripción y estado actual | ✅ |
+| 4 | Soporte cambia el estado a "Resuelto" | **Recibe una notificación** en la app y por correo, con la solución | ✅ |
+| 5 | Quiere corregir o retirar su ticket | Puede editarlo mientras siga pendiente, o eliminarlo | ✅ |
 
 ---
 
 ### HU-24: Dashboard de gestión de tickets (Soporte)
-* **Operación CRUD:** READ UPDATE
-* **Prioridad:** ALTA
+**CRUD:** READ UPDATE · **Prioridad:** ALTA · **Sprint 4** · ✅ Terminada
 
-**Historia de usuario:**
-Como usuario con rol Soporte, quiero contar con un panel propio donde pueda ver y gestionar los tickets enviados por los usuarios, para dar seguimiento y actualizar su estado sin depender del panel de administrador.
+Como usuario con rol Soporte, quiero un panel propio para ver y gestionar los
+tickets, sin depender del panel de administrador.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario con rol Soporte inicia sesión. | El sistema lo redirige a su propio dashboard, donde puede ver la lista de tickets pendientes, en revisión y resueltos. |
-| 2 | El usuario de Soporte selecciona un ticket y cambia su estado. | El sistema actualiza el estado del ticket, registra la fecha del cambio y notifica al usuario que lo creó. |
-| 3 | Un usuario con rol distinto a Soporte intenta acceder al dashboard de tickets. | El sistema bloquea el acceso y muestra: 'No tienes permisos para ver esta sección'. |
-| 4 | El usuario de Soporte filtra los tickets por estado (Pendiente / En revisión / Resuelto). | El sistema muestra únicamente los tickets que coinciden con el filtro seleccionado. |
-
----
-
-### HU-26: Traducción de frases completas (texto ↔ lengua de señas)
-* **Operación CRUD:** READ
-* **Prioridad:** ALTA
-
-**Historia de usuario:**
-Como usuario, quiero traducir frases completas (no solo palabras sueltas) tanto de texto a lengua de señas como de lengua de señas a texto, para comunicarme de forma más natural y fluida.
-
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario ingresa una frase completa en texto (ej. "Hola familia"). | El sistema genera la secuencia de señas correspondiente a cada palabra de la frase, en orden. |
-| 2 | El usuario realiza una secuencia de señas correspondiente a una frase. | El sistema reconoce la secuencia y muestra el texto completo de la frase. |
-| 3 | El usuario ingresa una frase que contiene palabras no reconocidas por el sistema. | El sistema traduce las palabras reconocidas e indica cuáles no pudo traducir. |
-| 4 | El usuario ingresa una sola palabra (ej. "Hola"), como en el uso anterior. | El sistema mantiene compatibilidad y la traduce correctamente (no rompe la funcionalidad existente). |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Inicia sesión con rol Soporte | Es redirigido a su propio dashboard con la lista de tickets | ✅ |
+| 2 | Cambia el estado de un ticket a "Resuelto" | **Debe escribir la solución**; sin ella el sistema rechaza el cambio | ✅ |
+| 3 | Un rol distinto intenta acceder al panel | El sistema bloquea el acceso | ✅ |
+| 4 | El Administrador entra al panel de tickets | Puede **verlos pero no modificarlos** (solo lectura) | ✅ |
+| 5 | Filtra los tickets por estado | Muestra únicamente los que coinciden con el filtro | ✅ |
 
 ---
 
-### HU-27: Traducción de audio a lengua de señas
-* **Operación CRUD:** READ
-* **Prioridad:** ALTA
+### HU-09: Historial de traducciones
+**CRUD:** READ DELETE · **Prioridad:** MEDIA · **Sprint 5** · 🔄 En curso
 
-**Historia de usuario:**
-Como usuario, quiero convertir audio hablado en lengua de señas, para que las personas sordas puedan comprender mensajes hablados sin necesidad de un texto intermedio.
+Como usuario registrado, quiero ver mis traducciones anteriores ordenadas
+cronológicamente, para revisar conversaciones pasadas sin repetirlas.
 
-#### CRITERIOS DE ACEPTACIÓN
-| # | Criterio (condición / acción) | Resultado esperado |
-|---|-------------------------------|--------------------|
-| 1 | El usuario graba o carga un archivo de audio. | El sistema transcribe el audio a texto y luego genera la secuencia de señas correspondiente. |
-| 2 | El audio no es claro o el sistema no logra reconocerlo. | El sistema muestra el mensaje: "No se pudo procesar el audio". |
-| 3 | El usuario reproduce el audio dentro de la plataforma. | Las señas se muestran sincronizadas con el contenido hablado. |
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Accede a la sección Historial | Lista las traducciones agrupadas por día, de la más reciente a la más antigua | ✅ |
+| 2 | Consulta una traducción | Ve la fecha, la hora, el canal de entrada y las señas en orden | ✅ |
+| 3 | Filtra por período | Puede ver los últimos 7, 30, 90 días o el último año | ✅ |
+| 4 | Elimina un registro individual | Elimina solo ese registro y actualiza la lista | 🔄 |
+| 5 | Busca por palabra clave | Filtra las traducciones que contienen esa seña | 🔄 |
+
+---
+
+### HU-22: Carga de vocabulario con videos propios (Admin)
+**CRUD:** CREATE UPDATE DELETE · **Prioridad:** MEDIA · **Sprint 5** · ✅ Terminada
+
+Como Administrador, quiero cargar palabras de vocabulario con sus videos, para
+enriquecer el contenido educativo.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Selecciona "Nueva palabra" | Muestra el formulario con la palabra y la URL del video | ✅ |
+| 2 | Ingresa una URL válida y guarda | Valida el enlace, lo asocia a la palabra y la guarda | ✅ |
+| 3 | Ingresa una URL inválida | Muestra "Enlace de video no válido" | ✅ |
+| 4 | Un usuario visualiza la palabra cargada | El video se reproduce dentro de la plataforma | ✅ |
+| 5 | Edita o elimina una palabra existente | Actualiza el video o retira la palabra del diccionario | ✅ |
+
+---
+
+### HU-23: Reportes y estadísticas de uso (Admin)
+**CRUD:** READ · **Prioridad:** MEDIA · **Sprint 6** · ✅ Terminada
+
+Como Administrador, quiero visualizar estadísticas de uso mediante gráficos,
+para entender el comportamiento de los usuarios en la plataforma.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Accede a la sección de Estadísticas | Muestra gráficos de barras, líneas y distribución | ✅ |
+| 2 | Consulta las señas más traducidas | Ve el ranking con la calificación promedio de cada una | ✅ |
+| 3 | Selecciona un rango de fechas | Los gráficos se actualizan al período seleccionado | ✅ |
+| 4 | No hay datos para el período | Muestra "Sin actividad en el período seleccionado" | ✅ |
+| 5 | Toca una barra o una tarjeta | Abre el detalle con el desglose de esa métrica | ✅ |
+| 6 | Consulta su propio uso como usuario | Ve sus señas más usadas y su actividad diaria | ✅ |
+
+---
+
+### HU-20: Accesibilidad y personalización visual
+**CRUD:** READ UPDATE · **Prioridad:** ALTA · **Sprint 6** · ✅ Terminada
+
+Como usuario, quiero personalizar el tamaño de texto, contraste e interfaz,
+para una experiencia inclusiva y adaptable a mis necesidades.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Ajusta el tamaño del texto | Se aplica en toda la interfaz sin recargar | ✅ |
+| 2 | Activa alto contraste o contraste oscuro | Se aplica el esquema en toda la interfaz | ✅ |
+| 3 | Activa la fuente apta para dislexia | Cambia la tipografía de toda la aplicación | ✅ |
+| 4 | Usa el lector de página | El sistema lee el contenido en voz alta | ✅ |
+| 5 | Cierra y vuelve a abrir la aplicación | Mantiene las preferencias seleccionadas | ✅ |
+
+---
+
+### HU-11: Guía rápida de uso de la cámara
+**CRUD:** READ · **Prioridad:** MEDIA · **Sprint 7** · 📋 Backlog
+
+Como usuario nuevo, quiero ver una guía al abrir la cámara por primera vez,
+para saber cómo posicionarme y realizar las señas correctamente.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Abre la cámara por primera vez | Muestra una guía con posición de manos, distancia e iluminación | 📋 |
+| 2 | Presiona "Omitir" | Cierra la guía y no vuelve a mostrarla automáticamente | 📋 |
+| 3 | Quiere volver a verla | Puede abrirla desde el menú de ayuda | 📋 |
+
+---
+
+### HU-19: Modo oscuro / Modo claro
+**CRUD:** UPDATE · **Prioridad:** BAJA · **Sprint 7** · 📋 Backlog
+
+Como usuario, quiero alternar entre modo oscuro y claro, para adaptar la
+interfaz a mis condiciones visuales o de iluminación.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Activa el modo oscuro | La interfaz cambia al tema oscuro de inmediato | 📋 |
+| 2 | Activa el modo claro | La interfaz cambia al tema claro con contraste adecuado | 📋 |
+| 3 | Cierra y reabre la aplicación | Mantiene el tema seleccionado | 📋 |
+
+---
+
+### HU-21: Eliminación de cuenta de usuario
+**CRUD:** DELETE · **Prioridad:** ALTA · **Sprint 7** · 🔄 En curso
+
+Como usuario registrado, quiero eliminar mi cuenta, para asegurarme de que mis
+datos dejen de estar disponibles cuando ya no use el servicio.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | El Administrador elimina un usuario | Desactiva la cuenta con borrado lógico, preservando el historial | ✅ |
+| 2 | El Administrador intenta eliminarse a sí mismo | El sistema lo impide para no dejar la plataforma sin administrador | ✅ |
+| 3 | El usuario elimina su propia cuenta | Solicita confirmación e identidad antes de proceder | 🔄 |
+| 4 | Intenta iniciar sesión con una cuenta eliminada | Muestra "Credenciales incorrectas" sin revelar que fue eliminada | 🔄 |
+
+---
+
+### HU-17: Exportar historial de traducciones
+**CRUD:** READ · **Prioridad:** MEDIA · **Sprint 7** · 📋 Backlog
+
+Como usuario registrado, quiero exportar mis traducciones en PDF, para
+usarlas como respaldo en trámites administrativos o médicos.
+
+| # | Criterio | Resultado esperado | Estado |
+|---|---|---|---|
+| 1 | Presiona "Exportar" en el historial | Genera un PDF con fecha, hora, tipo y contenido de cada registro | 📋 |
+| 2 | Selecciona un rango de fechas | El PDF contiene solo las traducciones de ese rango | 📋 |
+| 3 | No hay registros para exportar | Muestra el mensaje y no genera el archivo | 📋 |
+
+> El patrón ya existe: la exportación de usuarios a CSV desde el panel de
+> administración usa el mismo mecanismo de descarga.
+
+---
+
+## Backlog planificado — Sprints 8 y 9 (posteriores al V Trimestre)
+
+Estas historias están documentadas y estimadas, pero **fuera del alcance
+comprometido para este trimestre**. Requieren contenido o infraestructura que
+el equipo aún no tiene disponible.
+
+### HU-10: Modo sin conexión
+**CRUD:** CREATE READ · **Prioridad:** ALTA · **Sprint 8** · 📋 Backlog
+
+Traducciones básicas sin internet, para zonas rurales o con señal limitada.
+
+> **Bloqueante.** Los videos hoy se sirven desde YouTube mediante enlaces
+> embebidos. Para almacenarlos localmente hay que alojarlos primero como
+> archivos propios, lo que implica un cambio de infraestructura de contenido.
+
+### HU-13: Variantes regionales de señas
+**CRUD:** READ · **Prioridad:** MEDIA · **Sprint 8** · 📋 Backlog
+
+Consultar variantes de una seña según el departamento de Colombia.
+
+> **Bloqueante.** El diccionario admite hoy una seña por palabra. Requiere
+> extender el modelo de datos y, sobre todo, grabar el material regional, que
+> no está disponible.
+
+### HU-16: Foro comunitario de dudas
+**CRUD:** CREATE READ · **Prioridad:** BAJA · **Sprint 9** · 📋 Backlog
+
+Publicar dudas sobre señas para que la comunidad las resuelva.
+
+> La mensajería entre usuarios ya está implementada en el backend y sirve de
+> base para esta historia.
+
+### HU-27: Traducción de archivo de audio a señas
+**CRUD:** READ · **Prioridad:** MEDIA · **Sprint 9** · 📋 Backlog
+
+Convertir un archivo de audio cargado en secuencia de señas.
+
+> El dictado por voz en vivo ya funciona (HU-15). Falta admitir la carga de un
+> archivo de audio, que requiere transcripción del lado del servidor.
+
+### HU-28: Reconocimiento de señas completas *(historia nueva)*
+**CRUD:** CREATE READ · **Prioridad:** ALTA · **Sprint 9** · 📋 Backlog
+
+Reconocer señas completas —no solo letras— a partir del video de la cámara.
+
+> **Bloqueante.** Requiere un dataset etiquetado con varias repeticiones por
+> seña, grabadas por distintas personas. Con una sola muestra por seña, un
+> clasificador aprende a reconocer ese video puntual, no la seña. Se estima en
+> 15–20 grabaciones por palabra como mínimo.
+
+### HU-04b: Avatar animado 3D
+**CRUD:** READ UPDATE · **Prioridad:** BAJA · **Sprint 9** · 📋 Backlog
+
+Representar las señas mediante un avatar animado personalizable en lugar de
+video grabado.
+
+> Reemplazado en el Sprint 2 por la reproducción de video real (HU-04), que
+> resulta más fiel a la LSC. Se conserva en el backlog como alternativa futura.
+
+---
+
+## Resumen de cobertura
+
+| Alcance | Historias | Terminadas | En curso | Backlog |
+|---|---|---|---|---|
+| **V Trimestre (Sprints 1-7)** | 19 | 15 | 4 | — |
+| Backlog planificado (Sprints 8-9) | 6 | — | — | 6 |
+| **Total documentado** | **25** | **15** | **4** | **6** |
+
+**Cobertura del alcance comprometido para el V Trimestre: 79 %**
+(15 terminadas de 19; al cerrar las 4 en curso llega al 100 %).
+
+Las 4 historias en curso son HU-03 y HU-25 (detección con MediaPipe), HU-09
+(eliminar y buscar en el historial), HU-14 (control de velocidad) y HU-21
+(eliminación de cuenta autogestionada).
