@@ -224,3 +224,76 @@ async def send_reset_email(to_email: str, reset_token: str) -> None:
 
     html = _base_template("Restablecer contraseña — Sign Bridge", body)
     await _send(to_email, "🔒 Restablecer contraseña — Sign Bridge", html)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Plantilla: Ticket de soporte resuelto
+#
+# Punto de corrección: "solo poder darle resuelto al ticket si se le da una
+# retroalimentación (el usuario debe poder recibir una notificación)".
+# La validación de que la solución sea obligatoria vive en SupportStatusUpdate;
+# esto es la segunda mitad: avisarle al usuario.
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def send_ticket_resolved_email(
+    to_email: str,
+    first_name: str,
+    subject_ticket: str,
+    solution: str,
+) -> None:
+    """Avisa al usuario que Soporte resolvió su ticket e incluye la solución."""
+    panel_link = f"{settings.FRONTEND_URL}/dashboard"
+
+    # Escapar el contenido: asunto y solución los escribe una persona y van
+    # dentro de HTML, así que no pueden inyectarse etiquetas.
+    from html import escape
+    asunto_seguro   = escape(subject_ticket)
+    solucion_segura = escape(solution).replace("\n", "<br>")
+
+    body = f"""
+<h2 style="margin:0 0 8px;font-size:22px;color:#111827;">
+  Tu ticket fue resuelto ✅
+</h2>
+<p style="margin:0 0 16px;font-size:15px;color:#374151;line-height:1.6;">
+  Hola {escape(first_name)}, el equipo de Soporte de <strong>Sign Bridge</strong>
+  atendió tu solicitud y la marcó como resuelta.
+</p>
+
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="background:#F3F4F6;border-radius:8px;padding:16px 20px;
+              margin-bottom:16px;">
+  <tr>
+    <td>
+      <p style="margin:0 0 4px;font-size:13px;color:#6B7280;font-weight:600;
+                text-transform:uppercase;letter-spacing:0.5px;">
+        Tu solicitud
+      </p>
+      <p style="margin:0;font-size:15px;color:#111827;">{asunto_seguro}</p>
+    </td>
+  </tr>
+</table>
+
+<table width="100%" cellpadding="0" cellspacing="0"
+       style="background:#ECFDF5;border-left:4px solid #059669;border-radius:8px;
+              padding:16px 20px;margin-bottom:20px;">
+  <tr>
+    <td>
+      <p style="margin:0 0 6px;font-size:13px;color:#047857;font-weight:600;
+                text-transform:uppercase;letter-spacing:0.5px;">
+        Respuesta de Soporte
+      </p>
+      <p style="margin:0;font-size:15px;color:#065F46;line-height:1.6;">
+        {solucion_segura}
+      </p>
+    </td>
+  </tr>
+</table>
+
+{_btn("Ver mis tickets", panel_link)}
+
+<p style="margin:0;font-size:13px;color:#6B7280;">
+  Si el problema continúa, puedes abrir un nuevo ticket desde tu panel.
+</p>"""
+
+    html = _base_template("Tu ticket fue resuelto", body)
+    await _send(to_email, "✅ Tu ticket en Sign Bridge fue resuelto", html)
