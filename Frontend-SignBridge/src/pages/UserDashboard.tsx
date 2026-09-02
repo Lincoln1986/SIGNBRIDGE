@@ -4,16 +4,19 @@ import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession } from
 import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
+import TranslationHistory from '../components/TranslationHistory';
+import GoalProgressCard from '../components/GoalProgressCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab bar
 // ─────────────────────────────────────────────────────────────────────────────
 
-type DashTab = 'overview' | 'favorites' | 'support' | 'feedback';
+type DashTab = 'overview' | 'favorites' | 'support' | 'feedback' | 'history';
 
 function TabBar({ active, onChange, isAdmin }: { active: DashTab; onChange: (t: DashTab) => void; isAdmin: boolean }) {
   const allTabs: { id: DashTab; label: string; icon: string }[] = [
     { id: 'overview',  label: 'Mi panel',     icon: '\uD83D\uDCCA' },
+    { id: 'history',   label: 'Historial',    icon: '\uD83D\uDCCB' },
     { id: 'favorites', label: 'Favoritos',    icon: '\u2B50' },
     { id: 'support',   label: 'Soporte',      icon: '\uD83C\uDFAB' },
     { id: 'feedback',  label: 'Valoraciones', icon: '\uD83D\uDCAC' },
@@ -104,9 +107,6 @@ function OverviewTab({
     { title: 'Traducir voz a senas', desc: 'Convierte audio en lengua de senas',   icon: '&#127897;', color: 'var(--amber)',  to: '/voice-to-sign' },
     { title: 'Senas a texto',        desc: 'Traduce senas capturadas a texto',      icon: '&#9995;',  color: '#10b981',       to: '/sign-to-text' },
   ];
-
-  const goal = 10;
-  const progress = data ? Math.min(100, Math.round((data.translations_made / goal) * 100)) : 0;
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
@@ -202,32 +202,10 @@ function OverviewTab({
             <StatCard label="Tickets de soporte"      value={data.support_requests}  icon={<span>&#127243;</span>} />
           </div>
 
-          {/* Barra de progreso */}
-          <Card style={{ marginBottom: 28 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-              <h2 style={{
-                fontFamily: 'var(--font-display)', fontWeight: 700,
-                fontSize: '1rem', color: 'var(--gray-800)',
-              }}>
-                Progreso de traducciones
-              </h2>
-              <span style={{ fontSize: '0.8rem', color: 'var(--gray-400)', fontWeight: 600 }}>
-                {data.translations_made} / {goal}
-              </span>
-            </div>
-            <div style={{ width: '100%', height: 10, background: 'var(--gray-100)', borderRadius: 99, overflow: 'hidden' }}>
-              <div style={{
-                width: `${progress}%`, height: '100%', borderRadius: 99,
-                background: 'linear-gradient(90deg, var(--violet), var(--amber))',
-                transition: 'width 0.4s ease',
-              }} />
-            </div>
-            <p style={{ fontSize: '0.78rem', color: 'var(--gray-400)', marginTop: 8 }}>
-              {progress >= 100
-                ? 'Meta alcanzada!'
-                : `Te faltan ${goal - data.translations_made} traducciones para tu proxima meta`}
-            </p>
-          </Card>
+          {/* Barra de progreso — se reinicia en cada meta y guarda la racha */}
+          <div style={{ marginBottom: 28 }}>
+            <GoalProgressCard translationsMade={data.translations_made} />
+          </div>
 
           {/* Valoracion promedio */}
           <Card style={{ marginBottom: 28 }}>
@@ -422,6 +400,35 @@ function FavoritesTab() {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// History tab
+// ─────────────────────────────────────────────────────────────────────────────
+
+function HistoryTab() {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header */}
+      <div>
+        <p style={{
+          fontSize: '0.72rem', fontWeight: 700, color: 'var(--amber)',
+          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4,
+        }}>
+          Tu progreso
+        </p>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.2rem', color: 'var(--gray-800)' }}>
+          Historial de traducciones
+        </h2>
+      </div>
+
+      {/* Barra de progreso con racha */}
+      <GoalProgressCard />
+
+      {/* Historial agrupado por día */}
+      <TranslationHistory />
     </div>
   );
 }
@@ -925,6 +932,7 @@ export default function UserDashboard() {
       <TabBar active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
 
       {activeTab === 'overview'  && <OverviewTab data={data} loading={loading} error={error} />}
+      {activeTab === 'history'   && <HistoryTab />}
       {activeTab === 'favorites' && <FavoritesTab />}
       {activeTab === 'support' && !isAdmin && <SupportTab />}
       {activeTab === 'feedback'  && <FeedbackTab />}
