@@ -415,3 +415,166 @@ export const lastSession = {
   set: (id: string) => localStorage.setItem(LAST_SESSION_KEY, id),
   clear: () => localStorage.removeItem(LAST_SESSION_KEY),
 };
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Estadísticas de interacción con el software
+// ═══════════════════════════════════════════════════════════════════════════
+
+export interface TopWordRow {
+  id_lexicalunit: string;
+  word: string;
+  times_translated: number;
+  video_url?: string | null;
+  /** Promedio de estrellas de la traducción de esta palabra (null si nadie la calificó) */
+  average_rating?: number | null;
+  total_ratings: number;
+}
+
+export interface TranslationTypeRow {
+  translation_type: string;   // 'texto' | 'voz' | 'sena'
+  total: number;
+}
+
+export interface ActivityRow {
+  day: string;                // YYYY-MM-DD
+  total: number;
+}
+
+export interface HistorySign {
+  word: string;
+  video_url?: string | null;
+}
+
+export interface HistorySession {
+  id_session: string;
+  date_time?: string | null;
+  translation_type?: string | null;
+  signs: HistorySign[];
+}
+
+/** Las traducciones de un día, agrupadas por el backend */
+export interface HistoryDay {
+  day: string;          // YYYY-MM-DD
+  total: number;
+  sessions: HistorySession[];
+}
+
+export interface TicketStatusRow {
+  status: string;
+  total: number;
+}
+
+export interface OldestPendingTicket {
+  id_support: string;
+  subject: string;
+  status: string;
+  fecha?: string | null;
+  dias: number;
+}
+
+/** Panorama de los tickets de soporte para el panel de administración */
+export interface TicketSummary {
+  total: number;
+  por_estado: TicketStatusRow[];
+  sin_resolver: number;
+  mas_viejo_pendiente?: OldestPendingTicket | null;
+  dias_promedio_resolucion?: number | null;
+  resueltos_medidos: number;
+}
+
+export interface UnusedSign {
+  id_lexicalunit: string;
+  word: string;
+  video_url?: string | null;
+}
+
+export interface GoalMilestone {
+  numero: number;
+  fecha?: string | null;
+}
+
+/** Progreso hacia la meta de traducciones. Se deriva del historial, no hay tabla. */
+export interface GoalProgress {
+  meta: number;
+  total_traducciones: number;
+  en_ciclo_actual: number;
+  metas_completadas: number;
+  historial: GoalMilestone[];
+}
+
+export interface InteractionSummary {
+  total_sessions: number;
+  total_words_translated: number;
+  distinct_words_used: number;
+  /** Señas del diccionario que todavía nadie usó */
+  words_not_found: number;
+  active_users: number;
+  avg_words_per_session: number;
+}
+
+/**
+ * statsApi — cómo se usa la aplicación.
+ * Los endpoints `mis*` son del usuario autenticado; los `*Global(es)` requieren
+ * rol Administrador y devuelven 403 para el resto.
+ */
+export const statsApi = {
+  /** GET /stats/mias/palabras — tus señas más traducidas */
+  misPalabras: (limite = 10) =>
+    api.get<TopWordRow[]>(`/stats/mias/palabras?limite=${limite}`),
+  /** GET /stats/mias/actividad — tus traducciones por día */
+  miActividad: (dias = 30) =>
+    api.get<ActivityRow[]>(`/stats/mias/actividad?dias=${dias}`),
+  /** GET /stats/mias/canales — cómo traducís: texto, voz o seña */
+  misCanales: () => api.get<TranslationTypeRow[]>('/stats/mias/canales'),
+  /** GET /stats/mias/historial — tus traducciones agrupadas por día */
+  miHistorial: (dias = 30) => api.get<HistoryDay[]>(`/stats/mias/historial?dias=${dias}`),
+
+  /** GET /stats/globales/palabras — ranking global de señas más usadas (Admin) */
+  palabrasGlobales: (limite = 10) =>
+    api.get<TopWordRow[]>(`/stats/globales/palabras?limite=${limite}`),
+  /** GET /stats/globales/actividad — traducciones por día del sistema (Admin) */
+  actividadGlobal: (dias = 30) =>
+    api.get<ActivityRow[]>(`/stats/globales/actividad?dias=${dias}`),
+  /** GET /stats/globales/canales — uso por canal de entrada (Admin) */
+  canalesGlobales: () => api.get<TranslationTypeRow[]>('/stats/globales/canales'),
+  /** GET /stats/globales/resumen — indicadores de interacción (Admin) */
+  resumenInteraccion: () => api.get<InteractionSummary>('/stats/globales/resumen'),
+  /** GET /stats/globales/sin-usar — señas que nadie tradujo (Admin) */
+  senasSinUsar: () => api.get<UnusedSign[]>('/stats/globales/sin-usar'),
+  /** GET /stats/globales/tickets — desglose de tickets de soporte (Admin) */
+  resumenTickets: () => api.get<TicketSummary>('/stats/globales/tickets'),
+  /** GET /stats/mias/progreso — tu racha de metas de traducción */
+  miProgreso: () => api.get<GoalProgress>('/stats/mias/progreso'),
+};
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Notificaciones in-app (la campana del menú)
+// ═══════════════════════════════════════════════════════════════════════════
+
+export type NotificationType = 'ticket_resolved' | 'feedback_answered';
+
+export interface NotificationItem {
+  id_notification: string;
+  type: NotificationType | string;
+  title: string;
+  body?: string | null;
+  /** Id del ticket o de la valoración que originó el aviso */
+  reference_id?: string | null;
+  read_at?: string | null;
+  created_at?: string | null;
+}
+
+/** notificationsApi — avisos del usuario autenticado. Cada quien ve solo los suyos. */
+export const notificationsApi = {
+  /** GET /notifications — mis notificaciones, de la más reciente a la más vieja */
+  list: (soloSinLeer = false, limite = 20) =>
+    api.get<NotificationItem[]>(`/notifications?solo_sin_leer=${soloSinLeer}&limite=${limite}`),
+  /** GET /notifications/unread-count — solo el número, para el punto rojo */
+  unreadCount: () => api.get<{ unread: number }>('/notifications/unread-count'),
+  /** PATCH /notifications/{id}/read */
+  markRead: (id: string) => api.patch<NotificationItem>(`/notifications/${id}/read`),
+  /** PATCH /notifications/read-all */
+  markAllRead: () => api.patch<{ updated: number; unread: number }>('/notifications/read-all'),
+  /** DELETE /notifications/{id} — borrado lógico */
+  remove: (id: string) => api.delete(`/notifications/${id}`),
+};
