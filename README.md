@@ -57,6 +57,7 @@ SIGNBRIDGE/
 │   │   ├── pages/                 # Páginas de la aplicación
 │   │   ├── index.css              # Sistema de tokens de diseño (CSS vars)
 │   │   └── main.tsx                # Punto de entrada React
+│   ├── .env.example              # Variables de entorno del frontend (VITE_API_URL)
 │   ├── package.json
 │   ├── vite.config.ts
 │   └── Dockerfile                # Imagen Docker del frontend
@@ -330,7 +331,7 @@ docker exec -it signbridge_postgres psql -U postgres -d signbridge -c "SELECT ro
 
 ## Variables de entorno
 
-### Backend (`.env`)
+### Backend (`Backend-SignBridge/.env`)
 
 Copia `.env.example` a `.env` dentro de `Backend-SignBridge/` y completa los valores:
 
@@ -356,6 +357,17 @@ FRONTEND_URL=http://localhost:5173
 ```
 
 > Nota: si levantás con `docker-compose up`, las variables de `environment:` en `docker-compose.yml` tienen prioridad sobre el `.env` local — mantenelas sincronizadas para evitar confusiones (por ejemplo `FRONTEND_URL` debe apuntar al puerto real del frontend, `5173`).
+
+### Frontend (`Frontend-SignBridge/.env`)
+
+Copia `.env.example` a `.env` dentro de `Frontend-SignBridge/` y ajusta si es necesario:
+
+```env
+# URL del backend API (FastAPI)
+VITE_API_URL=http://localhost:8000
+```
+
+> Por defecto el frontend apunta a `http://localhost:8000`. Solo necesitás modificar `VITE_API_URL` si el backend corre en otro host o puerto.
 
 ---
 
@@ -431,11 +443,12 @@ Documentación ReDoc: `http://localhost:8000/redoc`
 
 ```bash
 cd Frontend-SignBridge
+cp .env.example .env   # Configura VITE_API_URL si es necesario
 npm install
 npm run dev
 ```
 
-La app queda en `http://localhost:5173`. El cliente Axios apunta por defecto a `http://localhost:8000`.
+La app queda en `http://localhost:5173`. El cliente Axios apunta por defecto a `http://localhost:8000` (configurable via `VITE_API_URL` en `.env`).
 
 ---
 
