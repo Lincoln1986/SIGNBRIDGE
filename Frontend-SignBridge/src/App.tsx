@@ -14,6 +14,7 @@ import AdminDashboard from './pages/AdminDashboard';
 import SupportDashboard from './pages/SupportDashboard';
 import Vocabulary from './pages/Vocabulary';
 import Stats from './pages/Stats';
+import Notifications from './pages/Notifications';
 import VoiceToSign from './pages/VoiceToSign';
 import SignToText from './pages/SignToText';
 import PrivacyPolicy from './pages/PrivacyPolicy';
@@ -51,6 +52,14 @@ function AppRoutes() {
       <Route path="/support" element={
         <ProtectedRoute supportOnly>
           <AppShell maxWidth={1100}><SupportDashboard /></AppShell>
+        </ProtectedRoute>
+      } />
+      {/* Sección propia de notificaciones: sirve para los tres roles.
+          Antes la campana llevaba a /dashboard, que para un Admin no
+          correspondía. */}
+      <Route path="/notifications" element={
+        <ProtectedRoute>
+          <AppShell maxWidth={760}><Notifications /></AppShell>
         </ProtectedRoute>
       } />
       <Route path="/vocabulary" element={
