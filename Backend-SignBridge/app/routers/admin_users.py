@@ -16,9 +16,11 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import require_admin
-from app.models.user import Role, User
-from app.schemas.auth import UserAdminRow, UserRoleUpdateById, UserStatusUpdate
+from app.core.security import hash_password, require_admin
+import uuid
+
+from app.models.user import Region, Role, User
+from app.schemas.auth import UserAdminCreate, UserAdminRow, UserRoleUpdateById, UserStatusUpdate
 
 router = APIRouter(prefix="/admin/users", tags=["Admin — Usuarios"])
 
@@ -252,3 +254,104 @@ def export_users_csv(
         media_type="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── POST /admin/users — crear usuario ────────────────────────────────────────
+
+@router.post("", response_model=UserAdminRow, status_code=201,
+             summary="Crear un usuario")
+def create_user(
+    payload: UserAdminCreate,
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """Da de alta un usuario desde el panel de administración.
+
+    A diferencia del registro público, acá el admin elige el rol: sirve para
+    crear cuentas de Soporte, que de otro modo habría que crear como Cliente
+    y después cambiarles el rol a mano.
+
+    La contraseña se guarda hasheada con bcrypt, nunca en texto plano.
+    """
+    if db.query(User).filter(User.email == payload.email).first():
+        raise HTTPException(status_code=409, detail="Ya existe un usuario con ese correo")
+
+    if payload.id_role:
+        rol = db.query(Role).filter(Role.id_role == payload.id_role).first()
+        if not rol:
+            raise HTTPException(status_code=404, detail="Rol no encontrado")
+    else:
+        rol = db.query(Role).filter(Role.role_name == "Cliente").first()
+        if not rol:
+            raise HTTPException(status_code=500, detail="Rol por defecto no encontrado en BD")
+
+    # Si no mandan región, se intenta deducir por la ciudad, igual que en el
+    # registro público (hay un trigger en la base que hace lo mismo).
+    id_region = payload.id_region
+    if not id_region and payload.city:
+        region = (
+            db.query(Region)
+            .filter(Region.region_name.ilike(payload.city.strip()))
+            .first()
+        )
+        id_region = region.id_region if region else None
+
+    nuevo = User(
+        id_user          = str(uuid.uuid4()),
+        id_role          = rol.id_role,
+        id_region        = id_region,
+        first_name       = payload.first_name,
+        middle_name      = payload.middle_name,
+        last_name        = payload.last_name,
+        second_last_name = payload.second_last_name,
+        phone            = payload.phone,
+        address          = payload.address,
+        city             = payload.city,
+        email            = payload.email,
+        password_hash    = hash_password(payload.password),
+        is_active        = True,
+    )
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return _fetch_user_row(db, nuevo.id_user)
+
+
+# ── DELETE /admin/users/{id} — eliminar usuario ──────────────────────────────
+
+@router.delete("/{id_user}", status_code=204,
+               summary="Eliminar un usuario")
+def delete_user(
+    id_user: str,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Borrado lógico de un usuario.
+
+    No se borra la fila: se marca `deleted_at` y se desactiva la cuenta. Sus
+    traducciones, tickets y valoraciones siguen existiendo, así que las
+    estadísticas históricas no se rompen.
+
+    Un admin no puede eliminarse a sí mismo: dejaría el sistema sin nadie que
+    pueda administrarlo si fuera el único.
+    """
+    if id_user == admin.id_user:
+        raise HTTPException(
+            status_code=409,
+            detail="No podés eliminar tu propia cuenta de administrador",
+        )
+
+    usuario = (
+        db.query(User)
+        .filter(User.id_user == id_user, User.deleted_at.is_(None))
+        .first()
+    )
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    usuario.deleted_at = datetime.now(timezone.utc)
+    usuario.is_active  = False
+    usuario.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    return None
+

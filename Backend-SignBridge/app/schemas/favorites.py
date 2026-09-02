@@ -19,3 +19,15 @@ class FavoriteWordToggle(BaseModel):
     action:      str   # "added" | "removed"
     id_favorite: Optional[str] = None
     id_lexicalunit: str
+
+
+class FavoriteWordUpdate(BaseModel):
+    """Campos editables de un favorito.
+
+    `times_used` se puede corregir a mano (por ejemplo, para reiniciar el
+    contador de una palabra que ya se aprendió).
+    """
+    times_used: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+

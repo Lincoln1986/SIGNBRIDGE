@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import List
@@ -9,6 +10,10 @@ from app.core.database import get_db
 from app.core.security import get_current_user, require_admin, require_support_or_admin, require_support
 from app.models.user import Support, User
 from app.schemas.support import SupportCreate, SupportOut, SupportOutWithUser, SupportStatusUpdate
+from app.services.mail import send_ticket_resolved_email
+from app.services.notificaciones import notificar_ticket_resuelto
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/support", tags=["Soporte"])
 
@@ -102,7 +107,7 @@ def all_tickets_for_support(
 @router.patch("/{id_support}/status", response_model=SupportOut,
               summary="Cambiar estado de un ticket (exclusivo de Soporte)",
               tags=["Soporte"])
-def update_ticket_status_support(
+async def update_ticket_status_support(
     id_support: str,
     payload: SupportStatusUpdate,
     db: Session = Depends(get_db),
@@ -121,10 +126,111 @@ def update_ticket_status_support(
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket no encontrado")
 
+    paso_a_resuelto = payload.status == "resolved" and ticket.status != "resolved"
+
     ticket.status     = payload.status
     if payload.solution:
         ticket.solution = payload.solution
     ticket.updated_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(ticket)
+
+    # Notificar al usuario que su ticket quedó resuelto, con la solución que
+    # escribió Soporte. Solo la primera vez que pasa a 'resolved', para no
+    # spamear si el estado se vuelve a guardar.
+    if paso_a_resuelto:
+        dueno = db.query(User).filter(User.id_user == ticket.id_user).first()
+        if dueno:
+            # Aviso dentro de la app (campana). Va primero porque no depende
+            # de que el SMTP esté configurado: el correo puede fallar, esto no.
+            notificar_ticket_resuelto(
+                db,
+                id_user    = dueno.id_user,
+                id_support = ticket.id_support,
+                asunto     = ticket.subject or "sin asunto",
+                solucion   = ticket.solution or "",
+            )
+            try:
+                await send_ticket_resolved_email(
+                    to_email       = dueno.email,
+                    first_name     = dueno.first_name,
+                    subject_ticket = ticket.subject,
+                    solution       = ticket.solution or "",
+                )
+            except Exception as exc:  # noqa: BLE001
+                # El correo no puede tumbar la operación: el ticket ya quedó
+                # resuelto en la base y el usuario lo ve igual en su panel.
+                logger.warning(
+                    "No se pudo notificar al usuario %s del ticket %s: %s",
+                    dueno.email, ticket.id_support, exc,
+                )
+
     return ticket
+
+
+@router.put("/{id_support}", response_model=SupportOut,
+            summary="Editar mi ticket")
+def update_my_ticket(
+    id_support: str,
+    payload: SupportCreate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Permite al autor corregir el asunto o el mensaje de su ticket.
+
+    Solo mientras siga pendiente: una vez que Soporte lo tomó, cambiar el
+    enunciado dejaría la solución sin contexto.
+    """
+    ticket = (
+        db.query(Support)
+        .filter(
+            Support.id_support == id_support,
+            Support.id_user    == current_user.id_user,
+            Support.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+    if ticket.status != "pending":
+        raise HTTPException(
+            status_code=409,
+            detail="Solo se puede editar un ticket que siga pendiente",
+        )
+
+    ticket.subject    = payload.subject
+    ticket.message    = payload.message
+    ticket.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(ticket)
+    return ticket
+
+
+@router.delete("/{id_support}", status_code=204,
+               summary="Eliminar mi ticket")
+def delete_my_ticket(
+    id_support: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Borrado lógico del ticket propio.
+
+    No se borra la fila: se marca `deleted_at`. Así el historial de soporte
+    queda íntegro para las estadísticas, pero el ticket deja de aparecer.
+    """
+    ticket = (
+        db.query(Support)
+        .filter(
+            Support.id_support == id_support,
+            Support.id_user    == current_user.id_user,
+            Support.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket no encontrado")
+
+    ticket.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    return None

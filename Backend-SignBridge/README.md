@@ -70,6 +70,9 @@ Documentación interactiva: http://localhost:8000/docs
 | 4 | Dashboard usuario | `GET /dashboard/user` usa `vw_user_dashboard` |
 | 5 | Nombre y perfil en dashboard | `GET /auth/me` devuelve `full_name` y datos del perfil |
 | 6 | Listado vista SQL sin ID | `GET /dashboard/lexical-units` muestra tabla sin campo id |
+| 7 | CRUD Tickets de Soporte | `POST /support` crear, `GET /support/my` listar, `PATCH /support/{id}/status` actualizar — schemas: `schemas/support.py`, router: `routers/support.py` |
+| 8 | CRUD Favoritos | `POST /favorites/{id}` toggle, `GET /favorites/my` listar — schemas: `schemas/favorites.py`, router: `routers/favorites.py` |
+| 9 | CRUD Usuarios (Admin) | `GET /admin/users` listar, `PATCH /admin/users/{id}/role` cambiar rol, `PATCH /admin/users/{id}/status` activar/desactivar, `GET /admin/users/export` CSV — router: `routers/admin_users.py` |
 
 ---
 
@@ -106,12 +109,17 @@ sign_bridge/
 │   │   ├── user.py          # User, Role, Region
 │   │   └── session.py       # Todas las demás tablas
 │   ├── schemas/
-│   │   └── auth.py          # Schemas Pydantic (request/response)
+│   │   ├── auth.py          # Schemas Pydantic (request/response)
+│   │   ├── support.py       # Schemas de tickets de soporte
+│   │   └── favorites.py     # Schemas de palabras favoritas
 │   ├── services/
 │   │   └── mail.py          # Envío de correo con Mailtrap
 │   └── routers/
 │       ├── auth.py          # /auth/*
-│       └── dashboard.py     # /dashboard/*
+│       ├── dashboard.py     # /dashboard/*
+│       ├── support.py       # /support/* — CRUD tickets de soporte
+│       ├── favorites.py     # /favorites/* — CRUD palabras favoritas
+│       └── admin_users.py   # /admin/users/* — CRUD usuarios (admin)
 ├── requirements.txt
 ├── .env.example
 └── README.md
