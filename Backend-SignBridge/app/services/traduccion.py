@@ -28,9 +28,16 @@ from typing import List, Optional, Tuple
 import numpy as np
 from fastapi import HTTPException, status
 from PIL import Image
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.models.user import LexicalUnit, SystemErrorLog, TranslationSession
+from app.services.abecedario import clasificar_letra, describir_pose, medir_pose
+from app.models.user import (
+    LexicalUnit,
+    SystemErrorLog,
+    TranslationDetail,
+    TranslationSession,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -194,21 +201,30 @@ def detect_sign_from_frame(
         if not results.multi_hand_landmarks:
             return None, None
 
-        # ── Clasificación básica con landmarks ────────────────────────────────
-        # Aquí se integraría el modelo entrenado (.task / TFLite / ONNX).
-        # Por ahora se retorna un placeholder para validar la pipeline completa.
-        detected_sign: Optional[str] = None
-        confidence: Optional[float] = None
+        # ── Clasificación del abecedario dactilológico ───────────────────────
+        # Se usan reglas geométricas sobre los 21 puntos de la mano en lugar de
+        # un modelo entrenado. Las letras son poses estáticas que se distinguen
+        # por qué dedos están extendidos, así que no hacen falta datos de
+        # entrenamiento. Ver app/services/abecedario.py.
+        #
+        # El reconocimiento de señas completas (con movimiento) necesita un
+        # dataset etiquetado y está documentado como HU-28.
+        mano = results.multi_hand_landmarks[0].landmark
 
-        # Número de landmarks detectados como señal de actividad
-        num_hands = len(results.multi_hand_landmarks)
-        if num_hands >= 1:
-            # Placeholder: cuando se integre el modelo real, reemplazar esta
-            # sección por la inferencia del clasificador.
-            detected_sign = "seña_detectada"
-            confidence = 0.75
+        letra, confianza = clasificar_letra(mano)
 
-        return detected_sign, confidence
+        if letra is None:
+            # Se detectó una mano pero la pose no corresponde a ninguna letra
+            # conocida. Es preferible no responder a devolver una letra
+            # incorrecta: el usuario prefiere reintentar antes que leer algo
+            # que no señó.
+            logger.info(
+                "Mano detectada pero sin letra reconocida (%s)",
+                describir_pose(mano),
+            )
+            return None, None
+
+        return letra, confianza
 
     except Exception as exc:
         logger.error("Error en detección MediaPipe: %s", exc)
@@ -228,75 +244,6 @@ def detect_sign_from_frame(
 # H08 / H16 — Traducción de texto a LSC
 # ─────────────────────────────────────────────────────────────────────────────
 
-def _build_omit_set(db: Session) -> set:
-    """Conjunto de palabras funcionales que LSC omite.
-
-    Se carga una sola vez por traducción para no repetir la query.
-    """
-    return {
-        "el", "la", "los", "las", "un", "una", "unos", "unas",
-        "de", "del", "al", "a", "en", "con", "por", "para",
-        "que", "es", "son", "esta", "estan", "se",
-    }
-
-
-def _load_lexical_index(db: Session) -> Tuple[List[LexicalUnit], dict]:
-    """Carga todas las unidades léxicas activas y crea un índice normalizado.
-
-    Devuelve (lista_cruda, mapa_normalizado_a_lexicalunit).
-    El mapa usa la forma normalizada como clave para búsqueda O(1).
-    """
-    units = db.query(LexicalUnit).filter(LexicalUnit.deleted_at.is_(None)).all()
-    index = {_normalize_word(lu.text): lu for lu in units}
-    return units, index
-
-
-def _match_longest_phrase(
-    tokens: List[str],
-    start: int,
-    lu_index: dict,
-    omit: set,
-) -> Tuple[Optional[dict], int]:
-    """Intenta emparejar el grupo más largo de tokens contra el diccionario.
-
-    Estrategia greedy: prueba 2, 3, 4 … tokens a la vez desde *start*.
-    Devuelve (sign_dict, tokens_consumidos) o (None, 0) si no hay match.
-
-    Ejemplo: tokens = ['buenas', 'noches', 'como', 'estas']
-      1. Prueba 'buenas noches' → ¡match!
-      2. Retorna la entrada y consume 2 tokens.
-    """
-    max_len = min(len(tokens) - start, 6)  # frases de hasta 6 palabras
-    for length in range(max_len, 0, -1):
-        phrase_tokens = tokens[start : start + length]
-        # Omitir tokens de palabra suelta que LSC descarta
-        filtered = [t for t in phrase_tokens if _normalize_word(t) not in omit]
-        if not filtered:
-            # Todos los tokens de esta frase son funcionales → saltarlos todos
-            # y pasar al siguiente token real.
-            return None, 0
-        # Si la frase contiene tokens funcionales mezclados, ensamblar solo
-        # los no-funcionales para comparar con el diccionario.
-        if len(filtered) != length:
-            phrase_text = " ".join(filtered)
-        else:
-            phrase_text = " ".join(phrase_tokens)
-        normalized = _normalize_word(phrase_text)
-        lu = lu_index.get(normalized)
-        if lu is not None:
-            display = " ".join(phrase_tokens)  # mantiene capitalización original
-            return (
-                {
-                    "word": display,
-                    "found": True,
-                    "video_url": lu.video_url,
-                    "id_lexicalunit": lu.id_lexicalunit,
-                },
-                length,
-            )
-    return None, 0
-
-
 def translate_text_to_lsc(
     text: str,
     db: Session,
@@ -308,16 +255,17 @@ def translate_text_to_lsc(
         signs          -- lista de dicts con campos SignUnit (word, found, video_url, id_lexicalunit)
         untranslated   -- lista de palabras sin entrada en la BD
 
-    Estrategia:
-      1. Cargar el diccionario completo una sola vez (O(n) contra BD).
-      2. Para cada posición, intentar emparejar el grupo más largo de tokens
-         contra entradas de dos o más palabras del diccionario (greedy).
-      3. Si no hay match multioralabra, intentar la palabra individual.
-      4. Si no hay match individual, intentar deletrear (fingerspelling).
-      5. Los artículos, preposiciones y cópulas se omiten (LSC los descarta).
+    Estrategia de simplificación lingüística básica para LSC:
+      - LSC omite cópulas, artículos y preposiciones simples.
+      - El orden SVO se mantiene para oraciones simples.
+      - Las palabras sin traducción directa se intentan como letras deletreadas.
     """
-    omit = _build_omit_set(db)
-    all_units, lu_index = _load_lexical_index(db)
+    # Palabras funcionales que LSC suele omitir
+    LSC_OMIT = {
+        "el", "la", "los", "las", "un", "una", "unos", "unas",
+        "de", "del", "al", "a", "en", "con", "por", "para",
+        "que", "es", "son", "está", "están", "se",
+    }
 
     tokens = _tokenize(text)
     if not tokens:
@@ -328,54 +276,143 @@ def translate_text_to_lsc(
 
     signs: List[dict] = []
     untranslated: List[str] = []
+
+    # El diccionario se consulta UNA vez, no dentro del bucle: antes se hacía
+    # un SELECT completo por cada palabra del texto.
+    lexical_units: List[LexicalUnit] = (
+        db.query(LexicalUnit)
+        .filter(LexicalUnit.deleted_at.is_(None))
+        .all()
+    )
+
+    # Índice normalizado -> seña. Muchas entradas del diccionario son frases de
+    # varias palabras ("buenas noches", "buenos días"), así que se guarda además
+    # de cuántas palabras se compone cada clave.
+    indice = {}
+    max_palabras = 1
+    for lu in lexical_units:
+        if not lu.text:
+            continue
+        clave = _normalize_word(lu.text)
+        if not clave:
+            continue
+        indice[clave] = lu
+        max_palabras = max(max_palabras, len(clave.split()))
+
     i = 0
+    total = len(tokens)
+    while i < total:
+        # Coincidencia por frase, de la más larga a la más corta.
+        #
+        # Antes se recorría palabra por palabra, así que una entrada como
+        # "buenas noches" nunca se encontraba: se buscaba "buenas" y "noches"
+        # por separado y ambas caían en "sin seña". Ahora se prueba primero el
+        # grupo más largo posible y recién después se baja a una sola palabra.
+        match = None
+        longitud = 0
+        for n in range(min(max_palabras, total - i), 0, -1):
+            grupo = tokens[i:i + n]
+            clave = " ".join(_normalize_word(t) for t in grupo).strip()
+            if not clave:
+                continue
+            candidato = indice.get(clave)
+            if candidato:
+                match = candidato
+                longitud = n
+                break
 
-    while i < len(tokens):
-        normalized = _normalize_word(tokens[i])
-
-        # Saltar palabras funcionales sin agregarlas a la secuencia
-        if normalized in omit:
-            i += 1
-            continue
-
-        # 1) Intentar frase multi-palabra (greedy, longitud decreciente)
-        phrase_match, consumed = _match_longest_phrase(tokens, i, lu_index, omit)
-        if phrase_match is not None and consumed > 0:
-            signs.append(phrase_match)
-            i += consumed
-            continue
-
-        # 2) Buscar palabra individual en el índice
-        lu = lu_index.get(normalized)
-        if lu is not None:
+        if match:
             signs.append(
                 {
-                    "word": tokens[i],
+                    "word": " ".join(tokens[i:i + longitud]),
                     "found": True,
-                    "video_url": lu.video_url,
-                    "id_lexicalunit": lu.id_lexicalunit,
+                    "video_url": match.video_url,
+                    "id_lexicalunit": match.id_lexicalunit,
                 }
             )
-            i += 1
+            i += longitud
             continue
 
-        # 3) Fallback: deletrear letra a letra
-        letter_signs = _try_fingerspell(tokens[i], all_units)
+        # Sin coincidencia: se procesa esta palabra sola
+        token = tokens[i]
+        normalized = _normalize_word(token)
+        i += 1
+
+        # Omitir palabras funcionales que LSC no representa. La omisión va
+        # DESPUÉS de intentar la frase: si no, "buenas noches" perdería
+        # palabras antes de poder buscarse completa.
+        if normalized in LSC_OMIT:
+            continue
+
+        # Intentar deletrear letra a letra (fallback LSC)
+        letter_signs = _try_fingerspell(token, lexical_units)
         if letter_signs:
             signs.extend(letter_signs)
         else:
-            untranslated.append(tokens[i])
+            untranslated.append(token)
             signs.append(
                 {
-                    "word": tokens[i],
+                    "word": token,
                     "found": False,
                     "video_url": None,
                     "id_lexicalunit": None,
                 }
             )
-        i += 1
 
     return signs, untranslated
+
+
+def record_translation_details(
+    db: Session,
+    id_session: str,
+    signs: List[dict],
+) -> int:
+    """Guarda en TranslationDetail qué palabras se tradujeron en esta sesión.
+
+    La tabla ya existía en el modelo pero nunca se escribía, así que no había
+    forma de saber qué palabras usa la gente. Sin estos registros no se pueden
+    calcular las estadísticas de "frases más usadas".
+
+    Solo se guardan las señas que SÍ se encontraron en el diccionario (las que
+    traen id_lexicalunit). Las que no existen se siguen reportando aparte en
+    `untranslated_words`.
+
+    Devuelve cuántos detalles se guardaron. Nunca lanza excepción: si algo
+    falla se registra el error pero la traducción se le entrega igual al
+    usuario, porque una estadística no puede romper la funcionalidad.
+    """
+    guardados = 0
+    try:
+        # Continuar la numeración si la sesión ya tenía traducciones previas
+        ultimo = (
+            db.query(func.max(TranslationDetail.order))
+            .filter(TranslationDetail.id_session == id_session)
+            .scalar()
+        ) or 0
+
+        for sign in signs:
+            id_lexicalunit = sign.get("id_lexicalunit")
+            if not id_lexicalunit:
+                continue
+            ultimo += 1
+            db.add(
+                TranslationDetail(
+                    id_detail      = str(uuid.uuid4()),
+                    id_session     = id_session,
+                    id_lexicalunit = id_lexicalunit,
+                    order          = ultimo,
+                )
+            )
+            guardados += 1
+
+        if guardados:
+            db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning("No se pudo registrar el detalle de la traducción: %s", exc)
+        _log_system_error(db, "TranslationDetail", "services.traduccion", str(exc))
+
+    return guardados
 
 
 def _try_fingerspell(
@@ -405,3 +442,42 @@ def _try_fingerspell(
             }
         )
     return letter_signs
+
+
+def medir_mano_en_frame(frame_array: np.ndarray) -> Optional[dict]:
+    """Devuelve las mediciones geométricas de la mano en el frame.
+
+    Sirve para calibrar los umbrales del clasificador con manos reales. Los
+    valores de `app/services/abecedario.py` son un punto de partida razonable,
+    pero la anatomía y la forma de señar varían entre personas: esta función
+    permite ver los números concretos y ajustarlos con evidencia en lugar de
+    adivinar.
+
+    Devuelve None si MediaPipe no está disponible o no hay manos en el frame.
+    """
+    if not MEDIAPIPE_AVAILABLE:
+        return None
+
+    try:
+        with _mp_hands.Hands(
+            static_image_mode=True,
+            max_num_hands=1,
+            min_detection_confidence=0.5,
+        ) as hands:
+            results = hands.process(frame_array)
+
+        if not results.multi_hand_landmarks:
+            return None
+
+        mano = results.multi_hand_landmarks[0].landmark
+        letra, confianza = clasificar_letra(mano)
+
+        return {
+            "letra_detectada": letra,
+            "confianza": confianza,
+            "descripcion": describir_pose(mano),
+            "mediciones": medir_pose(mano),
+        }
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("No se pudo medir la mano: %s", exc)
+        return None

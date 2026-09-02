@@ -10,7 +10,6 @@ Endpoints implementados:
 from __future__ import annotations
 
 import logging
-import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -18,7 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.user import User, TranslationDetail
+from app.models.user import User
 from app.schemas.traduccion import (
     FrameRequest,
     FrameResponse,
@@ -33,6 +32,8 @@ from app.services.traduccion import (
     detect_sign_from_frame,
     translate_text_to_lsc,
     resolve_session,
+    record_translation_details,
+    medir_mano_en_frame,
 )
 
 logger = logging.getLogger(__name__)
@@ -41,39 +42,6 @@ router = APIRouter(
     prefix="/api/traduccion",
     tags=["Traducción LSC"],
 )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Registro de detalle de traducción (TranslationDetail)
-# ─────────────────────────────────────────────────────────────────────────────
-
-def _record_translation_detail(
-    session_id: str,
-    signs: list[dict],
-    db,
-) -> None:
-    """Persiste en TranslationDetail qué señas se tradujeron y en qué orden.
-
-    La tabla existía en el modelo pero nunca se escribía.  Ahora cada
-    llamada a /texto o /voz deja un registro por seña encontrada.
-    """
-    order = 0
-    for sign in signs:
-        if not sign.get("found") or not sign.get("id_lexicalunit"):
-            continue
-        order += 1
-        try:
-            detail = TranslationDetail(
-                id_detail=str(uuid.uuid4()),
-                id_session=session_id,
-                id_lexicalunit=sign["id_lexicalunit"],
-                order=order,
-            )
-            db.add(detail)
-        except Exception as exc:  # pragma: no cover
-            logger.warning("No se pudo registrar TranslationDetail: %s", exc)
-    if order:
-        db.commit()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -261,8 +229,8 @@ def traducir_texto(
         payload.session_id, current_user.id_user, "texto", db
     )
 
-    # Registrar cada seña traducida en TranslationDetail
-    _record_translation_detail(session_id, signs_raw, db)
+    # Registrar que palabras se tradujeron, para las estadisticas de uso
+    record_translation_details(db, session_id, signs_raw)
 
     return TextoTraduccionResponse(
         original_text=payload.texto,
@@ -341,8 +309,8 @@ def traducir_voz(
         payload.session_id, current_user.id_user, "voz", db
     )
 
-    # Registrar cada seña traducida en TranslationDetail
-    _record_translation_detail(session_id, signs_raw, db)
+    # Registrar qué palabras se tradujeron, para las estadísticas de uso
+    record_translation_details(db, session_id, signs_raw)
 
     return VozTraduccionResponse(
         texto_reconocido=payload.texto_dictado,
@@ -351,3 +319,30 @@ def traducir_voz(
         untranslated_words=untranslated,
         message=message,
     )
+
+
+@router.post("/calibrar", summary="Mediciones de la mano para calibrar el abecedario")
+def calibrar_mano(
+    payload: FrameRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """Devuelve las mediciones geométricas crudas de la mano en el frame.
+
+    Herramienta de desarrollo para ajustar los umbrales del clasificador del
+    abecedario. Se hace la seña frente a la cámara y se comparan los valores
+    devueltos con los umbrales de `app/services/abecedario.py`.
+
+    Ejemplo: si al hacer la A el campo `pulgar_largo` da 0.62 y el umbral es
+    0.80, hay que bajar el umbral. Los valores por defecto se estimaron sin
+    manos reales, así que conviene verificarlos.
+    """
+    frame = decode_base64_frame(payload.frame_base64)
+    medidas = medir_mano_en_frame(frame)
+
+    if medidas is None:
+        return {
+            "detectada": False,
+            "mensaje": "No se detectó ninguna mano en el frame, o MediaPipe no está disponible.",
+        }
+
+    return {"detectada": True, **medidas}
