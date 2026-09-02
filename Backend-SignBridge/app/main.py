@@ -4,6 +4,8 @@ from app.core.config import get_settings
 from app.routers import auth, dashboard, traduccion
 from app.routers import regions, messages, feedback, support, favorites
 from app.routers import admin_users
+from app.routers import stats
+from app.routers import notifications
 
 # Importar todos los modelos para registrar relaciones en SQLAlchemy
 from app.models import user, session  # noqa: F401
@@ -38,6 +40,8 @@ app.include_router(feedback.router)
 app.include_router(support.router)
 app.include_router(favorites.router)
 app.include_router(admin_users.router)
+app.include_router(stats.router)
+app.include_router(notifications.router)
 
 # Aliases de dashboard con prefijos directos (GET /admin/dashboard, etc.)
 from fastapi import Depends

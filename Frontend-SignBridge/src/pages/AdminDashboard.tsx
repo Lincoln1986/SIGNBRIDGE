@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
-import { dashboardApi, adminUsersApi } from '../api/client';
-import type { AdminDashboardRow, SystemStats, LexicalUnitAdmin, RoleOption } from '../api/client';
+import { dashboardApi, adminUsersApi , statsApi } from '../api/client';
+import type { AdminDashboardRow, SystemStats, LexicalUnitAdmin, RoleOption,
+              TopWordRow, TranslationTypeRow, ActivityRow, InteractionSummary } from '../api/client';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 import { VideoModal, NewWordModal, DeleteConfirmModal } from '../components/VocabModals';
 import { useAuth } from '../context/AuthContext';
-import { MetricsBarChart, RatingGauge, RoleDistributionChart, RegionDistributionChart } from '../components/StatsCharts';
+import { StatDetailModal } from '../components/StatDetailModal';
+import type { DetalleMetrica } from '../components/StatDetailModal';
+import { MetricsBarChart, RatingGauge, RoleDistributionChart, RegionDistributionChart,
+         TopWordsChart, ChannelUsageChart, ActivityChart } from '../components/StatsCharts';
 
 const PAGE_SIZE = 8;
 
@@ -34,6 +38,99 @@ function PaginationBtn({ children, onClick, active = false, disabled = false }: 
 }
 
 type AdminTab = 'users' | 'vocabulary' | 'stats';
+
+// ── Uso de la plataforma ────────────────────────────────────────────────────
+// Misma sección que la página /admin/stats, para que ambas vistas de
+// "Estadísticas" muestren lo mismo y no haya dos verdades distintas.
+
+function UsoDeLaPlataforma() {
+  const [palabras, setPalabras]   = useState<TopWordRow[]>([]);
+  const [canales, setCanales]     = useState<TranslationTypeRow[]>([]);
+  const [actividad, setActividad] = useState<ActivityRow[]>([]);
+  const [detalle, setDetalle]     = useState<DetalleMetrica | null>(null);
+  const [resumen, setResumen]     = useState<InteractionSummary | null>(null);
+
+  useEffect(() => {
+    statsApi.resumenInteraccion().then(r => setResumen(r.data)).catch(() => {});
+    statsApi.palabrasGlobales(10).then(r => setPalabras(r.data)).catch(() => {});
+    statsApi.canalesGlobales().then(r => setCanales(r.data)).catch(() => {});
+    statsApi.actividadGlobal(30).then(r => setActividad(r.data)).catch(() => {});
+  }, []);
+
+  const h3: React.CSSProperties = {
+    fontFamily: 'var(--font-display)', fontWeight: 700,
+    fontSize: '0.95rem', marginBottom: 4, color: 'var(--gray-800)',
+  };
+  const sub: React.CSSProperties = {
+    fontSize: '0.82rem', color: 'var(--gray-400)', marginTop: 0, marginBottom: 14,
+  };
+
+  return (
+    <>
+      <div style={{ marginTop: 32, marginBottom: 16 }}>
+        <p style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--violet)',
+                    textTransform: 'uppercase', letterSpacing: '0.08em', margin: 0 }}>
+          Uso de la plataforma
+        </p>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800,
+                     fontSize: '1.25rem', color: 'var(--gray-800)', marginTop: 4 }}>
+          Cómo se está usando SignBridge
+        </h2>
+      </div>
+
+      {/* Tarjetas de uso: son las mismas de la página /stats, que faltaban acá */}
+      {resumen && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: 16, marginBottom: 16 }}>
+          {([
+            ['traducidas',  'Palabras traducidas',        resumen.total_words_translated, '📖', true],
+            ['vocabulario', 'Vocabulario distinto usado', resumen.distinct_words_used,    '🔤', false],
+            ['sin-usar',    'Señas que nadie usó',        resumen.words_not_found,        '💤', false],
+            ['promedio',    'Palabras por sesión',        resumen.avg_words_per_session,  '📊', true],
+          ] as const).map(([tipo, etiqueta, valor, icono, acento]) => (
+            <div key={tipo} role="button" tabIndex={0} title="Ver el detalle"
+                 style={{ cursor: 'pointer' }}
+                 onClick={() => setDetalle({ tipo } as DetalleMetrica)}
+                 onKeyDown={e => { if (e.key === 'Enter') setDetalle({ tipo } as DetalleMetrica); }}>
+              <StatCard label={etiqueta} value={valor} icon={<span>{icono}</span>} accent={acento} />
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Rejilla de dos columnas: el ranking ocupa la altura de las otras dos
+          juntas, así todo entra en una pantalla sin tener que bajar. */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+        gap: 16, alignItems: 'start',
+      }}>
+        <Card style={{ gridRow: 'span 2' }}>
+          <h3 style={h3}>Señas más traducidas</h3>
+          <p style={sub}>
+            El color indica la calificación promedio. Una barra larga y roja es
+            una palabra muy usada que la gente califica mal.
+          </p>
+          <TopWordsChart rows={palabras} onSelect={p => setDetalle({ tipo: 'palabra', palabra: p })} />
+        </Card>
+
+        <Card>
+          <h3 style={h3}>Cómo traduce la gente</h3>
+          <p style={sub}>Reparto de traducciones por canal de entrada.</p>
+          <ChannelUsageChart rows={canales} onSelect={c => setDetalle({ tipo: 'canal', canal: c })} />
+        </Card>
+
+        <Card>
+          <h3 style={h3}>Actividad diaria</h3>
+          <p style={sub}>Traducciones realizadas por día.</p>
+          <ActivityChart rows={actividad} />
+        </Card>
+      </div>
+
+      {detalle && <StatDetailModal detalle={detalle} onClose={() => setDetalle(null)} />}
+    </>
+  );
+}
 
 // ── Tab bar ────────────────────────────────────────────────────────────────
 
@@ -337,12 +434,12 @@ function UsersTab({
           </div>
         </div>
 
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <div style={{ overflowX: 'auto', margin: '0 -24px', padding: '0 24px', WebkitOverflowScrolling: 'touch' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'auto' }}>
             <thead>
               <tr style={{ background: 'var(--gray-50)' }}>
                 {['Usuario', 'Correo', 'Rol', 'Región', 'Traducciones', 'Soporte', 'Feedback', 'Acciones'].map(h => (
-                  <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)', whiteSpace: 'nowrap' }}>
+                  <th key={h} style={{ padding: '12px 10px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)', whiteSpace: 'nowrap' }}>
                     {h}
                   </th>
                 ))}
@@ -365,7 +462,7 @@ function UsersTab({
                     onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                   >
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '14px 10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <div style={{
                           width: 32, height: 32, borderRadius: '50%',
@@ -390,21 +487,21 @@ function UsersTab({
                       </div>
                     </td>
 
-                    <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.email}</td>
-                    <td style={{ padding: '14px 16px' }}><Badge label={row.role_name} variant={roleVariant(row.role_name)} /></td>
-                    <td style={{ padding: '14px 16px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.region}</td>
+                    <td style={{ padding: '14px 10px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.email}</td>
+                    <td style={{ padding: '14px 10px' }}><Badge label={row.role_name} variant={roleVariant(row.role_name)} /></td>
+                    <td style={{ padding: '14px 10px', fontSize: '0.85rem', color: 'var(--gray-600)' }}>{row.region}</td>
 
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '14px 10px', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: 'var(--violet)' }}>{row.total_translations}</span>
                     </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '14px 10px', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: row.support_tickets > 0 ? 'var(--amber-dark)' : 'var(--gray-400)' }}>{row.support_tickets}</span>
                     </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                    <td style={{ padding: '14px 10px', textAlign: 'center' }}>
                       <span style={{ fontWeight: 700, color: 'var(--gray-600)' }}>{row.feedback_count}</span>
                     </td>
 
-                    <td style={{ padding: '14px 16px' }}>
+                    <td style={{ padding: '14px 10px' }}>
                       <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                         {(() => {
                           const isSelf = !!(row.id_user && currentUserId && row.id_user === currentUserId);
@@ -440,12 +537,13 @@ function UsersTab({
                             fontSize: '0.78rem', fontWeight: 600,
                             cursor: (row.id_user && !isToggling) ? 'pointer' : 'not-allowed',
                             fontFamily: 'var(--font-body)',
-                            minWidth: 80, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4,
+                            whiteSpace: 'nowrap',
                           }}
                         >
                           {isToggling
                             ? <Spinner size={12} />
-                            : inactive ? '✓ Activar' : '✕ Desactivar'}
+                            : inactive ? '✓ Activar' : '✕ Baja'}
                         </button>
                       </div>
                     </td>
@@ -564,12 +662,12 @@ function VocabularyTab() {
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size={28} /></div>
         ) : (
           <>
-            <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflowX: 'auto', margin: '0 -24px', padding: '0 24px', WebkitOverflowScrolling: 'touch' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--gray-50)' }}>
                     {['Palabra', 'Idioma', 'Video', 'Acciones'].map(h => (
-                      <th key={h} style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)' }}>
+                      <th key={h} style={{ padding: '12px 10px', textAlign: 'left', fontSize: '0.75rem', fontWeight: 700, color: 'var(--gray-400)', textTransform: 'uppercase', letterSpacing: '0.06em', borderBottom: '1px solid var(--gray-100)' }}>
                         {h}
                       </th>
                     ))}
@@ -583,20 +681,20 @@ function VocabularyTab() {
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--gray-50)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: 'var(--gray-800)', fontSize: '0.9rem' }}>{u.text}</td>
-                      <td style={{ padding: '12px 16px' }}><Badge label={u.language} variant="default" /></td>
-                      <td style={{ padding: '12px 16px' }}>
+                      <td style={{ padding: '12px 12px', fontWeight: 700, color: 'var(--gray-800)', fontSize: '0.9rem' }}>{u.text}</td>
+                      <td style={{ padding: '12px 12px' }}><Badge label={u.language} variant="default" /></td>
+                      <td style={{ padding: '12px 12px' }}>
                         {u.video_url
                           ? <span style={{ color: '#15803D', fontWeight: 600, fontSize: '0.82rem' }}>🎬 Asignado</span>
                           : <span style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>Sin video</span>}
                       </td>
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', gap: 8 }}>
+                      <td style={{ padding: '12px 12px', width: 1, whiteSpace: 'nowrap' }}>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                           <button onClick={() => setEditingUnit(u)} style={{ padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--violet)', background: 'none', color: 'var(--violet)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-                            {u.video_url ? '✏️ Editar video' : '▶ Agregar video'}
+                            {u.video_url ? '✏️ Editar' : '▶ Agregar'}
                           </button>
                           <button onClick={() => setDeleteConfirm(u)} style={{ padding: '5px 10px', borderRadius: 6, border: '1.5px solid #FECACA', background: 'none', color: '#DC2626', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
-                            🗑
+                            🗑 Eliminar
                           </button>
                         </div>
                       </td>
@@ -631,6 +729,9 @@ function VocabularyTab() {
 // ── Stats tab ──────────────────────────────────────────────────────────────
 
 function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: AdminDashboardRow[]; loading: boolean }) {
+  const [detalleTop, setDetalleTop] = useState<DetalleMetrica | null>(null);
+  const onDetalle = (d: DetalleMetrica) => setDetalleTop(d);
+
   if (loading) return <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}><Spinner size={36} /></div>;
 
   if (!stats) return (
@@ -642,18 +743,27 @@ function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: A
     </Card>
   );
 
-  const statItems = [
-    { label: 'Usuarios registrados', value: stats.total_users, icon: '👥', accent: false },
-    { label: 'Traducciones realizadas', value: stats.total_translations, icon: '🤟', accent: true },
-    { label: 'Tickets de soporte', value: stats.total_support_requests, icon: '🎫', accent: false },
-    { label: 'Feedback recibido', value: stats.total_feedback, icon: '💬', accent: true },
-    { label: 'Valoración promedio', value: stats.average_rating ? `${stats.average_rating.toFixed(1)} / 5` : '—', icon: '⭐', accent: false },
+  // `tipo: null` = tarjeta informativa. Solo se hacen clicables las métricas
+  // que tienen un desglose real detrás; abrir un modal que dice "esto no tiene
+  // detalle" es peor que no poder hacer clic.
+  const statItems: { tipo: DetalleMetrica['tipo'] | null; label: string; value: string | number; icon: string; accent: boolean }[] = [
+    { tipo: null,           label: 'Usuarios registrados', value: stats.total_users, icon: '👥', accent: false },
+    { tipo: 'traducciones', label: 'Traducciones realizadas', value: stats.total_translations, icon: '🤟', accent: true },
+    { tipo: 'soporte',      label: 'Tickets de soporte', value: stats.total_support_requests, icon: '🎫', accent: false },
+    { tipo: null,           label: 'Valoración promedio', value: stats.average_rating ? `${stats.average_rating.toFixed(1)} / 5` : '—', icon: '⭐', accent: false },
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
-        {statItems.map(s => (
+        {statItems.map(s => s.tipo ? (
+          <div key={s.label} role="button" tabIndex={0} title="Ver el detalle"
+               style={{ cursor: 'pointer' }}
+               onClick={() => onDetalle({ tipo: s.tipo } as DetalleMetrica)}
+               onKeyDown={e => { if (e.key === 'Enter') onDetalle({ tipo: s.tipo } as DetalleMetrica); }}>
+            <StatCard label={s.label} value={s.value} icon={<span>{s.icon}</span>} accent={s.accent} />
+          </div>
+        ) : (
           <StatCard key={s.label} label={s.label} value={s.value} icon={<span>{s.icon}</span>} accent={s.accent} />
         ))}
       </div>
@@ -670,7 +780,7 @@ function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: A
           <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: 'var(--gray-800)' }}>
             Usuarios por rol
           </h3>
-          <RoleDistributionChart rows={rows} />
+          <RoleDistributionChart rows={rows} />   {/* sin desglose propio */}
         </Card>
 
         <Card>
@@ -689,6 +799,10 @@ function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: A
           </Card>
         )}
       </div>
+
+      <UsoDeLaPlataforma />
+
+      {detalleTop && <StatDetailModal detalle={detalleTop} onClose={() => setDetalleTop(null)} />}
     </div>
   );
 }
