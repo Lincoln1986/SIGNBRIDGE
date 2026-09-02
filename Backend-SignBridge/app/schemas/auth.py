@@ -197,3 +197,14 @@ class UserRoleUpdateById(BaseModel):
 
 class UserStatusUpdate(BaseModel):
     is_active: bool
+
+
+class UserAdminCreate(UserRegister):
+    """Alta de usuario desde el panel de administración.
+
+    Hereda toda la validación de UserRegister (teléfono colombiano, fuerza de
+    la contraseña, capitalización) y suma el rol: el registro público siempre
+    crea Clientes, mientras que el admin necesita poder crear Soporte también.
+    """
+    id_role: Optional[str] = None    # si va vacío, se asigna el rol Cliente
+

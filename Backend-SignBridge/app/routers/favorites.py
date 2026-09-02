@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.security import get_current_user
 from app.models.user import FavoriteWords, LexicalUnit, User
-from app.schemas.favorites import FavoriteWordOut, FavoriteWordToggle
+from app.schemas.favorites import FavoriteWordOut, FavoriteWordToggle, FavoriteWordUpdate
 
 router = APIRouter(prefix="/favorites", tags=["Palabras Favoritas"])
 
@@ -114,3 +114,70 @@ def increment_usage(
     fav.updated_at    = datetime.now(timezone.utc)
     db.commit()
     return {"id_lexicalunit": id_lexicalunit, "times_used": fav.times_used}
+
+
+@router.put("/{id_favorite}", response_model=FavoriteWordOut,
+            summary="Actualizar un favorito")
+def update_favorite(
+    id_favorite: str,
+    payload: FavoriteWordUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Modifica un favorito propio.
+
+    Hoy el único campo editable es el contador de uso, que sirve para
+    reiniciarlo cuando el usuario ya domina esa seña.
+    """
+    fav = (
+        db.query(FavoriteWords)
+        .filter(
+            FavoriteWords.id_favorite == id_favorite,
+            FavoriteWords.id_user     == current_user.id_user,
+            FavoriteWords.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not fav:
+        raise HTTPException(status_code=404, detail="Favorito no encontrado")
+
+    if payload.times_used is not None:
+        if payload.times_used < 0:
+            raise HTTPException(status_code=422, detail="El contador no puede ser negativo")
+        fav.times_used = payload.times_used
+
+    fav.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(fav)
+    return _build_out(fav)
+
+
+@router.delete("/{id_favorite}", status_code=204,
+               summary="Quitar un favorito")
+def delete_favorite(
+    id_favorite: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Elimina un favorito propio (borrado lógico).
+
+    Existe además POST /favorites/{id_lexicalunit}, que alterna el favorito
+    por palabra. Este endpoint borra por id del favorito, que es lo que
+    necesita una lista donde cada fila ya conoce su propio id.
+    """
+    fav = (
+        db.query(FavoriteWords)
+        .filter(
+            FavoriteWords.id_favorite == id_favorite,
+            FavoriteWords.id_user     == current_user.id_user,
+            FavoriteWords.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not fav:
+        raise HTTPException(status_code=404, detail="Favorito no encontrado")
+
+    fav.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    return None
+
