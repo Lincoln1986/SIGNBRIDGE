@@ -228,6 +228,75 @@ def detect_sign_from_frame(
 # H08 / H16 — Traducción de texto a LSC
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _build_omit_set(db: Session) -> set:
+    """Conjunto de palabras funcionales que LSC omite.
+
+    Se carga una sola vez por traducción para no repetir la query.
+    """
+    return {
+        "el", "la", "los", "las", "un", "una", "unos", "unas",
+        "de", "del", "al", "a", "en", "con", "por", "para",
+        "que", "es", "son", "esta", "estan", "se",
+    }
+
+
+def _load_lexical_index(db: Session) -> Tuple[List[LexicalUnit], dict]:
+    """Carga todas las unidades léxicas activas y crea un índice normalizado.
+
+    Devuelve (lista_cruda, mapa_normalizado_a_lexicalunit).
+    El mapa usa la forma normalizada como clave para búsqueda O(1).
+    """
+    units = db.query(LexicalUnit).filter(LexicalUnit.deleted_at.is_(None)).all()
+    index = {_normalize_word(lu.text): lu for lu in units}
+    return units, index
+
+
+def _match_longest_phrase(
+    tokens: List[str],
+    start: int,
+    lu_index: dict,
+    omit: set,
+) -> Tuple[Optional[dict], int]:
+    """Intenta emparejar el grupo más largo de tokens contra el diccionario.
+
+    Estrategia greedy: prueba 2, 3, 4 … tokens a la vez desde *start*.
+    Devuelve (sign_dict, tokens_consumidos) o (None, 0) si no hay match.
+
+    Ejemplo: tokens = ['buenas', 'noches', 'como', 'estas']
+      1. Prueba 'buenas noches' → ¡match!
+      2. Retorna la entrada y consume 2 tokens.
+    """
+    max_len = min(len(tokens) - start, 6)  # frases de hasta 6 palabras
+    for length in range(max_len, 0, -1):
+        phrase_tokens = tokens[start : start + length]
+        # Omitir tokens de palabra suelta que LSC descarta
+        filtered = [t for t in phrase_tokens if _normalize_word(t) not in omit]
+        if not filtered:
+            # Todos los tokens de esta frase son funcionales → saltarlos todos
+            # y pasar al siguiente token real.
+            return None, 0
+        # Si la frase contiene tokens funcionales mezclados, ensamblar solo
+        # los no-funcionales para comparar con el diccionario.
+        if len(filtered) != length:
+            phrase_text = " ".join(filtered)
+        else:
+            phrase_text = " ".join(phrase_tokens)
+        normalized = _normalize_word(phrase_text)
+        lu = lu_index.get(normalized)
+        if lu is not None:
+            display = " ".join(phrase_tokens)  # mantiene capitalización original
+            return (
+                {
+                    "word": display,
+                    "found": True,
+                    "video_url": lu.video_url,
+                    "id_lexicalunit": lu.id_lexicalunit,
+                },
+                length,
+            )
+    return None, 0
+
+
 def translate_text_to_lsc(
     text: str,
     db: Session,
@@ -239,17 +308,16 @@ def translate_text_to_lsc(
         signs          -- lista de dicts con campos SignUnit (word, found, video_url, id_lexicalunit)
         untranslated   -- lista de palabras sin entrada en la BD
 
-    Estrategia de simplificación lingüística básica para LSC:
-      - LSC omite cópulas, artículos y preposiciones simples.
-      - El orden SVO se mantiene para oraciones simples.
-      - Las palabras sin traducción directa se intentan como letras deletreadas.
+    Estrategia:
+      1. Cargar el diccionario completo una sola vez (O(n) contra BD).
+      2. Para cada posición, intentar emparejar el grupo más largo de tokens
+         contra entradas de dos o más palabras del diccionario (greedy).
+      3. Si no hay match multioralabra, intentar la palabra individual.
+      4. Si no hay match individual, intentar deletrear (fingerspelling).
+      5. Los artículos, preposiciones y cópulas se omiten (LSC los descarta).
     """
-    # Palabras funcionales que LSC suele omitir
-    LSC_OMIT = {
-        "el", "la", "los", "las", "un", "una", "unos", "unas",
-        "de", "del", "al", "a", "en", "con", "por", "para",
-        "que", "es", "son", "está", "están", "se",
-    }
+    omit = _build_omit_set(db)
+    all_units, lu_index = _load_lexical_index(db)
 
     tokens = _tokenize(text)
     if not tokens:
@@ -260,51 +328,52 @@ def translate_text_to_lsc(
 
     signs: List[dict] = []
     untranslated: List[str] = []
+    i = 0
 
-    for token in tokens:
-        normalized = _normalize_word(token)
+    while i < len(tokens):
+        normalized = _normalize_word(tokens[i])
 
-        # Omitir palabras funcionales que LSC no representa
-        if normalized in LSC_OMIT:
+        # Saltar palabras funcionales sin agregarlas a la secuencia
+        if normalized in omit:
+            i += 1
             continue
 
-        # Buscar en BD (búsqueda case-insensitive via normalización en Python)
-        # Para escala mayor usar índice functional en PostgreSQL: LOWER(text)
-        lexical_units: List[LexicalUnit] = (
-            db.query(LexicalUnit)
-            .filter(LexicalUnit.deleted_at.is_(None))
-            .all()
-        )
+        # 1) Intentar frase multi-palabra (greedy, longitud decreciente)
+        phrase_match, consumed = _match_longest_phrase(tokens, i, lu_index, omit)
+        if phrase_match is not None and consumed > 0:
+            signs.append(phrase_match)
+            i += consumed
+            continue
 
-        match: Optional[LexicalUnit] = next(
-            (lu for lu in lexical_units if _normalize_word(lu.text) == normalized),
-            None,
-        )
-
-        if match:
+        # 2) Buscar palabra individual en el índice
+        lu = lu_index.get(normalized)
+        if lu is not None:
             signs.append(
                 {
-                    "word": token,
+                    "word": tokens[i],
                     "found": True,
-                    "video_url": match.video_url,
-                    "id_lexicalunit": match.id_lexicalunit,
+                    "video_url": lu.video_url,
+                    "id_lexicalunit": lu.id_lexicalunit,
                 }
             )
+            i += 1
+            continue
+
+        # 3) Fallback: deletrear letra a letra
+        letter_signs = _try_fingerspell(tokens[i], all_units)
+        if letter_signs:
+            signs.extend(letter_signs)
         else:
-            # Intentar deletrear letra a letra (fallback LSC)
-            letter_signs = _try_fingerspell(token, lexical_units)
-            if letter_signs:
-                signs.extend(letter_signs)
-            else:
-                untranslated.append(token)
-                signs.append(
-                    {
-                        "word": token,
-                        "found": False,
-                        "video_url": None,
-                        "id_lexicalunit": None,
-                    }
-                )
+            untranslated.append(tokens[i])
+            signs.append(
+                {
+                    "word": tokens[i],
+                    "found": False,
+                    "video_url": None,
+                    "id_lexicalunit": None,
+                }
+            )
+        i += 1
 
     return signs, untranslated
 

@@ -10,6 +10,7 @@ Endpoints implementados:
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
@@ -17,7 +18,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.user import User
+from app.models.user import User, TranslationDetail
 from app.schemas.traduccion import (
     FrameRequest,
     FrameResponse,
@@ -40,6 +41,39 @@ router = APIRouter(
     prefix="/api/traduccion",
     tags=["Traducción LSC"],
 )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Registro de detalle de traducción (TranslationDetail)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _record_translation_detail(
+    session_id: str,
+    signs: list[dict],
+    db,
+) -> None:
+    """Persiste en TranslationDetail qué señas se tradujeron y en qué orden.
+
+    La tabla existía en el modelo pero nunca se escribía.  Ahora cada
+    llamada a /texto o /voz deja un registro por seña encontrada.
+    """
+    order = 0
+    for sign in signs:
+        if not sign.get("found") or not sign.get("id_lexicalunit"):
+            continue
+        order += 1
+        try:
+            detail = TranslationDetail(
+                id_detail=str(uuid.uuid4()),
+                id_session=session_id,
+                id_lexicalunit=sign["id_lexicalunit"],
+                order=order,
+            )
+            db.add(detail)
+        except Exception as exc:  # pragma: no cover
+            logger.warning("No se pudo registrar TranslationDetail: %s", exc)
+    if order:
+        db.commit()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -227,6 +261,9 @@ def traducir_texto(
         payload.session_id, current_user.id_user, "texto", db
     )
 
+    # Registrar cada seña traducida en TranslationDetail
+    _record_translation_detail(session_id, signs_raw, db)
+
     return TextoTraduccionResponse(
         original_text=payload.texto,
         id_session=session_id,
@@ -303,6 +340,9 @@ def traducir_voz(
     session_id = resolve_session(
         payload.session_id, current_user.id_user, "voz", db
     )
+
+    # Registrar cada seña traducida en TranslationDetail
+    _record_translation_detail(session_id, signs_raw, db)
 
     return VozTraduccionResponse(
         texto_reconocido=payload.texto_dictado,
