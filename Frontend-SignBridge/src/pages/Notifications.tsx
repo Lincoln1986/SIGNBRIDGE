@@ -89,7 +89,7 @@ export default function Notifications() {
         Notificaciones {sinLeer > 0 && (
           <span style={{
             fontSize: '0.85rem', fontWeight: 700, color: 'var(--violet)',
-            background: 'rgba(91,79,207,0.1)', padding: '3px 10px',
+            background: 'rgba(40,35,188,0.1)', padding: '3px 10px',
             borderRadius: 20, verticalAlign: 'middle', marginLeft: 8,
           }}>
             {sinLeer} sin leer
@@ -130,8 +130,8 @@ export default function Notifications() {
       )}
 
       {!cargando && error && (
-        <Card style={{ padding: '20px 24px', border: '1.5px solid #FECACA', background: '#FEF2F2' }}>
-          <p style={{ fontSize: '0.88rem', color: '#991B1B', margin: 0 }}>{error}</p>
+        <Card style={{ padding: '20px 24px', border: '1.5px solid #FECACA', background: 'rgba(229,83,75,0.13)' }}>
+          <p style={{ fontSize: '0.88rem', color: '#FFA8A2', margin: 0 }}>{error}</p>
         </Card>
       )}
 
@@ -152,7 +152,7 @@ export default function Notifications() {
           style={{
             padding: '16px 18px', marginBottom: 10,
             borderLeft: a.read_at ? '4px solid transparent' : '4px solid var(--violet)',
-            background: a.read_at ? 'var(--white)' : 'rgba(91,79,207,0.04)',
+            background: a.read_at ? 'var(--white)' : 'rgba(40,35,188,0.04)',
           }}
         >
           <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>

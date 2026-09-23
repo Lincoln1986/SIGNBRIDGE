@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../api/client';
-import { Logo, Btn, Alert, Card, PasswordInput, PasswordRequirements } from '../components/UI';
+import { Logo, Btn, Alert, Card, Input, PasswordInput, PasswordRequirements } from '../components/UI';
 import { Footer } from '../components/Footer';
 
 // ── Componente de countdown reutilizable ──────────────────────────────────────
@@ -96,7 +96,7 @@ export function ForgotPassword() {
               }}>
                 <div style={{
                   width: 56, height: 56, borderRadius: '50%',
-                  background: 'linear-gradient(135deg, var(--violet), #4338ca)',
+                  background: 'linear-gradient(135deg, var(--violet), #252440)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: '1.6rem',
                 }}>

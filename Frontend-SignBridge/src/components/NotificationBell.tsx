@@ -213,7 +213,7 @@ export function NotificationBell() {
                   width: '100%', textAlign: 'left', border: 'none', cursor: 'pointer',
                   padding: '12px 16px', display: 'flex', gap: 12,
                   borderBottom: '1px solid var(--gray-100)',
-                  background: a.read_at ? 'var(--white)' : 'rgba(91, 79, 207, 0.06)',
+                  background: a.read_at ? 'var(--white)' : 'rgba(40,35,188, 0.06)',
                   fontFamily: 'var(--font-body)',
                 }}
               >

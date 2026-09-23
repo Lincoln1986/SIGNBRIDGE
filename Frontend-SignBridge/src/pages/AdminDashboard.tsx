@@ -275,7 +275,7 @@ function RoleModal({
           </div>
         )}
 
-        {err && <p style={{ color: '#DC2626', fontSize: '0.82rem', marginBottom: 12 }}>{err}</p>}
+        {err && <p style={{ color: '#FF8C85', fontSize: '0.82rem', marginBottom: 12 }}>{err}</p>}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
           <button onClick={onClose} disabled={saving} style={{ padding: '8px 18px', border: '1.5px solid var(--gray-200)', borderRadius: 8, background: 'none', color: 'var(--gray-600)', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
@@ -477,7 +477,7 @@ function UsersTab({
                           {inactive && (
                             <span style={{
                               marginLeft: 8, fontSize: '0.7rem', fontWeight: 700,
-                              background: '#FEE2E2', color: '#DC2626',
+                              background: 'rgba(229,83,75,0.18)', color: '#FF8C85',
                               borderRadius: 4, padding: '1px 6px',
                             }}>
                               Inactivo
@@ -531,9 +531,9 @@ function UsersTab({
                           title={inactive ? 'Activar usuario' : 'Desactivar usuario'}
                           style={{
                             padding: '5px 10px', borderRadius: 6,
-                            border: `1.5px solid ${inactive ? '#BBF7D0' : '#FECACA'}`,
+                            border: `1.5px solid ${inactive ? 'rgba(39,168,95,0.38)' : 'rgba(229,83,75,0.38)'}`,
                             background: 'none',
-                            color: inactive ? '#15803D' : '#DC2626',
+                            color: inactive ? '#5FE0A1' : '#FF8C85',
                             fontSize: '0.78rem', fontWeight: 600,
                             cursor: (row.id_user && !isToggling) ? 'pointer' : 'not-allowed',
                             fontFamily: 'var(--font-body)',
@@ -685,7 +685,7 @@ function VocabularyTab() {
                       <td style={{ padding: '12px 12px' }}><Badge label={u.language} variant="default" /></td>
                       <td style={{ padding: '12px 12px' }}>
                         {u.video_url
-                          ? <span style={{ color: '#15803D', fontWeight: 600, fontSize: '0.82rem' }}>🎬 Asignado</span>
+                          ? <span style={{ color: '#5FE0A1', fontWeight: 600, fontSize: '0.82rem' }}>🎬 Asignado</span>
                           : <span style={{ color: 'var(--gray-400)', fontSize: '0.82rem' }}>Sin video</span>}
                       </td>
                       <td style={{ padding: '12px 12px', width: 1, whiteSpace: 'nowrap' }}>
@@ -693,7 +693,7 @@ function VocabularyTab() {
                           <button onClick={() => setEditingUnit(u)} style={{ padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--violet)', background: 'none', color: 'var(--violet)', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                             {u.video_url ? '✏️ Editar' : '▶ Agregar'}
                           </button>
-                          <button onClick={() => setDeleteConfirm(u)} style={{ padding: '5px 10px', borderRadius: 6, border: '1.5px solid #FECACA', background: 'none', color: '#DC2626', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
+                          <button onClick={() => setDeleteConfirm(u)} style={{ padding: '5px 10px', borderRadius: 6, border: '1.5px solid #FECACA', background: 'none', color: '#FF8C85', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}>
                             🗑 Eliminar
                           </button>
                         </div>
@@ -768,14 +768,26 @@ function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: A
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
-        <Card>
-          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: 'var(--gray-800)' }}>
-            Comparativa de métricas
-          </h3>
-          <MetricsBarChart stats={stats} />
-        </Card>
+      <Card>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', marginBottom: 16, color: 'var(--gray-800)' }}>
+          Resumen de actividad
+        </h3>
+        <MetricsBarChart stats={stats} />
+      </Card>
 
+      {stats.average_rating != null && (
+        <Card>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1rem', marginBottom: 8, color: 'var(--gray-800)' }}>
+            Valoración global de la plataforma
+          </h3>
+          <RatingGauge rating={stats.average_rating} />
+          <p style={{ textAlign: 'center', color: 'var(--gray-400)', fontSize: '0.85rem', marginTop: -8 }}>
+            Basado en {stats.total_feedback} valoraciones
+          </p>
+        </Card>
+      )}
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 14 }}>
         <Card>
           <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 12, color: 'var(--gray-800)' }}>
             Usuarios por rol
@@ -789,15 +801,6 @@ function StatsTab({ stats, rows, loading }: { stats: SystemStats | null; rows: A
           </h3>
           <RegionDistributionChart rows={rows} />
         </Card>
-
-        {stats.average_rating != null && (
-          <Card>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 4, color: 'var(--gray-800)' }}>
-              Valoración promedio
-            </h3>
-            <RatingGauge rating={stats.average_rating} />
-          </Card>
-        )}
       </div>
 
       <UsoDeLaPlataforma />

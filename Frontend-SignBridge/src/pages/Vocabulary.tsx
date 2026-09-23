@@ -39,6 +39,13 @@ function formatDate(d: string) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Video Lightbox modal
 // ─────────────────────────────────────────────────────────────────────────────
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+function urlCompleta(url: string): string {
+  if (!url) return url;
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  return `${API_BASE}${url}`;
+}
 
 interface LightboxProps {
   unit: LexicalUnit & { id_lexicalunit?: string };
@@ -119,7 +126,7 @@ function VideoLightbox({ unit, onClose }: LightboxProps) {
           ) : (
             <video
               ref={videoRef}
-              src={unit.video_url}
+              src={urlCompleta(unit.video_url ?? '')}
               autoPlay
               controls
               playsInline
@@ -189,7 +196,7 @@ function WordRating({
           style={{
             background: 'none', border: 'none', padding: 0, lineHeight: 1,
             cursor: submitting ? 'not-allowed' : 'pointer', fontSize: '0.8rem',
-            color: n <= (hover || rounded) ? '#f59e0b' : '#d1d5db',
+            color: n <= (hover || rounded) ? '#f59e0b' : '#3A3F63',
           }}
         >
           &#9733;
@@ -219,7 +226,7 @@ function WordCard({
     <div
       style={{
         background: 'var(--white)',
-        border: `1.5px solid ${unit.video_url ? 'rgba(91,79,207,0.22)' : 'var(--gray-100)'}`,
+        border: `1.5px solid ${unit.video_url ? 'rgba(40,35,188,0.22)' : 'var(--gray-100)'}`,
         borderRadius: 'var(--radius)', overflow: 'hidden',
         transition: 'transform 0.15s, box-shadow 0.15s',
         boxShadow: 'var(--shadow-sm)',
@@ -238,8 +245,8 @@ function WordCard({
         <button
           onClick={() => onOpenLightbox(unit)}
           style={{
-            display: 'block', width: '100%', aspectRatio: '16/9',
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
+            width: '100%', aspectRatio: '16/9',
+            background: 'linear-gradient(135deg, #2E2A78 0%, #1B2350 100%)',
             border: 'none', cursor: 'pointer',
             display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center', gap: 6,
@@ -248,7 +255,7 @@ function WordCard({
           <div style={{
             width: 44, height: 44, borderRadius: '50%', background: 'var(--violet)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 0 6px rgba(91,79,207,0.25)',
+            boxShadow: '0 0 0 6px rgba(139,132,255,0.28)',
             transition: 'transform 0.15s',
           }}>
             <span style={{ fontSize: '1.1rem', marginLeft: 3 }}>&#9654;</span>
@@ -290,7 +297,7 @@ function WordCard({
               style={{
                 background: 'none', border: 'none', cursor: 'pointer',
                 fontSize: '1.1rem', lineHeight: 1, padding: 2,
-                color: isFavorite ? '#f59e0b' : '#d1d5db',
+                color: isFavorite ? '#f59e0b' : '#3A3F63',
                 transition: 'color 0.15s',
               }}
             >

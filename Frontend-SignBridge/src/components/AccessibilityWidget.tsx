@@ -8,7 +8,7 @@ interface A11ySettings {
   bigText: boolean;
   hugeText: boolean;
   highContrast: boolean;
-  darkContrast: boolean;
+  lightMode: boolean;
   highlightLinks: boolean;
   textSpacing: boolean;
   lineHeight: boolean;
@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS: A11ySettings = {
   bigText: false,
   hugeText: false,
   highContrast: false,
-  darkContrast: false,
+  lightMode: false,
   highlightLinks: false,
   textSpacing: false,
   lineHeight: false,
@@ -66,15 +66,9 @@ function buildCss(s: A11ySettings): string {
       html { filter: contrast(1.35) !important; }
     `);
   }
-  if (s.darkContrast) {
-    rules.push(`
-      html { filter: invert(1) hue-rotate(180deg) !important; }
-      img, video, iframe, svg image { filter: invert(1) hue-rotate(180deg) !important; }
-    `);
-  }
   if (s.highlightLinks) {
     rules.push(`
-      a, button { outline: 2px solid #F6A623 !important; text-decoration: underline !important; text-underline-offset: 3px !important; }
+      a, button { outline: 2px solid #D66A35 !important; text-decoration: underline !important; text-underline-offset: 3px !important; }
     `);
   }
   if (s.textSpacing) {
@@ -209,6 +203,10 @@ export default function AccessibilityWidget() {
       styleRef.current = tag;
     }
     styleRef.current.textContent = buildCss(settings);
+    // El modo claro cambia la paleta completa con data-theme (definida en
+    // index.css), en vez de invertir la pantalla con un filtro.
+    if (settings.lightMode) document.documentElement.setAttribute('data-theme', 'light');
+    else document.documentElement.removeAttribute('data-theme');
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
   }, [settings]);
 
@@ -231,8 +229,6 @@ export default function AccessibilityWidget() {
       const next = { ...prev, [key]: !prev[key] };
       if (key === 'bigText' && next.bigText) next.hugeText = false;
       if (key === 'hugeText' && next.hugeText) next.bigText = false;
-      if (key === 'highContrast' && next.highContrast) next.darkContrast = false;
-      if (key === 'darkContrast' && next.darkContrast) next.highContrast = false;
       return next;
     });
   };
@@ -271,11 +267,12 @@ export default function AccessibilityWidget() {
         aria-label="Abrir menú de accesibilidad"
         aria-expanded={open}
         style={{
-          position: 'fixed', bottom: 90, right: 24, zIndex: 5000,
+          position: 'fixed', bottom: 'max(90px, calc(env(safe-area-inset-bottom) + 90px))',
+          right: 'max(16px, env(safe-area-inset-right))', zIndex: 5000,
           width: 52, height: 52, borderRadius: '50%',
           background: 'var(--violet)', border: 'none', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          boxShadow: '0 6px 20px rgba(91,79,207,0.4)',
+          boxShadow: '0 6px 20px rgba(40,35,188,0.4)',
           color: 'white', fontSize: '1.5rem',
           transition: 'transform 0.15s',
         }}
@@ -304,8 +301,12 @@ export default function AccessibilityWidget() {
           role="dialog"
           aria-label="Menú de accesibilidad"
           style={{
-            position: 'fixed', bottom: 152, right: 24, zIndex: 5000,
-            width: 340, maxHeight: '75vh', overflowY: 'auto',
+            position: 'fixed', bottom: 'max(152px, calc(env(safe-area-inset-bottom) + 152px))',
+            right: 'max(16px, env(safe-area-inset-right))', zIndex: 5000,
+            // En pantallas angostas el panel de 340px se salia del viewport.
+            width: 'min(340px, calc(100vw - 32px))',
+            maxHeight: 'calc(100vh - 190px)',
+            display: 'flex', flexDirection: 'column', overflow: 'hidden',
             background: 'var(--white)', borderRadius: 16,
             boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
             border: '1px solid var(--gray-100)',
@@ -313,6 +314,7 @@ export default function AccessibilityWidget() {
         >
           <div style={{
             padding: '16px 18px', borderBottom: '1px solid var(--gray-100)',
+            flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             position: 'sticky', top: 0, background: 'var(--white)', borderRadius: '16px 16px 0 0',
           }}>
@@ -335,12 +337,15 @@ export default function AccessibilityWidget() {
             </button>
           </div>
 
-          <div style={{ padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <div style={{
+            padding: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
+            overflowY: 'auto', flex: 1, minHeight: 0,
+          }}>
             <A11yButton icon={reading ? '⏹️' : '🔊'} label={reading ? 'Detener lectura' : 'Leer página'} active={reading} onClick={handleReadToggle} />
             <A11yButton icon="A+" label="Texto grande" active={settings.bigText} onClick={() => toggle('bigText')} />
             <A11yButton icon="A++" label="Texto muy grande" active={settings.hugeText} onClick={() => toggle('hugeText')} />
             <A11yButton icon="◐" label="Contraste +" active={settings.highContrast} onClick={() => toggle('highContrast')} />
-            <A11yButton icon="◑" label="Contraste oscuro" active={settings.darkContrast} onClick={() => toggle('darkContrast')} />
+            <A11yButton icon="☀" label="Modo claro" active={settings.lightMode} onClick={() => toggle('lightMode')} />
             <A11yButton icon="🔗" label="Resaltar enlaces" active={settings.highlightLinks} onClick={() => toggle('highlightLinks')} />
             <A11yButton icon="⇔" label="Espaciado de texto" active={settings.textSpacing} onClick={() => toggle('textSpacing')} />
             <A11yButton icon="≡" label="Altura de línea" active={settings.lineHeight} onClick={() => toggle('lineHeight')} />
@@ -352,7 +357,10 @@ export default function AccessibilityWidget() {
             <A11yButton icon="◒" label="Escala de grises" active={settings.grayscale} onClick={() => toggle('grayscale')} />
           </div>
 
-          <div style={{ padding: '0 16px 16px' }}>
+          <div style={{
+            padding: '12px 16px', flexShrink: 0,
+            borderTop: '1px solid var(--gray-100)', background: 'var(--white)',
+          }}>
             <button
               onClick={handleReset}
               style={{

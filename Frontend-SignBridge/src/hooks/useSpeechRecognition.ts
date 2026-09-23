@@ -12,11 +12,29 @@ interface UseSpeechRecognitionReturn {
   resetTranscript: () => void;
 }
 
-// Declaración de tipos para la Web Speech API (no incluida en lib.dom por defecto)
+// Declaración de tipos para la Web Speech API.
+// lib.dom no expone la interfaz `SpeechRecognition` (solo los tipos de sus
+// eventos), así que la declaramos con lo mínimo que usa este hook.
+interface SpeechRecognitionInstance extends EventTarget {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  start(): void;
+  stop(): void;
+  abort(): void;
+  onresult: ((event: SpeechRecognitionEvent) => void) | null;
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  onstart: (() => void) | null;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
+
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
   }
 }
 
@@ -35,7 +53,7 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [state, setState] = useState<SpeechState>(isSupported ? 'idle' : 'unsupported');
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
   useEffect(() => {
     return () => {

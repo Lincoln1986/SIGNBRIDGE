@@ -12,7 +12,7 @@ export function AppShell({ children, maxWidth = 1100 }: {
   maxWidth?: number;
 }) {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--gray-50)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'transparent', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
       <main style={{ maxWidth, margin: '0 auto', padding: '32px 24px', flex: 1, width: '100%', boxSizing: 'border-box' }}>
         {children}

@@ -7,9 +7,9 @@ import { useAuth } from '../context/AuthContext';
 type SupportTab = 'tickets' | 'feedback';
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: 'Pendiente',  color: '#b45309', bg: '#fef3c7' },
-  in_progress: { label: 'En proceso', color: '#7c3aed', bg: 'var(--violet-light)' },
-  resolved:    { label: 'Resuelto',   color: '#15803d', bg: '#f0fdf4' },
+  pending:     { label: 'Pendiente',  color: '#F0A472', bg: 'rgba(214,106,53,0.16)' },
+  in_progress: { label: 'En proceso', color: '#2823BC', bg: 'var(--violet-light)' },
+  resolved:    { label: 'Resuelto',   color: '#5FE0A1', bg: 'rgba(39,168,95,0.13)' },
   closed:      { label: 'Cerrado',    color: 'var(--gray-500)', bg: 'var(--gray-100)' },
 };
 
@@ -53,6 +53,107 @@ function TabBar({ active, onChange }: { active: SupportTab; onChange: (t: Suppor
   );
 }
 
+// ── Modal flotante para cambiar el estado de un ticket ────────────────────────
+
+function CambiarEstadoModal({
+  ticket,
+  onClose,
+  onConfirm,
+  submitting,
+  error,
+}: {
+  ticket: SupportTicketWithUser;
+  onClose: () => void;
+  onConfirm: (status: string, solution?: string) => void;
+  submitting: boolean;
+  error: string;
+}) {
+  const [status, setStatus] = useState(ticket.status ?? 'pending');
+  const [solution, setSolution] = useState(ticket.solution ?? '');
+  const necesitaSolucion = status === 'resolved';
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: 24,
+      }}
+      onClick={e => { if (e.target === e.currentTarget && !submitting) onClose(); }}
+    >
+      <div style={{
+        background: 'var(--white)', borderRadius: 'var(--radius)', padding: 28,
+        width: '100%', maxWidth: 460, boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+      }}>
+        <h3 style={{
+          fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.05rem',
+          color: 'var(--gray-800)', marginBottom: 4,
+        }}>
+          Cambiar estado del ticket
+        </h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--gray-400)', marginBottom: 20 }}>
+          {ticket.subject}
+        </p>
+
+        {error && <div style={{ marginBottom: 14 }}><Alert type="error" message={error} /></div>}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 22 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>
+              Nuevo estado
+            </label>
+            <select
+              value={status}
+              onChange={e => setStatus(e.target.value)}
+              disabled={submitting}
+              style={{
+                padding: '10px 14px', border: '1.5px solid var(--gray-200)',
+                borderRadius: 'var(--radius-sm)', fontSize: '0.9rem',
+                fontFamily: 'var(--font-body)', outline: 'none', cursor: 'pointer',
+              }}
+            >
+              {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+
+          {necesitaSolucion && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>
+                Solución (obligatoria para marcar como resuelto) *
+              </label>
+              <textarea
+                value={solution}
+                onChange={e => setSolution(e.target.value)}
+                placeholder="Escribe la solución del ticket…"
+                rows={4}
+                disabled={submitting}
+                style={{
+                  padding: '10px 14px', border: '1.5px solid var(--gray-200)',
+                  borderRadius: 'var(--radius-sm)', fontSize: '0.9rem',
+                  fontFamily: 'var(--font-body)', outline: 'none', resize: 'vertical', lineHeight: 1.5,
+                }}
+              />
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Btn variant="ghost" size="sm" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </Btn>
+          <Btn
+            size="sm"
+            loading={submitting}
+            onClick={() => onConfirm(status, necesitaSolucion ? solution.trim() : undefined)}
+          >
+            Guardar
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Tickets ──────────────────────────────────────────────────────────────────
 
 function TicketsTab() {
@@ -61,10 +162,11 @@ function TicketsTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
-  // Estado local del cambio de estado en curso por ticket (para el select + solución)
-  const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({});
-  const [solutionDrafts, setSolutionDrafts] = useState<Record<string, string>>({});
+
+  // Ticket cuyo modal de cambio de estado está abierto (null = ninguno)
+  const [ticketEnEdicion, setTicketEnEdicion] = useState<SupportTicketWithUser | null>(null);
+  const [modalSubmitting, setModalSubmitting] = useState(false);
+  const [modalError, setModalError] = useState('');
 
   const load = () => {
     setLoading(true);
@@ -76,30 +178,29 @@ function TicketsTab() {
 
   useEffect(load, []);
 
-  const handleStatusSelect = (id_support: string, status: string) => {
-    setPendingStatus(prev => ({ ...prev, [id_support]: status }));
-  };
+  const handleConfirmStatus = async (status: string, solution?: string) => {
+    if (!ticketEnEdicion) return;
+    const id = ticketEnEdicion.id_support ?? ticketEnEdicion.id_ticket!;
 
-  const handleConfirmStatus = async (id_support: string, status: string) => {
-    const solution = solutionDrafts[id_support]?.trim();
     if (status === 'resolved' && !solution) {
-      setError('Para marcar el ticket como resuelto debes escribir la solución.');
+      setModalError('Para marcar el ticket como resuelto debes escribir la solución.');
       return;
     }
-    setUpdatingId(id_support);
-    setError('');
+
+    setModalSubmitting(true);
+    setModalError('');
     try {
-      await supportApi.updateStatus(id_support, status as any, solution || undefined);
+      await supportApi.updateStatus(id, status as any, solution || undefined);
       setTickets(prev => prev.map(t =>
-        (t.id_support ?? t.id_ticket) === id_support
+        (t.id_support ?? t.id_ticket) === id
           ? { ...t, status: status as any, solution: solution || t.solution }
           : t
       ));
-      setPendingStatus(prev => { const { [id_support]: _drop, ...rest } = prev; return rest; });
+      setTicketEnEdicion(null);
     } catch {
-      setError('No se pudo actualizar el estado del ticket. Solo Soporte puede solucionar tickets.');
+      setModalError('No se pudo actualizar el estado del ticket. Solo Soporte puede solucionar tickets.');
     } finally {
-      setUpdatingId(null);
+      setModalSubmitting(false);
     }
   };
 
@@ -108,6 +209,8 @@ function TicketsTab() {
 
   const filtered = statusFilter === 'all' ? tickets : tickets.filter(t => t.status === statusFilter);
   const pendingCount = tickets.filter(t => t.status === 'pending').length;
+  const resolvedCount = tickets.filter(t => t.status === 'resolved').length;
+  const closedCount = tickets.filter(t => t.status === 'closed').length;
 
   return (
     <>
@@ -117,8 +220,10 @@ function TicketsTab() {
       {error && <div style={{ marginBottom: 12 }}><Alert type="error" message={error} /></div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
-        <StatCard label="Total tickets" value={tickets.length} icon="🎫" />
+        <StatCard label="Total tickets (histórico)" value={tickets.length} icon="🎫" />
         <StatCard label="Pendientes" value={pendingCount} icon="⏳" accent={pendingCount > 0} />
+        <StatCard label="Resueltos" value={resolvedCount} icon="✅" />
+        <StatCard label="Cerrados" value={closedCount} icon="🔒" />
       </div>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -151,8 +256,6 @@ function TicketsTab() {
           {filtered.map((t, i) => {
             const id = t.id_support ?? t.id_ticket ?? String(i);
             const st = STATUS_META[t.status ?? 'pending'] ?? STATUS_META.pending;
-            const draftStatus = pendingStatus[id];
-            const needsSolutionDraft = draftStatus === 'resolved';
             return (
               <Card key={id} style={{ padding: '16px 20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
@@ -167,12 +270,12 @@ function TicketsTab() {
                       {t.message ?? t.description}
                     </div>
                     {t.solution && (
-                      <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: '#f0fdf4', fontSize: '0.82rem', color: '#15803d' }}>
+                      <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, background: 'rgba(39,168,95,0.13)', fontSize: '0.82rem', color: '#5FE0A1' }}>
                         <strong>Solución de Soporte:</strong> {t.solution}
                       </div>
                     )}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, minWidth: 180 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, minWidth: 140 }}>
                     <span style={{
                       padding: '4px 10px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700,
                       color: st.color, background: st.bg, whiteSpace: 'nowrap',
@@ -180,37 +283,13 @@ function TicketsTab() {
                       {st.label}
                     </span>
                     {isSupport ? (
-                      <>
-                        <select
-                          value={draftStatus ?? t.status ?? 'pending'}
-                          disabled={updatingId === id}
-                          onChange={e => handleStatusSelect(id, e.target.value)}
-                          style={{
-                            padding: '5px 8px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
-                            fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer',
-                          }}
-                        >
-                          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                        {needsSolutionDraft && (
-                          <textarea
-                            placeholder="Escribe la solución del ticket (obligatorio)…"
-                            value={solutionDrafts[id] ?? ''}
-                            onChange={e => setSolutionDrafts(prev => ({ ...prev, [id]: e.target.value }))}
-                            rows={3}
-                            style={{
-                              width: '100%', minWidth: 220, padding: '6px 8px', borderRadius: 6,
-                              border: '1.5px solid var(--gray-200)', fontSize: '0.8rem', fontFamily: 'var(--font-body)',
-                              resize: 'vertical',
-                            }}
-                          />
-                        )}
-                        {draftStatus && draftStatus !== t.status && (
-                          <Btn size="sm" loading={updatingId === id} onClick={() => handleConfirmStatus(id, draftStatus)}>
-                            Guardar
-                          </Btn>
-                        )}
-                      </>
+                      <Btn
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setModalError(''); setTicketEnEdicion(t); }}
+                      >
+                        Cambiar estado
+                      </Btn>
                     ) : (
                       <span style={{ fontSize: '0.75rem', color: 'var(--gray-400)' }}>Solo lectura</span>
                     )}
@@ -220,6 +299,16 @@ function TicketsTab() {
             );
           })}
         </div>
+      )}
+
+      {ticketEnEdicion && (
+        <CambiarEstadoModal
+          ticket={ticketEnEdicion}
+          onClose={() => setTicketEnEdicion(null)}
+          onConfirm={handleConfirmStatus}
+          submitting={modalSubmitting}
+          error={modalError}
+        />
       )}
     </>
   );
@@ -399,7 +488,7 @@ function FeedbackAdminTab() {
                             onClick={() => handleMarkReviewed(f, q.key)}
                             style={{
                               padding: '4px 10px', borderRadius: 999, border: '1.5px solid var(--violet)',
-                              background: 'white', color: 'var(--violet)', fontSize: '0.72rem', fontWeight: 600,
+                              background: 'var(--white)', color: 'var(--violet)', fontSize: '0.72rem', fontWeight: 600,
                               cursor: isBusy ? 'not-allowed' : 'pointer', fontFamily: 'var(--font-body)',
                             }}
                           >
@@ -418,7 +507,7 @@ function FeedbackAdminTab() {
                       disabled={isBusy}
                       style={{
                         padding: '5px 12px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
-                        background: 'white', cursor: isBusy ? 'not-allowed' : 'pointer',
+                        background: 'var(--white)', cursor: isBusy ? 'not-allowed' : 'pointer',
                         fontSize: '0.78rem', fontWeight: 600, fontFamily: 'var(--font-body)',
                         color: 'var(--gray-600)', opacity: isBusy ? 0.5 : 1,
                       }}
@@ -431,9 +520,9 @@ function FeedbackAdminTab() {
                     disabled={isBusy}
                     style={{
                       padding: '5px 12px', borderRadius: 6, border: '1.5px solid #fecaca',
-                      background: 'white', cursor: isBusy ? 'not-allowed' : 'pointer',
+                      background: 'var(--white)', cursor: isBusy ? 'not-allowed' : 'pointer',
                       fontSize: '0.78rem', fontWeight: 600, fontFamily: 'var(--font-body)',
-                      color: '#dc2626', opacity: isBusy ? 0.5 : 1,
+                      color: '#FF8C85', opacity: isBusy ? 0.5 : 1,
                     }}
                   >
                     Eliminar

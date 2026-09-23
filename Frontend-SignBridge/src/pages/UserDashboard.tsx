@@ -1,22 +1,119 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession } from '../api/client';
-import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord } from '../api/client';
+import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession, statsApi, authApi } from '../api/client';
+import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord, TopWordRow, ActivityRow, TranslationTypeRow } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
-import TranslationHistory from '../components/TranslationHistory';
-import GoalProgressCard from '../components/GoalProgressCard';
+import { TopWordsChart, ActivityChart, ChannelUsageChart, UserMetricsChart } from '../components/StatsCharts';
+import { TranslationHistory } from '../components/TranslationHistory';
+import { GoalProgressCard } from '../components/GoalProgressCard';
+import { StatDetailModal } from '../components/StatDetailModal';
+import type { DetalleMetrica } from '../components/StatDetailModal';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Mis estadísticas de uso
+//
+// Punto de corrección: "estadísticas relacionadas con cómo el usuario
+// interactúa con el software". Esta es la mitad personal; la global vive en
+// el panel de administración (/admin/stats).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function MisEstadisticas({ resumen }: { resumen: UserDashboardRow }) {
+  const [palabras, setPalabras]   = useState<TopWordRow[]>([]);
+  const [actividad, setActividad] = useState<ActivityRow[]>([]);
+  const [canales, setCanales]     = useState<TranslationTypeRow[]>([]);
+  const [valoraciones, setValoraciones] = useState(0);
+  const [detalle, setDetalle] = useState<DetalleMetrica | null>(null);
+  const [cargando, setCargando]   = useState(true);
+
+  useEffect(() => {
+    Promise.allSettled([
+      statsApi.misPalabras(8).then(r => setPalabras(r.data)),
+      statsApi.miActividad(30).then(r => setActividad(r.data)),
+      statsApi.misCanales().then(r => setCanales(r.data)),
+      feedbackApi.list().then(r => setValoraciones(r.data.length)),
+    ]).finally(() => setCargando(false));
+  }, []);
+
+  if (cargando) {
+    return (
+      <Card style={{ marginBottom: 28, display: 'flex', justifyContent: 'center', padding: 40 }}>
+        <Spinner size={28} />
+      </Card>
+    );
+  }
+
+  const titulo: React.CSSProperties = {
+    fontFamily: 'var(--font-display)', fontWeight: 700,
+    fontSize: '1rem', color: 'var(--gray-800)', marginBottom: 4,
+  };
+  const sub: React.CSSProperties = {
+    fontSize: '0.83rem', color: 'var(--gray-400)', marginTop: 0, marginBottom: 16,
+  };
+
+  return (
+    <>
+      {/* Comparativa y canales, en paralelo como en el panel de administración */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+                    gap: 16, marginBottom: 28 }}>
+        <Card>
+          <h2 style={titulo}>Comparativa de tu actividad</h2>
+          <p style={sub}>Tus números en la plataforma, lado a lado.</p>
+          <UserMetricsChart
+            traducciones={resumen.translations_made}
+            favoritas={resumen.favorite_words}
+            tickets={resumen.support_requests}
+            valoraciones={valoraciones}
+          />
+        </Card>
+
+        <Card>
+          <h2 style={titulo}>Cómo traducís</h2>
+          <p style={sub}>Reparto de tus traducciones por canal de entrada.</p>
+          <ChannelUsageChart rows={canales} />
+        </Card>
+      </div>
+
+      <Card style={{ marginBottom: 28 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700,
+                     fontSize: '1rem', color: 'var(--gray-800)', marginBottom: 4 }}>
+          Tus señas más usadas
+        </h2>
+        <p style={{ fontSize: '0.83rem', color: 'var(--gray-400)', marginTop: 0, marginBottom: 16 }}>
+          Las palabras que más traducís. El color muestra qué tan bien calificada
+          está cada traducción por la comunidad.
+        </p>
+        <TopWordsChart rows={palabras} onSelect={p => setDetalle({ tipo: 'palabra', palabra: p })} />
+      </Card>
+
+      <Card style={{ marginBottom: 28 }}>
+        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700,
+                     fontSize: '1rem', color: 'var(--gray-800)', marginBottom: 4 }}>
+          Tu actividad del último mes
+        </h2>
+        <p style={{ fontSize: '0.83rem', color: 'var(--gray-400)', marginTop: 0, marginBottom: 16 }}>
+          Traducciones que hiciste cada día.
+        </p>
+        <ActivityChart rows={actividad} />
+      </Card>
+
+      {detalle && (
+        <StatDetailModal detalle={detalle} onClose={() => setDetalle(null)} soloMias />
+      )}
+    </>
+  );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab bar
 // ─────────────────────────────────────────────────────────────────────────────
 
-type DashTab = 'overview' | 'favorites' | 'support' | 'feedback' | 'history';
+type DashTab = 'overview' | 'history' | 'favorites' | 'support' | 'feedback';
 
 function TabBar({ active, onChange, isAdmin }: { active: DashTab; onChange: (t: DashTab) => void; isAdmin: boolean }) {
   const allTabs: { id: DashTab; label: string; icon: string }[] = [
     { id: 'overview',  label: 'Mi panel',     icon: '\uD83D\uDCCA' },
-    { id: 'history',   label: 'Historial',    icon: '\uD83D\uDCCB' },
+    { id: 'history',   label: 'Historial',    icon: '\uD83D\uDD52' },
     { id: 'favorites', label: 'Favoritos',    icon: '\u2B50' },
     { id: 'support',   label: 'Soporte',      icon: '\uD83C\uDFAB' },
     { id: 'feedback',  label: 'Valoraciones', icon: '\uD83D\uDCAC' },
@@ -75,13 +172,126 @@ function StarRating({
             background: 'none', border: 'none',
             cursor: onChange ? 'pointer' : 'default',
             fontSize: size, padding: 0, lineHeight: 1,
-            color: i <= (hover || value) ? '#f59e0b' : '#e5e7eb',
+            color: i <= (hover || value) ? '#f59e0b' : '#3A3F63',
             transition: 'color 0.1s',
           }}
         >
           &#9733;
         </button>
       ))}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Eliminar cuenta (HU-21)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DeleteAccountModal({
+  onClose,
+  onDeleted,
+}: {
+  onClose: () => void;
+  onDeleted: () => void;
+}) {
+  const [password, setPassword] = useState('');
+  const [confirmText, setConfirmText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+
+  const puedeEliminar = password.length > 0 && confirmText.trim().toUpperCase() === 'ELIMINAR';
+
+  const handleDelete = async () => {
+    if (!puedeEliminar) return;
+    setSubmitting(true);
+    setError('');
+    try {
+      await authApi.deleteAccount(password);
+      onDeleted();
+    } catch (err: any) {
+      if (err?.response?.status === 401) {
+        setError('Contraseña incorrecta.');
+      } else {
+        setError('No se pudo eliminar la cuenta. Intenta de nuevo.');
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: 24,
+      }}
+      onClick={e => { if (e.target === e.currentTarget && !submitting) onClose(); }}
+    >
+      <div style={{
+        background: 'var(--white)', borderRadius: 'var(--radius)', padding: 32,
+        width: '100%', maxWidth: 440, boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <span style={{ fontSize: '1.4rem' }}>⚠️</span>
+          <h3 style={{
+            fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: '1.1rem', color: '#B3261E',
+          }}>
+            Eliminar tu cuenta
+          </h3>
+        </div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--gray-600)', lineHeight: 1.6, marginBottom: 20 }}>
+          Esta acción es <strong>permanente</strong>. No vas a poder volver a iniciar sesión con
+          esta cuenta ni recuperar tu historial de traducciones, favoritos o valoraciones.
+        </p>
+
+        {error && <div style={{ marginBottom: 14 }}><Alert type="error" message={error} /></div>}
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 22 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>
+              Confirma tu contraseña *
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Tu contraseña actual"
+              style={{
+                padding: '10px 14px', border: '1.5px solid var(--gray-200)',
+                borderRadius: 'var(--radius-sm)', fontSize: '0.9rem',
+                fontFamily: 'var(--font-body)', outline: 'none',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>
+              Escribe <strong>ELIMINAR</strong> para confirmar *
+            </label>
+            <input
+              value={confirmText}
+              onChange={e => setConfirmText(e.target.value)}
+              placeholder="ELIMINAR"
+              style={{
+                padding: '10px 14px', border: '1.5px solid var(--gray-200)',
+                borderRadius: 'var(--radius-sm)', fontSize: '0.9rem',
+                fontFamily: 'var(--font-body)', outline: 'none',
+              }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+          <Btn variant="ghost" size="sm" onClick={onClose} disabled={submitting}>
+            Cancelar
+          </Btn>
+          <Btn variant="danger" size="sm" loading={submitting} disabled={!puedeEliminar} onClick={handleDelete}>
+            Eliminar mi cuenta
+          </Btn>
+        </div>
+      </div>
     </div>
   );
 }
@@ -99,14 +309,24 @@ function OverviewTab({
   loading: boolean;
   error: string;
 }) {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [mostrarEliminar, setMostrarEliminar] = useState(false);
+
+  const handleCuentaEliminada = () => {
+    setMostrarEliminar(false);
+    logout();
+    navigate('/login');
+  };
 
   const quickActions = [
     { title: 'Ver vocabulario',      desc: 'Explora las senas disponibles en LSC', icon: '&#128218;', color: 'var(--violet)', to: '/vocabulary' },
     { title: 'Traducir voz a senas', desc: 'Convierte audio en lengua de senas',   icon: '&#127897;', color: 'var(--amber)',  to: '/voice-to-sign' },
     { title: 'Senas a texto',        desc: 'Traduce senas capturadas a texto',      icon: '&#9995;',  color: '#10b981',       to: '/sign-to-text' },
   ];
+
+  // La meta y el progreso los calcula ahora GoalProgressCard contra
+  // /stats/mias/progreso, que además lleva el conteo de metas cumplidas.
 
   if (loading) return (
     <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 60 }}>
@@ -120,7 +340,7 @@ function OverviewTab({
       {/* Banner bienvenida */}
       <Card style={{
         marginBottom: 28,
-        background: 'linear-gradient(135deg, var(--violet) 0%, #4338ca 100%)',
+        background: 'linear-gradient(135deg, var(--violet) 0%, #252440 100%)',
         border: 'none', padding: 24,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
@@ -202,10 +422,12 @@ function OverviewTab({
             <StatCard label="Tickets de soporte"      value={data.support_requests}  icon={<span>&#127243;</span>} />
           </div>
 
-          {/* Barra de progreso — se reinicia en cada meta y guarda la racha */}
-          <div style={{ marginBottom: 28 }}>
-            <GoalProgressCard translationsMade={data.translations_made} />
-          </div>
+          {/* Cómo usa la aplicación este usuario */}
+          <MisEstadisticas resumen={data} />
+
+          {/* Progreso por metas: la barra se reinicia en cada meta cumplida
+              y guarda el historial de rachas. */}
+          <GoalProgressCard />
 
           {/* Valoracion promedio */}
           <Card style={{ marginBottom: 28 }}>
@@ -228,7 +450,7 @@ function OverviewTab({
           </Card>
 
           {/* Perfil */}
-          <Card>
+          <Card style={{ marginBottom: 28 }}>
             <h2 style={{
               fontFamily: 'var(--font-display)', fontWeight: 700,
               fontSize: '1rem', marginBottom: 16, color: 'var(--gray-800)',
@@ -258,6 +480,29 @@ function OverviewTab({
               ))}
             </div>
           </Card>
+
+          {/* Zona de peligro: eliminar cuenta (HU-21) */}
+          <Card style={{ border: '1.5px solid rgba(179,38,30,0.3)', background: 'rgba(179,38,30,0.04)' }}>
+            <h2 style={{
+              fontFamily: 'var(--font-display)', fontWeight: 700,
+              fontSize: '1rem', marginBottom: 8, color: '#B3261E',
+            }}>
+              Zona de peligro
+            </h2>
+            <p style={{ fontSize: '0.85rem', color: 'var(--gray-600)', marginBottom: 16, lineHeight: 1.5 }}>
+              Eliminar tu cuenta borra el acceso de forma permanente. Esta acción no se puede deshacer.
+            </p>
+            <Btn variant="danger" size="sm" onClick={() => setMostrarEliminar(true)}>
+              Eliminar mi cuenta
+            </Btn>
+          </Card>
+
+          {mostrarEliminar && (
+            <DeleteAccountModal
+              onClose={() => setMostrarEliminar(false)}
+              onDeleted={handleCuentaEliminada}
+            />
+          )}
         </>
       )}
     </>
@@ -405,43 +650,14 @@ function FavoritesTab() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// History tab
-// ─────────────────────────────────────────────────────────────────────────────
-
-function HistoryTab() {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Header */}
-      <div>
-        <p style={{
-          fontSize: '0.72rem', fontWeight: 700, color: 'var(--amber)',
-          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4,
-        }}>
-          Tu progreso
-        </p>
-        <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.2rem', color: 'var(--gray-800)' }}>
-          Historial de traducciones
-        </h2>
-      </div>
-
-      {/* Barra de progreso con racha */}
-      <GoalProgressCard />
-
-      {/* Historial agrupado por día */}
-      <TranslationHistory />
-    </div>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Support tab
 // ─────────────────────────────────────────────────────────────────────────────
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
-  open:        { label: 'Abierto',    color: '#b45309', bg: '#fef3c7' },
-  pending:     { label: 'Pendiente',  color: '#b45309', bg: '#fef3c7' },
-  in_progress: { label: 'En proceso', color: '#7c3aed', bg: 'var(--violet-light)' },
-  resolved:    { label: 'Resuelto',   color: '#15803d', bg: '#f0fdf4' },
+  open:        { label: 'Abierto',    color: '#F0A472', bg: 'rgba(214,106,53,0.16)' },
+  pending:     { label: 'Pendiente',  color: '#F0A472', bg: 'rgba(214,106,53,0.16)' },
+  in_progress: { label: 'En proceso', color: '#2823BC', bg: 'var(--violet-light)' },
+  resolved:    { label: 'Resuelto',   color: '#5FE0A1', bg: 'rgba(39,168,95,0.13)' },
   closed:      { label: 'Cerrado',    color: 'var(--gray-500)', bg: 'var(--gray-100)' },
 };
 
@@ -732,9 +948,6 @@ function FeedbackTab() {
             Valoraciones de sesion
           </h2>
         </div>
-        <Btn size="sm" onClick={() => setShowForm(f => !f)} disabled={!sessionId}>
-          {showForm ? 'Cancelar' : (sessionId ? '+ Nueva valoracion' : 'Traduce algo primero')}
-        </Btn>
       </div>
 
       {error && <Alert type="error" message={error} />}
@@ -846,7 +1059,7 @@ function FeedbackTab() {
         </Card>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {feedbackList.map((fb, i) => (
+          {feedbackList.filter(fb => fb.comment && fb.comment.trim()).map((fb, i) => (
             <Card key={fb.id_feedback ?? i} style={{ padding: '14px 18px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
@@ -932,7 +1145,7 @@ export default function UserDashboard() {
       <TabBar active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
 
       {activeTab === 'overview'  && <OverviewTab data={data} loading={loading} error={error} />}
-      {activeTab === 'history'   && <HistoryTab />}
+      {activeTab === 'history'   && <TranslationHistory />}
       {activeTab === 'favorites' && <FavoritesTab />}
       {activeTab === 'support' && !isAdmin && <SupportTab />}
       {activeTab === 'feedback'  && <FeedbackTab />}

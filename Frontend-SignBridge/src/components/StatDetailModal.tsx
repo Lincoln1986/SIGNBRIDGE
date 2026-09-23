@@ -40,18 +40,18 @@ const nombreCanal = (v: string) => CANAL_ETIQUETAS[v] ?? v;
 
 /** Estados de ticket en español, con su color. */
 const ESTADOS: Record<string, { texto: string; color: string }> = {
-  pending:     { texto: 'Pendiente',  color: '#F6A623' },
-  in_progress: { texto: 'En proceso', color: '#5B4FCF' },
+  pending:     { texto: 'Pendiente',  color: '#D66A35' },
+  in_progress: { texto: 'En proceso', color: '#2823BC' },
   resolved:    { texto: 'Resuelto',   color: '#27A85F' },
   closed:      { texto: 'Cerrado',    color: '#9CA3AF' },
 };
 
 /** Estados de ticket en español, con su color. */
 const ESTADO_TICKET: Record<string, { label: string; color: string }> = {
-  pending:     { label: 'Pendiente',  color: '#F6A623' },
-  in_progress: { label: 'En proceso', color: '#7C3AED' },
+  pending:     { label: 'Pendiente',  color: '#D66A35' },
+  in_progress: { label: 'En proceso', color: '#2823BC' },
   resolved:    { label: 'Resuelto',   color: '#27A85F' },
-  closed:      { label: 'Cerrado',    color: '#6B7280' },
+  closed:      { label: 'Cerrado',    color: '#98A0B8' },
 };
 
 const TITULOS: Record<string, string> = {
@@ -216,8 +216,8 @@ export function StatDetailModal({
 
               {detalle.palabra.average_rating != null && detalle.palabra.average_rating < 3 && (
                 <p style={{
-                  background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8,
-                  padding: '10px 14px', fontSize: '0.85rem', color: '#991B1B', lineHeight: 1.5,
+                  background: 'rgba(229,83,75,0.13)', border: '1px solid #FECACA', borderRadius: 8,
+                  padding: '10px 14px', fontSize: '0.85rem', color: '#FFA8A2', lineHeight: 1.5,
                 }}>
                   Esta seña se usa seguido pero la gente la califica mal. Conviene
                   revisar el video del diccionario.
@@ -282,13 +282,13 @@ export function StatDetailModal({
 
                 {tickets.mas_viejo_pendiente && (
                   <div style={{
-                    background: tickets.mas_viejo_pendiente.dias > 7 ? '#FEF2F2' : 'var(--gray-50, #F9FAFB)',
-                    border: `1px solid ${tickets.mas_viejo_pendiente.dias > 7 ? '#FECACA' : 'var(--gray-100)'}`,
+                    background: tickets.mas_viejo_pendiente.dias > 7 ? 'rgba(229,83,75,0.13)' : 'var(--gray-50, #F9FAFB)',
+                    border: `1px solid ${tickets.mas_viejo_pendiente.dias > 7 ? 'rgba(229,83,75,0.38)' : 'var(--gray-100)'}`,
                     borderRadius: 10, padding: '12px 14px', marginBottom: 18,
                   }}>
                     <p style={{
                       fontSize: '0.72rem', fontWeight: 700, margin: 0,
-                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#991B1B' : 'var(--gray-400)',
+                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#FFA8A2' : 'var(--gray-400)',
                       textTransform: 'uppercase', letterSpacing: '0.04em',
                     }}>
                       El que más lleva esperando
@@ -298,7 +298,7 @@ export function StatDetailModal({
                     </p>
                     <p style={{
                       fontSize: '0.83rem', margin: 0,
-                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#991B1B' : 'var(--gray-600)',
+                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#FFA8A2' : 'var(--gray-600)',
                     }}>
                       {tickets.mas_viejo_pendiente.dias} día{tickets.mas_viejo_pendiente.dias !== 1 ? 's' : ''} sin resolver
                       {tickets.mas_viejo_pendiente.dias > 7 && ' — conviene priorizarlo'}
@@ -310,7 +310,7 @@ export function StatDetailModal({
                   Por estado
                 </p>
                 {tickets.por_estado.map(e => {
-                  const info = ESTADO_TICKET[e.status] ?? { label: e.status, color: '#6B7280' };
+                  const info = ESTADO_TICKET[e.status] ?? { label: e.status, color: '#98A0B8' };
                   return (
                     <div key={e.status} style={{
                       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -370,14 +370,14 @@ export function StatDetailModal({
                     se está quedando atrás */}
                 {tickets.mas_viejo_pendiente && (
                   <div style={{
-                    background: tickets.mas_viejo_pendiente.dias > 7 ? '#FEF2F2' : 'var(--gray-50, #F9FAFB)',
-                    border: `1px solid ${tickets.mas_viejo_pendiente.dias > 7 ? '#FECACA' : 'var(--gray-100)'}`,
+                    background: tickets.mas_viejo_pendiente.dias > 7 ? 'rgba(229,83,75,0.13)' : 'var(--gray-50, #F9FAFB)',
+                    border: `1px solid ${tickets.mas_viejo_pendiente.dias > 7 ? 'rgba(229,83,75,0.38)' : 'var(--gray-100)'}`,
                     borderRadius: 10, padding: '12px 16px', marginBottom: 20,
                   }}>
                     <p style={{
                       fontSize: '0.72rem', fontWeight: 700, margin: 0,
                       textTransform: 'uppercase', letterSpacing: '0.04em',
-                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#991B1B' : 'var(--gray-400)',
+                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#FFA8A2' : 'var(--gray-400)',
                     }}>
                       Pendiente más antiguo
                     </p>
@@ -386,7 +386,7 @@ export function StatDetailModal({
                     </p>
                     <p style={{
                       fontSize: '0.83rem', margin: 0,
-                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#991B1B' : 'var(--gray-600)',
+                      color: tickets.mas_viejo_pendiente.dias > 7 ? '#FFA8A2' : 'var(--gray-600)',
                     }}>
                       Lleva <strong>{tickets.mas_viejo_pendiente.dias} día
                       {tickets.mas_viejo_pendiente.dias !== 1 ? 's' : ''}</strong> esperando

@@ -33,6 +33,147 @@ type Velocidad = keyof typeof VELOCIDADES;
 // clasificador no pudo desempatar entre letras parecidas.
 const CONFIANZA_MINIMA = 0.60;
 
+// ── Guía rápida de uso de la cámara (HU-11) ─────────────────────────────────
+// Pensada para alguien que quizás no lea español con fluidez (su primera
+// lengua puede ser la LSC): cada paso se explica con una comparación visual
+// de "así sí" / "así no", sin párrafos. La palabra debajo es un apoyo, no
+// la explicación principal.
+
+const GUIA_VISTA_KEY = 'signbridge_guia_camara_vista';
+
+interface PasoGuia {
+  etiqueta: string;
+  bienIcono: string;
+  malIcono: string;
+}
+
+const PASOS_GUIA: PasoGuia[] = [
+  { etiqueta: 'Luz',      bienIcono: '☀️🙂', malIcono: '🌑🙁' },
+  { etiqueta: 'Manos',    bienIcono: '🖐️',   malIcono: '✋↗️' },
+  { etiqueta: 'Distancia', bienIcono: '🧍‍♂️', malIcono: '🧍‍♂️💥' },
+  { etiqueta: 'Fondo',    bienIcono: '⬜',    malIcono: '🌆' },
+  { etiqueta: 'Ritmo',    bienIcono: '🐢',    malIcono: '🐇💨' },
+];
+
+function TarjetaComparacion({
+  icono,
+  bien,
+}: {
+  icono: string;
+  bien: boolean;
+}) {
+  return (
+    <div style={{
+      flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+      gap: 10, padding: '20px 12px', borderRadius: 'var(--radius-sm)',
+      background: bien ? 'rgba(46,217,163,0.10)' : 'rgba(214,106,53,0.10)',
+      border: `2px solid ${bien ? '#2ED9A3' : '#D66A35'}`,
+    }}>
+      <div style={{ fontSize: '2.4rem', lineHeight: 1 }}>{icono}</div>
+      <div style={{
+        width: 30, height: 30, borderRadius: '50%',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: bien ? '#2ED9A3' : '#D66A35',
+        color: 'white', fontSize: '1.1rem', fontWeight: 800,
+      }}>
+        {bien ? '✓' : '✕'}
+      </div>
+    </div>
+  );
+}
+
+function GuiaCamaraModal({ onClose }: { onClose: () => void }) {
+  const [paso, setPaso] = useState(0);
+  const esUltimo = paso === PASOS_GUIA.length - 1;
+  const actual = PASOS_GUIA[paso];
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1000, padding: 24,
+      }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div style={{
+        background: 'var(--white)', borderRadius: 'var(--radius)', padding: 28,
+        width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <button
+            onClick={onClose}
+            aria-label="Cerrar guía"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: 'var(--gray-400)', lineHeight: 1 }}
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Palabra de apoyo — grande, mínima, no es la explicación principal */}
+        <h3 style={{
+          fontFamily: 'var(--font-display)', fontWeight: 800,
+          fontSize: '1.3rem', color: 'var(--gray-800)',
+          textAlign: 'center', marginBottom: 18,
+        }}>
+          {actual.etiqueta}
+        </h3>
+
+        {/* Comparación visual: así sí / así no */}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <TarjetaComparacion icono={actual.bienIcono} bien={true} />
+          <TarjetaComparacion icono={actual.malIcono} bien={false} />
+        </div>
+
+        {/* Indicador de pasos */}
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 6, margin: '22px 0 18px' }}>
+          {PASOS_GUIA.map((_, i) => (
+            <span
+              key={i}
+              style={{
+                width: i === paso ? 20 : 8, height: 8, borderRadius: 20,
+                background: i === paso ? 'var(--violet)' : 'var(--gray-200)',
+                transition: 'all 0.2s',
+              }}
+            />
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', gap: 10, justifyContent: 'space-between' }}>
+          <button
+            onClick={() => setPaso(p => Math.max(0, p - 1))}
+            disabled={paso === 0}
+            aria-label="Paso anterior"
+            style={{
+              width: 52, height: 52, borderRadius: '50%', border: '1.5px solid var(--gray-200)',
+              background: 'var(--white)', fontSize: '1.3rem', cursor: paso === 0 ? 'default' : 'pointer',
+              opacity: paso === 0 ? 0.4 : 1, color: 'var(--gray-800)',
+            }}
+          >
+            ←
+          </button>
+          {esUltimo ? (
+            <Btn onClick={onClose} style={{ flex: 1 }}>
+              ✓
+            </Btn>
+          ) : (
+            <button
+              onClick={() => setPaso(p => p + 1)}
+              aria-label="Siguiente paso"
+              style={{
+                flex: 1, height: 52, borderRadius: 26, border: 'none',
+                background: 'var(--violet)', color: 'white', fontSize: '1.3rem', cursor: 'pointer',
+              }}
+            >
+              →
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Componente principal ───────────────────────────────────────────────────
 
 export default function SignToText() {
@@ -49,6 +190,25 @@ export default function SignToText() {
   const [enPausa, setEnPausa] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Guía rápida: se abre sola la primera vez que la persona entra a esta
+  // pantalla en este navegador, y queda disponible después con el botón "?".
+  const [mostrarGuia, setMostrarGuia] = useState(false);
+  useEffect(() => {
+    const yaVista = localStorage.getItem(GUIA_VISTA_KEY);
+    if (!yaVista) {
+      setMostrarGuia(true);
+    }
+  }, []);
+  const cerrarGuia = useCallback(() => {
+    setMostrarGuia(false);
+    localStorage.setItem(GUIA_VISTA_KEY, '1');
+  }, []);
+
+  // El backend crea la sesión de traducción en el primer frame y la devuelve
+  // en id_session. Sin reenviarla, cada frame generaría una sesión nueva y
+  // ni el historial ni las estadísticas de "seña a texto" tendrían sentido.
+  const sessionIdRef = useRef<string | null>(null);
+
   // El intervalo se registra una sola vez, así que el contador de lecturas
   // seguidas vive en un ref: si estuviera en el estado, el callback quedaría
   // congelado con el valor del primer render.
@@ -58,6 +218,12 @@ export default function SignToText() {
   // de seña después de aceptar una letra.
   const pausaHastaRef = useRef<number>(0);
   const velocidadRef = useRef<Velocidad>('normal');
+
+  // Evita que dos frames viajen en paralelo. Si la red va lenta (el caso
+  // típico en el portátil) el POST puede tardar más que los 400ms del
+  // intervalo, y sin este guard salían varios frames a la vez, todos con
+  // sessionIdRef.current todavía en null → una sesión nueva por cada uno.
+  const enVueloRef = useRef(false);
 
 
   useEffect(() => { velocidadRef.current = velocidad; }, [velocidad]);
@@ -78,14 +244,20 @@ export default function SignToText() {
 
   // Enviar frame al backend
   const sendFrame = useCallback(async () => {
+    if (enVueloRef.current) return;  // ya hay un frame en camino — no solapar
+
     const frame = captureFrame();
     if (!frame) return;
 
+    enVueloRef.current = true;
     try {
       // El backend espera "frame_base64", no "frame" — translationApi.signToText lo maneja
-      const res = await translationApi.signToText(frame);
+      const res = await translationApi.signToText(frame, sessionIdRef.current ?? undefined);
       const data = res.data;
       setLastResult(data);
+      if (data.id_session) {
+        sessionIdRef.current = data.id_session;
+      }
 
       // Ventana de descanso tras aceptar una letra: sin esto, mantener la mano
       // quieta un instante de más registraba la misma letra varias veces.
@@ -126,6 +298,8 @@ export default function SignToText() {
       }
     } catch {
       // No mostrar error por cada frame fallido; solo si persiste
+    } finally {
+      enVueloRef.current = false;
     }
   }, [captureFrame]);
 
@@ -146,7 +320,19 @@ export default function SignToText() {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, []);
+
+    // Al detener, se guarda la palabra completa deletreada (ej. "vida") en
+    // el historial de esta sesión, en vez de que quede una fila por cada
+    // letra. Después se suelta la sesión: la próxima palabra empieza una
+    // sesión nueva.
+    if (sessionIdRef.current && history.length > 0) {
+      const palabra = history.map(l => l === 'ESPACIO' ? ' ' : l).join('').trim().toLowerCase();
+      translationApi.confirmarPalabra(sessionIdRef.current, palabra).catch(() => {
+        // Si falla, la traducción ya se hizo — no bloquear al usuario por esto.
+      });
+    }
+    sessionIdRef.current = null;
+  }, [history]);
 
   const handleStop = useCallback(() => {
     stopTranslation();
@@ -154,10 +340,18 @@ export default function SignToText() {
   }, [stopTranslation, stopCamera]);
 
   const clearHistory = useCallback(() => {
+    // Si había una palabra en curso sin confirmar (se limpia sin haber
+    // detenido antes), se guarda igual para no perderla.
+    if (sessionIdRef.current && history.length > 0) {
+      const palabra = history.map(l => l === 'ESPACIO' ? ' ' : l).join('').trim().toLowerCase();
+      translationApi.confirmarPalabra(sessionIdRef.current, palabra).catch(() => {});
+    }
     setHistory([]);
     setTranslatedText('');
     setLastResult(null);
-  }, []);
+    // "Limpiar" empieza una conversación nueva → sesión nueva en el backend.
+    sessionIdRef.current = null;
+  }, [history]);
 
   // Limpiar al desmontar
   useEffect(() => {
@@ -169,26 +363,45 @@ export default function SignToText() {
   }, []);
 
   return (
-    <div style={{ paddingBottom: 48 }}>
+    <div style={{ paddingBottom: 48, position: 'relative' }}>
 
       {/* ── Encabezado ── */}
-      <div style={{ marginBottom: 28 }}>
-        <p style={{
-          fontSize: '0.75rem', fontWeight: 700, color: 'var(--amber)',
-          textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
-        }}>
-          Traducción en tiempo real
-        </p>
-        <h1 style={{
-          fontFamily: 'var(--font-display)', fontWeight: 800,
-          fontSize: 'clamp(1.4rem, 3vw, 1.9rem)', color: 'var(--gray-800)',
-        }}>
-          🤟 Señas a Texto
-        </h1>
-        <p style={{ color: 'var(--gray-400)', marginTop: 6, fontSize: '0.9rem', lineHeight: 1.6 }}>
-          Activa tu cámara y realiza señas en LSC. El sistema las traducirá a texto en tiempo real.
-        </p>
+      <div style={{ marginBottom: 28, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+        <div>
+          <p style={{
+            fontSize: '0.75rem', fontWeight: 700, color: 'var(--amber)',
+            textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6,
+          }}>
+            Traducción en tiempo real
+          </p>
+          <h1 style={{
+            fontFamily: 'var(--font-display)', fontWeight: 800,
+            fontSize: 'clamp(1.4rem, 3vw, 1.9rem)', color: 'var(--gray-800)',
+          }}>
+            🤟 Señas a Texto
+          </h1>
+          <p style={{ color: 'var(--gray-400)', marginTop: 6, fontSize: '0.9rem', lineHeight: 1.6 }}>
+            Activa tu cámara y realiza señas en LSC. El sistema las traducirá a texto en tiempo real.
+          </p>
+        </div>
+
+        {/* Botón para volver a abrir la guía cuando quiera */}
+        <button
+          onClick={() => setMostrarGuia(true)}
+          title="Ver guía rápida de la cámara"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '8px 14px', borderRadius: 20, cursor: 'pointer',
+            border: '1.5px solid var(--violet)', background: 'var(--violet-light)',
+            color: 'var(--violet)', fontSize: '0.82rem', fontWeight: 700,
+            fontFamily: 'var(--font-body)', flexShrink: 0,
+          }}
+        >
+          ❓ Guía de la cámara
+        </button>
       </div>
+
+      {mostrarGuia && <GuiaCamaraModal onClose={cerrarGuia} />}
 
       <div style={{
         display: 'grid',
@@ -528,7 +741,7 @@ export default function SignToText() {
                 <div style={{
                   marginTop: 14,
                   padding: 14,
-                  background: 'linear-gradient(135deg, var(--violet), #4338ca)',
+                  background: 'linear-gradient(135deg, var(--violet), #252440)',
                   borderRadius: 'var(--radius-sm)',
                 }}>
                   <p style={{
@@ -539,10 +752,10 @@ export default function SignToText() {
                     Frase construida
                   </p>
                   <p style={{ color: 'white', fontWeight: 600, fontSize: '0.95rem', lineHeight: 1.5 }}>
-                    {history.join(' ')}
+                    {history.map(l => l === 'ESPACIO' ? ' ' : l).join('').trim()}
                   </p>
                   <button
-                    onClick={() => navigator.clipboard?.writeText(history.join(' '))}
+                    onClick={() => navigator.clipboard?.writeText(history.map(l => l === 'ESPACIO' ? ' ' : l).join('').trim())}
                     style={{ marginTop: 8, background: 'rgba(255,255,255,0.15)', border: 'none', color: 'white', padding: '5px 12px', borderRadius: 6, fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', fontFamily: 'var(--font-body)' }}
                   >
                     📋 Copiar frase

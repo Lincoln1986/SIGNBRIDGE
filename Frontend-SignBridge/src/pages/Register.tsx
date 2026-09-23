@@ -131,7 +131,7 @@ export default function Register() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--gray-50)', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'transparent', display: 'flex', flexDirection: 'column' }}>
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <Card style={{ width: '100%', maxWidth: 520, padding: 40 }}>
           <div style={{ textAlign: 'center', marginBottom: 28 }}>

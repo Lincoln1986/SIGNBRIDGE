@@ -1,9 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { translationApi, dashboardApi, feedbackApi, lastSession } from '../api/client';
 import type { TextToSignResponse, VozToSignResponse, SignUnit, LexicalUnit } from '../api/client';
 import { Btn, Card, Alert, Spinner } from '../components/UI';
-import SignSequencePlayer from '../components/SignSequencePlayer';
+import { SignSequencePlayer } from '../components/SignSequencePlayer';
+import type { SignClip } from '../components/SignSequencePlayer';
 
 // ── Tipos locales ──────────────────────────────────────────────────────────
 
@@ -24,7 +25,122 @@ interface ConversationEntry {
   timestamp: Date;
 }
 
+// ── Reproductor de señas ───────────────────────────────────────────────────
 
+function SignPlayer({
+  result,
+  isLoading,
+  lexicon,
+}: {
+  result: NormalizedResult | null;
+  isLoading: boolean;
+  lexicon: LexicalUnit[];
+}) {
+  // Todas las señas con video, en el orden en que aparecen en la frase.
+  // Antes se tomaba solo la primera: "hola amigo buenas noches" mostraba
+  // únicamente "hola". Ahora se reproducen las tres en secuencia.
+  // useMemo es imprescindible acá: sin él la lista se recreaba en cada render
+  // y el reproductor se reiniciaba con cada tecla que el usuario escribía en
+  // el comentario de la valoración.
+  const clips: SignClip[] = useMemo(() => (
+    (result?.signs ?? [])
+      .map(sign => {
+        if (sign.video_url) return { word: sign.word, url: sign.video_url };
+        const match = lexicon.find(
+          u => u.text?.toLowerCase() === sign.word.toLowerCase() && u.video_url
+        );
+        return match?.video_url ? { word: sign.word, url: match.video_url } : null;
+      })
+      .filter((c): c is SignClip => c !== null)
+  ), [result, lexicon]);
+
+  const noVideoYet = result && !isLoading && clips.length === 0;
+
+  return (
+    <div style={{
+      background: 'var(--gray-800)',
+      borderRadius: 'var(--radius)',
+      minHeight: 300,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Cargando */}
+      {isLoading && (
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <Spinner size={40} color="white" />
+          <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.9rem', marginTop: 16 }}>
+            Buscando seña…
+          </p>
+        </div>
+      )}
+
+      {/* Señas de la traducción, reproducidas una tras otra */}
+      {!isLoading && clips.length > 0 && (
+        <div style={{ width: '100%', padding: 12 }}>
+          <SignSequencePlayer clips={clips} />
+        </div>
+      )}
+
+      {/* Seña no disponible — mensaje claro, sin error técnico */}
+      {noVideoYet && (
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <div style={{
+            width: 72, height: 72, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.08)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '2rem', margin: '0 auto 16px',
+          }}>
+            🤟
+          </div>
+          <p style={{ color: 'rgba(255,255,255,0.85)', fontWeight: 700, fontSize: '0.95rem', marginBottom: 8 }}>
+            Seña no disponible todavía
+          </p>
+          <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: 1.6, maxWidth: 260, margin: '0 auto' }}>
+            Esta seña aún no tiene video en el diccionario LSC.
+            Puedes consultar el vocabulario disponible en la sección{' '}
+            <a href="/vocabulary" style={{ color: 'var(--amber)', fontWeight: 600 }}>
+              Vocabulario
+            </a>.
+          </p>
+          {/* Chips de señas detectadas */}
+          {result.signs.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginTop: 14 }}>
+              {result.signs.map((sign, i) => (
+                <span key={i} style={{
+                  background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)',
+                  padding: '4px 12px', borderRadius: 20, fontSize: '0.82rem', fontWeight: 600,
+                }}>
+                  {sign.word}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Estado vacío inicial */}
+      {!isLoading && !result && (
+        <div style={{ textAlign: 'center', padding: 32 }}>
+          <div style={{
+            width: 80, height: 80, borderRadius: '50%',
+            background: 'rgba(255,255,255,0.08)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '2.2rem', margin: '0 auto 20px',
+          }}>
+            🤟
+          </div>
+          <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.9rem', lineHeight: 1.5 }}>
+            Escribe texto o usa tu voz<br />para ver la traducción a señas
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Componente principal ───────────────────────────────────────────────────
 
@@ -35,7 +151,7 @@ export default function VoiceToSign() {
   const [result, setResult] = useState<NormalizedResult | null>(null);
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
-  const [showConversation, setShowConversation] = useState(false);
+  const [, setShowConversation] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
   const [lexicon, setLexicon] = useState<LexicalUnit[]>([]);
 
@@ -344,7 +460,7 @@ export default function VoiceToSign() {
                         cursor: speechState === 'processing' ? 'not-allowed' : 'pointer',
                         background: speechState === 'listening'
                           ? '#ef4444'
-                          : 'linear-gradient(135deg, var(--violet), #4338ca)',
+                          : 'linear-gradient(135deg, var(--violet), #252440)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -473,7 +589,7 @@ export default function VoiceToSign() {
                 {isTranslating && <Spinner size={16} />}
               </h2>
             </div>
-            <SignSequencePlayer signs={(result?.signs ?? []).map(s => ({ word: s.word, video_url: s.video_url, found: s.found }))} isLoading={isTranslating} />
+            <SignPlayer result={result} isLoading={isTranslating} lexicon={lexicon} />
           </Card>
 
           {/* Señas detectadas como chips */}
@@ -510,7 +626,7 @@ export default function VoiceToSign() {
             <Card style={{ border: showFeedback ? '1.5px solid var(--violet)' : '1.5px solid var(--gray-100)' }}>
               {fbMsg && (
                 <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 10,
-                  color: fbMsg.startsWith('✅') ? '#15803D' : '#DC2626' }}>
+                  color: fbMsg.startsWith('✅') ? '#5FE0A1' : '#FF8C85' }}>
                   {fbMsg}
                 </p>
               )}
@@ -536,7 +652,7 @@ export default function VoiceToSign() {
                         style={{
                           background: 'none', border: 'none', cursor: 'pointer',
                           fontSize: '1.6rem', padding: 0, lineHeight: 1,
-                          color: n <= fbRating ? '#f59e0b' : '#e5e7eb',
+                          color: n <= fbRating ? '#f59e0b' : '#3A3F63',
                           transition: 'color 0.1s',
                         }}
                       >

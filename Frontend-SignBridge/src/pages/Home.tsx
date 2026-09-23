@@ -8,11 +8,16 @@ import type { UserDashboardRow } from '../api/client';
 // Static data
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Cada tarjeta tiene dos colores:
+//   accent → color vivo de marca (fondo del ícono y borde, siempre con transparencia)
+//   text   → versión más oscura del mismo color, legible sobre fondo blanco
+// Importante: deben ser hex literales, NO var(--...), porque abajo se les
+// concatena la transparencia (ej. `${accent}18`) y eso no funciona con var().
 const features = [
-  { icon: '📚', title: 'Vocabulario LSC',  desc: 'Consulta señas con videos reales del diccionario.', color: 'var(--violet)', to: '/vocabulary',   label: 'Explorar' },
-  { icon: '🎙️', title: 'Voz a Señas',      desc: 'Convierte voz o texto a Lengua de Señas.',          color: 'var(--amber)',  to: '/voice-to-sign', label: 'Traducir' },
-  { icon: '🤟', title: 'Señas a Texto',    desc: 'Interpreta señas en cámara y las transcribe.',       color: '#10b981',       to: '/sign-to-text',  label: 'Traducir' },
-  { icon: '📊', title: 'Mi Panel',         desc: 'Tu actividad, favoritos y valoraciones.',            color: '#e05b8b',       to: '/dashboard',     label: 'Ver panel' },
+  { icon: '📚', title: 'Vocabulario LSC',  desc: 'Consulta señas con videos reales del diccionario.', accent: '#D66A35', text: '#B4541F', to: '/vocabulary',   label: 'Explorar' },
+  { icon: '🎙️', title: 'Voz a Señas',      desc: 'Convierte voz o texto a Lengua de Señas.',          accent: '#2823BC', text: '#2823BC', to: '/voice-to-sign', label: 'Traducir' },
+  { icon: '🤟', title: 'Señas a Texto',    desc: 'Interpreta señas en cámara y las transcribe.',       accent: '#2ED9A3', text: '#0E7A5C', to: '/sign-to-text',  label: 'Traducir' },
+  { icon: '📊', title: 'Mi Panel',         desc: 'Tu actividad, favoritos y valoraciones.',            accent: '#5A5878', text: '#474463', to: '/dashboard',     label: 'Ver panel' },
 ];
 
 const extraInfo = [
@@ -80,7 +85,7 @@ export default function Home() {
 
       {/* ── Banner de bienvenida con mini-resumen ── */}
       <div style={{
-        background: 'linear-gradient(135deg, var(--violet) 0%, #4338ca 60%, #3730a3 100%)',
+        background: 'linear-gradient(135deg, var(--violet) 0%, #252440 60%, #1B1A33 100%)',
         borderRadius: 'var(--radius)',
         padding: '36px 36px 32px',
         marginBottom: 28,
@@ -89,7 +94,7 @@ export default function Home() {
       }}>
         {/* Decorativos */}
         <div style={{ position: 'absolute', top: -50, right: -50, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -60, left: '35%', width: 200, height: 200, borderRadius: '50%', background: 'rgba(246,166,35,0.1)', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: -60, left: '35%', width: 200, height: 200, borderRadius: '50%', background: 'rgba(214,106,53,0.1)', pointerEvents: 'none' }} />
 
         {/* Fila superior: saludo + acceso rápido a panel */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 20 }}>
@@ -225,7 +230,7 @@ export default function Home() {
               onClick={() => navigate(f.title === 'Mi Panel' ? panelPath : f.to)}
               style={{
                 textAlign: 'left',
-                border: `1.5px solid ${f.color}22`,
+                border: `1.5px solid ${f.accent}22`,
                 borderRadius: 'var(--radius)',
                 background: 'var(--white)',
                 padding: 20, cursor: 'pointer',
@@ -237,23 +242,23 @@ export default function Home() {
                 const el = e.currentTarget as HTMLButtonElement;
                 el.style.transform = 'translateY(-4px)';
                 el.style.boxShadow = 'var(--shadow)';
-                el.style.borderColor = f.color + '55';
+                el.style.borderColor = f.accent + '55';
               }}
               onMouseLeave={e => {
                 const el = e.currentTarget as HTMLButtonElement;
                 el.style.transform = '';
                 el.style.boxShadow = 'var(--shadow-sm)';
-                el.style.borderColor = f.color + '22';
+                el.style.borderColor = f.accent + '22';
               }}
             >
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: `${f.color}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.35rem' }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: `${f.accent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.35rem' }}>
                 {f.icon}
               </div>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.93rem', color: 'var(--gray-800)', marginBottom: 3 }}>{f.title}</div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--gray-400)', lineHeight: 1.5 }}>{f.desc}</div>
               </div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: f.color, marginTop: 'auto' }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: f.text, marginTop: 'auto' }}>
                 {f.label} →
               </div>
             </button>

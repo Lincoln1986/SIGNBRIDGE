@@ -79,7 +79,6 @@ export default function Stats() {
                  onKeyDown={e => { if (e.key === 'Enter') setDetalle({ tipo: 'soporte' }); }}>
               <StatCard label="Tickets de soporte" value={stats.total_support_requests} icon={<span>🎫</span>} />
             </div>
-            <StatCard label="Feedbacks recibidos" value={stats.total_feedback} icon={<span>💬</span>} accent />
           </div>
 
           <Card>

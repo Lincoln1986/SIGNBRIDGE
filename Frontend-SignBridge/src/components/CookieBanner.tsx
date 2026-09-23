@@ -120,7 +120,7 @@ export function CookieBanner() {
                 fontWeight: 700,
                 cursor: 'pointer',
                 fontFamily: 'var(--font-body)',
-                boxShadow: '0 2px 8px rgba(91,79,207,0.3)',
+                boxShadow: '0 2px 8px rgba(40,35,188,0.3)',
                 transition: 'opacity 0.15s',
               }}
               onMouseEnter={e => (e.currentTarget.style.opacity = '0.9')}

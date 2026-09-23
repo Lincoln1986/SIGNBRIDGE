@@ -57,6 +57,10 @@ export function Navbar() {
             : isSupport
               ? navLink('/support', '🎧 Panel de Soporte')
               : navLink('/dashboard', '📊 Mi Panel')}
+          {/* El Admin también puede ver tickets y valoraciones (ProtectedRoute
+              ya lo permite en /support), pero antes no había forma de llegar
+              ahí sin escribir la URL a mano. */}
+          {isAdmin && navLink('/support', '🎧 Soporte')}
           {navLink('/vocabulary', '📚 Vocabulario')}
           {navLink('/voice-to-sign', '🎙️ Voz a Señas')}
           {navLink('/sign-to-text', '🤟 Señas a Texto')}

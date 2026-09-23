@@ -6,9 +6,27 @@ import {
 } from 'recharts';
 import type { SystemStats, TopWordRow, TranslationTypeRow, ActivityRow } from '../api/client';
 
+// Estilos del tooltip y de los ejes para el tema oscuro.
+// Recharts dibuja su propio DOM y no usa nuestras variables CSS,
+// así que los colores van explícitos aquí.
+const TIP = {
+  contentStyle: {
+    background: '#181A35',
+    border: '1px solid #353A66',
+    borderRadius: 10,
+    fontSize: '0.85rem',
+    fontFamily: 'var(--font-body)',
+    color: '#F1F4FB',
+  },
+  labelStyle: { color: '#F1F4FB', fontWeight: 600 },
+  itemStyle: { color: '#B9C0D8' },
+} as const;
+
+const TICK = { fontSize: 12, fill: '#8E96B8' } as const;
+
 const METRIC_COLORS = {
-  usuarios: '#5B4FCF',      // var(--violet)
-  traducciones: '#F6A623',  // var(--amber)
+  usuarios: '#2823BC',      // var(--violet)
+  traducciones: '#D66A35',  // var(--amber)
   soporte: '#E5534B',
   feedback: '#27A85F',
 };
@@ -32,12 +50,8 @@ export function MetricsBarChart({
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-        <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#8B8B9E' }} axisLine={{ stroke: '#EFEFF4' }} tickLine={false} />
-        <YAxis tick={{ fontSize: 12, fill: '#8B8B9E' }} axisLine={false} tickLine={false} allowDecimals={false} />
-        <Tooltip
-          cursor={{ fill: 'rgba(91,79,207,0.06)' }}
-          contentStyle={{ borderRadius: 10, border: '1px solid #EFEFF4', fontSize: '0.85rem', fontFamily: 'var(--font-body)' }}
-        />
+        <XAxis dataKey="name" tick={TICK} axisLine={{ stroke: '#2A2F52' }} tickLine={false} />
+        <YAxis tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} />
         <Bar
           dataKey="value" radius={[8, 8, 0, 0]} maxBarSize={56}
           cursor={onSelect ? 'pointer' : undefined}
@@ -56,7 +70,7 @@ export function MetricsBarChart({
 
 export function RatingGauge({ rating }: { rating: number }) {
   const pct = (rating / 5) * 100;
-  const data = [{ name: 'rating', value: pct, fill: '#F6A623' }];
+  const data = [{ name: 'rating', value: pct, fill: '#D66A35' }];
 
   return (
     <div style={{ position: 'relative', width: '100%', height: 180, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -66,7 +80,7 @@ export function RatingGauge({ rating }: { rating: number }) {
           data={data} startAngle={90} endAngle={-270}
         >
           <PolarAngleAxis type="number" domain={[0, 100]} angleAxisId={0} tick={false} />
-          <RadialBar dataKey="value" cornerRadius={12} background={{ fill: '#EFEFF4' }} />
+          <RadialBar dataKey="value" cornerRadius={12} background={{ fill: '#2A2F52' }} />
         </RadialBarChart>
       </ResponsiveContainer>
       <div style={{ position: 'absolute', textAlign: 'center' }}>
@@ -83,8 +97,8 @@ export function RatingGauge({ rating }: { rating: number }) {
 
 const ROLE_COLORS: Record<string, string> = {
   administrador: '#E5534B',
-  soporte: '#F6A623',
-  cliente: '#5B4FCF',
+  soporte: '#D66A35',
+  cliente: '#2823BC',
 };
 
 export function RoleDistributionChart({
@@ -115,7 +129,7 @@ export function RoleDistributionChart({
              }}>
           {data.map((d, i) => <Cell key={i} fill={d.fill} />)}
         </Pie>
-        <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #EFEFF4', fontSize: '0.85rem', fontFamily: 'var(--font-body)' }} />
+        <Tooltip contentStyle={TIP.contentStyle} labelStyle={TIP.labelStyle} itemStyle={TIP.itemStyle} />
         <Legend wrapperStyle={{ fontSize: '0.8rem', fontFamily: 'var(--font-body)' }} />
       </PieChart>
     </ResponsiveContainer>
@@ -145,11 +159,11 @@ export function RegionDistributionChart({
   return (
     <ResponsiveContainer width="100%" height={Math.max(180, data.length * 36)}>
       <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-        <XAxis type="number" tick={{ fontSize: 12, fill: '#8B8B9E' }} axisLine={false} tickLine={false} allowDecimals={false} />
-        <YAxis type="category" dataKey="name" width={110} tick={{ fontSize: 12, fill: '#8B8B9E' }} axisLine={false} tickLine={false} />
-        <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid #EFEFF4', fontSize: '0.85rem', fontFamily: 'var(--font-body)' }} />
+        <XAxis type="number" tick={TICK} axisLine={false} tickLine={false} allowDecimals={false} />
+        <YAxis type="category" dataKey="name" width={110} tick={TICK} axisLine={false} tickLine={false} />
+        <Tooltip contentStyle={TIP.contentStyle} labelStyle={TIP.labelStyle} itemStyle={TIP.itemStyle} />
         <Bar
-          dataKey="value" fill="#5B4FCF" radius={[0, 8, 8, 0]} maxBarSize={22}
+          dataKey="value" fill="#2823BC" radius={[0, 8, 8, 0]} maxBarSize={22}
           cursor={onSelect ? 'pointer' : undefined}
           onClick={(d: { payload?: { name?: string } }) => {
             if (onSelect && d?.payload?.name) onSelect(d.payload.name);
@@ -175,13 +189,13 @@ const CANAL_ETIQUETAS: Record<string, string> = {
   sign_to_text:  'Señas → Texto',
 };
 
-const CANAL_COLORES = ['#5B4FCF', '#F6A623', '#27A85F', '#E5534B'];
+const CANAL_COLORES = ['#2823BC', '#D66A35', '#27A85F', '#E5534B'];
 
 /** Color de la barra según qué tan bien calificada está la traducción. */
 function colorPorRating(rating?: number | null): string {
   if (rating == null) return '#8B5CF6';   // violeta: usada pero aún sin calificar
   if (rating >= 4) return '#27A85F';      // verde: traducción confiable
-  if (rating >= 3) return '#F6A623';      // ámbar: revisar
+  if (rating >= 3) return '#D66A35';      // ámbar: revisar
   return '#E5534B';                       // rojo: mal calificada, urge revisar
 }
 
@@ -218,11 +232,12 @@ export function TopWordsChart({
     <>
       <ResponsiveContainer width="100%" height={Math.max(200, data.length * 44)}>
         <BarChart data={data} layout="vertical" margin={{ top: 8, right: 42, bottom: 8, left: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" horizontal={false} />
-          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#2A2F52" horizontal={false} />
+          <XAxis type="number" allowDecimals={false} tick={TICK} />
           <YAxis type="category" dataKey="name" width={110}
-                 tick={{ fontSize: 12, fontWeight: 600 }} />
+                 tick={{ ...TICK, fontWeight: 600 }} />
           <Tooltip
+            contentStyle={TIP.contentStyle} labelStyle={TIP.labelStyle} itemStyle={TIP.itemStyle}
             formatter={(value, _name, item) => {
               const p = (item as { payload?: { rating?: number | null; votos?: number } })?.payload;
               const r = p?.rating;
@@ -254,7 +269,7 @@ export function TopWordsChart({
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center',
                     fontSize: '0.78rem', color: 'var(--gray-400)', marginTop: 4 }}>
         {[['#27A85F', 'Bien calificada (4-5★)'],
-          ['#F6A623', 'Regular (3★)'],
+          ['#D66A35', 'Regular (3★)'],
           ['#E5534B', 'Mal calificada (<3★)'],
           ['#8B5CF6', 'Sin calificar']].map(([c, txt]) => (
           <span key={txt} style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
@@ -304,7 +319,7 @@ export function ChannelUsageChart({
              style={{ fontSize: 11, fontWeight: 600 }}>
           {data.map((_, i) => <Cell key={i} fill={CANAL_COLORES[i % CANAL_COLORES.length]} />)}
         </Pie>
-        <Tooltip formatter={(v, name) => [`${Number(v)} traducción(es)`, String(name)]} />
+        <Tooltip contentStyle={TIP.contentStyle} labelStyle={TIP.labelStyle} itemStyle={TIP.itemStyle} formatter={(v, name) => [`${Number(v)} traducción(es)`, String(name)]} />
         <Legend verticalAlign="bottom" height={30} wrapperStyle={{ fontSize: '0.8rem' }} />
       </PieChart>
     </ResponsiveContainer>
@@ -330,11 +345,11 @@ export function ActivityChart({ rows }: { rows: ActivityRow[] }) {
   return (
     <ResponsiveContainer width="100%" height={230}>
       <LineChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#2A2F52" />
         <XAxis dataKey="name" tick={{ fontSize: 11 }} />
         <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-        <Tooltip formatter={(v) => [`${Number(v)} traducción(es)`, 'Total']} />
-        <Line type="monotone" dataKey="total" stroke="#5B4FCF" strokeWidth={2.5} dot={{ r: 3 }} />
+        <Tooltip contentStyle={TIP.contentStyle} labelStyle={TIP.labelStyle} itemStyle={TIP.itemStyle} formatter={(v) => [`${Number(v)} traducción(es)`, 'Total']} />
+        <Line type="monotone" dataKey="total" stroke="#2823BC" strokeWidth={2.5} dot={{ r: 3 }} />
       </LineChart>
     </ResponsiveContainer>
   );
@@ -371,7 +386,7 @@ export function UserMetricsChart({
       <BarChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
         <XAxis dataKey="name" tick={{ fontSize: 11 }} />
         <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-        <Tooltip cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+        <Tooltip cursor={{ fill: 'rgba(255,255,255,0.06)' }} contentStyle={TIP.contentStyle} labelStyle={TIP.labelStyle} itemStyle={TIP.itemStyle} />
         <Bar dataKey="value" radius={[6, 6, 0, 0]}>
           {data.map((d, i) => <Cell key={i} fill={d.fill} />)}
         </Bar>

@@ -22,7 +22,7 @@ export default function Login() {
     <div style={{
       minHeight: '100vh', display: 'flex',
       alignItems: 'center', justifyContent: 'center',
-      background: 'var(--gray-50)',
+      background: 'transparent',
     }}>
       <Spinner size={36} />
     </div>
