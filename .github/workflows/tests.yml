@@ -1,0 +1,170 @@
+# =============================================================================
+# SignBridge — pipeline de pruebas (Sprint S1 → S7)
+#
+# 5 jobs obligatorios, todos en paralelo. El ruleset de la rama main debe
+# exigir este check antes de fusionar (ver docs/estrategia-pruebas.md):
+#
+#   1. frontend-tests       → vitest con trinquete de cobertura ≥30% (S1)
+#   2. backend-tests        → pytest con trinquete de cobertura ≥55% (S1)
+#   3. database-integration → alembic upgrade head sobre postgres-test
+#                             antes de lanzar la suite (S5)
+#   4. e2e-tests            → Playwright: flujo de login (S1/S6)
+#   5. security-audit       → pnpm audit + pip-audit concurrentes (S7)
+# =============================================================================
+
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend-SignBridge
+    steps:
+      - uses: actions/checkout@v4
+      # Lee la versión del campo "packageManager" del package.json
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - name: Instalar dependencias (sin comodines, lockfile exacto)
+        run: pnpm install --frozen-lockfile
+      - name: Tests unitarios con cobertura (umbral en vite.config.ts)
+        run: pnpm test:coverage
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend-SignBridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Instalar Python 3.12
+        run: uv python install 3.12
+      - name: Instalar dependencias (uv.lock exacto)
+        run: uv sync --frozen
+      - name: Tests con cobertura (umbral en pyproject.toml)
+        run: uv run pytest
+
+  database-integration:
+    name: Database Integration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend-SignBridge
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: signbridge_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:admin@localhost:5432/signbridge_test
+      SECRET_KEY: segredo-de-ci
+      MAIL_USERNAME: ci@test.com
+      MAIL_PASSWORD: no-se-usa
+      MAIL_FROM: ci@test.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - name: Migraciones de Alembic sobre postgres de pruebas
+        run: uv run alembic upgrade head
+      - name: Verificar que la BD quedó en head
+        run: uv run alembic current
+      - name: Suite de pruebas tras las migraciones
+        run: uv run pytest
+
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend-SignBridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Instalar Chromium de Playwright
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Flujos E2E (login)
+        run: pnpm test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: Frontend-SignBridge/playwright-report/
+          retention-days: 7
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ── Frontend ────────────────────────────────────────────────────────
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - name: pnpm audit (dependencias de producción y desarrollo)
+        working-directory: Frontend-SignBridge
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm audit
+      # ── Backend ─────────────────────────────────────────────────────────
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - name: pip-audit vía uv
+        working-directory: Backend-SignBridge
+        run: |
+          uv sync --frozen
+          # 7 avisos ignorados, todos sin fix compatible con el stack actual:
+          #   ecdsa/python-jose → python-jose 3.4.0 es la última versión;
+          #     sin parche upstream (PYSEC-2026-1325, GHSA-3qf3-8w2g-rqmx).
+          #   pyasn1 ×4 → python-jose declara pyasn1<0.5.0; subirlo exige
+          #     reemplazar python-jose por PyJWT (pendiente de refactor).
+          #   protobuf → mediapipe 0.10.x declara protobuf<5; el fix requiere
+          #     migrar a mediapipe 1.x (pendiente en S4).
+          uv run pip-audit \
+            --ignore-vuln PYSEC-2026-1325 \
+            --ignore-vuln GHSA-3qf3-8w2g-rqmx \
+            --ignore-vuln PYSEC-2026-2263 \
+            --ignore-vuln PYSEC-2026-3457 \
+            --ignore-vuln PYSEC-2026-3456 \
+            --ignore-vuln PYSEC-2026-3455 \
+            --ignore-vuln PYSEC-2026-1805

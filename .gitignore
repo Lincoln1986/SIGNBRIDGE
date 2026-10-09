@@ -1,9 +1,19 @@
 Backend-SignBridge/.env
 Backend-SignBridge/venv/
+Backend-SignBridge/.venv/
 Backend-SignBridge/**/__pycache__/
 Backend-SignBridge/**/*.pyc
+Backend-SignBridge/.coverage
+Backend-SignBridge/htmlcov/
+Backend-SignBridge/.pytest_cache/
 Frontend-SignBridge/node_modules/
 node_modules/
 venv/
 __pycache__/
 *.pyc
+
+# Artefactos de pruebas
+Frontend-SignBridge/coverage/
+Frontend-SignBridge/covsum/
+Frontend-SignBridge/test-results/
+Frontend-SignBridge/playwright-report/
