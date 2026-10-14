@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth-context';
 import { Logo, Input, Btn, Alert, PasswordInput, PasswordRequirements } from './UI';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -161,15 +161,15 @@ function RegisterForm({ onClose, onTabChange }: { onClose: () => void; onTabChan
   useEffect(() => {
     authApi.getCities()
       .then(r => {
-        const raw = r.data;
+        const raw: unknown = r.data;
         if (!Array.isArray(raw) || raw.length === 0) return;
         if (typeof raw[0] === 'string') {
           setCities(raw as string[]);
         } else {
-          const mapped = (raw as any[])
-            .map((item: any) => item.region_name ?? item.name ?? item.city ?? '')
+          const mapped = (raw as Array<Record<string, unknown>>)
+            .map(item => String(item.region_name ?? item.name ?? item.city ?? ''))
             .filter(Boolean)
-            .sort() as string[];
+            .sort();
           if (mapped.length > 0) setCities(mapped);
         }
       })

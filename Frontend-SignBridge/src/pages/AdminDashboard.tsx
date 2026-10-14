@@ -5,7 +5,7 @@ import type { AdminDashboardRow, SystemStats, LexicalUnitAdmin, RoleOption,
               TopWordRow, TranslationTypeRow, ActivityRow, InteractionSummary } from '../api/client';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 import { VideoModal, NewWordModal, DeleteConfirmModal } from '../components/VocabModals';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth-context';
 import { StatDetailModal } from '../components/StatDetailModal';
 import type { DetalleMetrica } from '../components/StatDetailModal';
 import { MetricsBarChart, RatingGauge, RoleDistributionChart, RegionDistributionChart,
@@ -312,7 +312,8 @@ function UsersTab({
   const [exportLoading, setExportLoading] = useState(false);
   const [flashMsg, setFlashMsg] = useState('');
 
-  useEffect(() => { setPage(1); }, [search]);
+  // Al cambiar el filtro de búsqueda se vuelve a la primera página desde el
+  // propio onChange (no desde un effect, que haría setState síncrono).
 
   const flash = (msg: string) => {
     setFlashMsg(msg);
@@ -408,7 +409,7 @@ function UsersTab({
             <input
               placeholder="Buscar por nombre, correo o rol..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setPage(1); }}
               style={{ padding: '8px 14px', border: '1.5px solid var(--gray-200)', borderRadius: 8, fontSize: '0.85rem', width: 260, outline: 'none', fontFamily: 'var(--font-body)' }}
               onFocus={e => e.target.style.borderColor = 'var(--violet)'}
               onBlur={e => e.target.style.borderColor = 'var(--gray-200)'}
@@ -605,8 +606,6 @@ function VocabularyTab() {
       .finally(() => setVocabLoading(false));
   }, []);
 
-  useEffect(() => { setVocabPage(1); }, [vocabSearch]);
-
   const filteredVocab = vocabUnits.filter(u => u.text?.toLowerCase().includes(vocabSearch.toLowerCase()));
   const vocabTotalPages = Math.max(1, Math.ceil(filteredVocab.length / PAGE_SIZE));
   const safeVocabPage = Math.min(vocabPage, vocabTotalPages);
@@ -649,7 +648,7 @@ function VocabularyTab() {
             <input
               placeholder="Buscar palabra..."
               value={vocabSearch}
-              onChange={e => setVocabSearch(e.target.value)}
+              onChange={e => { setVocabSearch(e.target.value); setVocabPage(1); }}
               style={{ padding: '8px 14px', border: '1.5px solid var(--gray-200)', borderRadius: 8, fontSize: '0.85rem', width: 200, outline: 'none', fontFamily: 'var(--font-body)' }}
               onFocus={e => e.target.style.borderColor = 'var(--violet)'}
               onBlur={e => e.target.style.borderColor = 'var(--gray-200)'}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth-context';
 import { dashboardApi } from '../api/client';
 import type { UserDashboardRow } from '../api/client';
 

@@ -25,7 +25,7 @@
 
 | Capa | Tests | Cobertura | Umbral activo (trinquete) |
 |---|---:|---:|---|
-| Backend (pytest) | 59 | **57.4%** líneas | `--cov-fail-under=55` en `pyproject.toml` |
+| Backend (pytest) | 68 | **58.3%** líneas | `--cov-fail-under=55` en `pyproject.toml` |
 | Frontend (vitest) | 143 | **36.0%** líneas (34.9% stmts · 30.8% branches · 32.2% funcs) | `coverage.thresholds` en `vite.config.ts` (30%) |
 | E2E (Playwright) | 2 | flujo de login completo | — |
 
@@ -43,6 +43,7 @@ sprint se fija el nuevo piso, y de ahí ya no baja.
 | `tests/test_security.py` | bcrypt (hash/verify), JWT (create/decode/expirado/basura), tokens de reset |
 | `tests/test_auth_flow.py` | Registro (éxito, email duplicado, sin rol por defecto), login (éxito, 401, 403 desactivado), `/auth/me`, forgot/reset de contraseña |
 | `tests/test_access_control.py` | 401 sin token o token inválido y 403 con rol insuficiente sobre endpoints admin/soporte; cuenta desactivada bloqueada |
+| `tests/test_dashboards.py` | Las vistas `vw_*` de Alembic sobre SQLite: `/dashboard/admin`, `/dashboard/user`, `/dashboard/stats`, alias `/admin/*`, `vw_users` y filtro de soft-delete |
 
 Cobertura por módulo más relevante: `schemas/auth.py` 100%,
 `core/security.py` y `routers/auth.py` altos; los servicios
@@ -117,18 +118,20 @@ Cualquier `--ignore-vuln` nuevo debe documentarse aquí con su motivo.
 
 ## 8. Deuda conocida
 
-1. **`pnpm build` falla por 10 errores de TypeScript preexistentes** (reportado
-   en HEAD, PR #13: `useSpeechRecognition.ts`, `PasswordPages.tsx`,
-   `Vocabulary.tsx`, `VoiceToSign.tsx`, `SignSequencePlayer.tsx`). No son
-   regressions de la migración a pnpm. El CI de tests no ejecuta `build` hasta
-   que se corrijan.
-2. `alembic upgrade head` contra Postgres solo se ejecuta en CI (service de
-   GitHub Actions): el entorno local de este trabajo no tiene Docker.
+1. **`pnpm build` (tsc + vite) y `pnpm lint` (eslint) no forman parte del
+   CI**: los 5 jobs solo cubren vitest, pytest, Alembic + Postgres,
+   Playwright y las auditorías. Ambos se ejecutan en local y quedan en verde:
+   0 errores de TypeScript (los 18 preexistentes están corregidos) y 0
+   problemas de lint (24 preexistentes corregidos sin desactivar reglas).
+2. `alembic upgrade head` contra Postgres se ejecuta en CI (service de GitHub
+   Actions) y también se verificó en local contra un clúster temporal de
+   PostgreSQL 16: `upgrade head` crea las 17 tablas + las 4 vistas `vw_*`,
+   `downgrade base` limpia todo y un `upgrade` posterior vuelve a head.
 3. Los `--ignore-vuln` de pip-audit (sección 6) caducan cuando salgan los
    fixes: revisar en cada sprint.
-4. **Baseline de Alembic** (`alembic/versions/18c15e7dc120_…`): se autogeneró
-   contra SQLite porque el entorno local no tiene Docker. Verificado localmente:
-   `upgrade head` crea las 17 tablas + `alembic_version`, `current` queda en
-   head y `downgrade base` limpia todo. Su primera ejecución contra PostgreSQL
-   real ocurre en el job `Database Integration` de CI; si algo fallara allí, el
-   ajuste sería de tipos/dialecto en esa misma revisión.
+4. **Revisiones de Alembic**: el baseline `18c15e7dc120` se autogeneró contra
+   SQLite (el entorno local no tiene Docker); la revisión `0a9ba8b6906c`
+   añade las vistas `vw_*` de los dashboards con SQL portable PG/SQLite. El
+   DDL vive en `app/core/views.py`, de modo que la migración y los tests
+   (`tests/test_dashboards.py`) crean exactamente las mismas vistas: verificado
+   con resultados idénticos en SQLite y en PostgreSQL.

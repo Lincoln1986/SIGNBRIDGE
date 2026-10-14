@@ -35,9 +35,9 @@ export default function VoiceToSign() {
   const [result, setResult] = useState<NormalizedResult | null>(null);
   const [translationError, setTranslationError] = useState<string | null>(null);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
-  const [showConversation, setShowConversation] = useState(false);
+  const [, setShowConversation] = useState(false);
   const conversationEndRef = useRef<HTMLDivElement | null>(null);
-  const [lexicon, setLexicon] = useState<LexicalUnit[]>([]);
+  const [, setLexicon] = useState<LexicalUnit[]>([]);
 
   // ── Sesión activa — capturada de la respuesta del backend ──────────────
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
@@ -56,27 +56,6 @@ export default function VoiceToSign() {
     // Al desmontar, limpiar sesión activa
     return () => { setActiveSessionId(null); };
   }, []);
-
-  const {
-    state: speechState,
-    transcript,
-    error: speechError,
-    isSupported: speechSupported,
-    startListening,
-    stopListening,
-    resetTranscript,
-  } = useSpeechRecognition();
-
-  useEffect(() => {
-    if (transcript) setTextInput(transcript);
-  }, [transcript]);
-
-  useEffect(() => {
-    if (speechState === 'processing' && transcript.trim()) {
-      handleTranslate(transcript.trim(), 'voice');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [speechState]);
 
   const handleTranslate = useCallback(async (text?: string, inputMode: TranslationMode = 'text') => {
     const input = (text ?? textInput).trim();
@@ -134,6 +113,30 @@ export default function VoiceToSign() {
       setIsTranslating(false);
     }
   }, [textInput, activeSessionId]);
+
+  const {
+    state: speechState,
+    transcript,
+    error: speechError,
+    isSupported: speechSupported,
+    startListening,
+    stopListening,
+    resetTranscript,
+  } = useSpeechRecognition({
+    // En cuanto el hook termina de procesar la frase final, se traduce sola:
+    // es un callback del evento `onresult` (suscripción a la Web Speech API),
+    // no un effect que haga setState síncrono al montar/cambiar.
+    onFinalText: texto => { void handleTranslate(texto, 'voice'); },
+  });
+
+  // Sincroniza el cuadro de texto con el dictado: si el transcript cambió,
+  // se ajusta el estado durante el render (patrón de React "adjusting state
+  // when a prop changes") en vez de con un effect que haga setState.
+  const [transcriptPrevio, setTranscriptPrevio] = useState(transcript);
+  if (transcript !== transcriptPrevio) {
+    setTranscriptPrevio(transcript);
+    if (transcript) setTextInput(transcript);
+  }
 
   const handleVoiceToggle = useCallback(() => {
     if (speechState === 'listening') {

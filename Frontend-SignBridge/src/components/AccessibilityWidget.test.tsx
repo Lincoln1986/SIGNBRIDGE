@@ -94,7 +94,7 @@ describe('AccessibilityWidget', () => {
     const speak = vi.fn();
     const cancel = vi.fn();
     window.speechSynthesis = { speak, cancel, getVoices: () => [] } as never;
-    window.SpeechSynthesisUtterance = function (text: string) {
+    window.SpeechSynthesisUtterance = function (this: { text: string }, text: string) {
       this.text = text;
     } as never;
 

@@ -2,9 +2,12 @@ import { useEffect, useState } from 'react';
 import { supportApi, feedbackApi } from '../api/client';
 import type { SupportTicketWithUser, FeedbackItemWithUser, QuickReply } from '../api/client';
 import { Card, Spinner, Alert, Badge, StatCard, Btn } from '../components/UI';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth-context';
 
 type SupportTab = 'tickets' | 'feedback';
+
+/** Estados que acepta PATCH /support/{id}/status */
+type TicketStatus = 'pending' | 'in_progress' | 'resolved' | 'closed';
 
 const STATUS_META: Record<string, { label: string; color: string; bg: string }> = {
   pending:     { label: 'Pendiente',  color: '#b45309', bg: '#fef3c7' },
@@ -13,7 +16,7 @@ const STATUS_META: Record<string, { label: string; color: string; bg: string }> 
   closed:      { label: 'Cerrado',    color: 'var(--gray-500)', bg: 'var(--gray-100)' },
 };
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
+const STATUS_OPTIONS: { value: TicketStatus; label: string }[] = [
   { value: 'pending',     label: 'Pendiente' },
   { value: 'in_progress', label: 'En proceso' },
   { value: 'resolved',    label: 'Resuelto' },
@@ -63,24 +66,23 @@ function TicketsTab() {
   const [statusFilter, setStatusFilter] = useState<'all' | string>('all');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   // Estado local del cambio de estado en curso por ticket (para el select + solución)
-  const [pendingStatus, setPendingStatus] = useState<Record<string, string>>({});
+  const [pendingStatus, setPendingStatus] = useState<Record<string, TicketStatus>>({});
   const [solutionDrafts, setSolutionDrafts] = useState<Record<string, string>>({});
 
-  const load = () => {
-    setLoading(true);
+  // Carga inicial: `loading` ya arranca en `true`, así que el effect solo
+  // dispara la petición y aplica el resultado desde los callbacks asíncronos.
+  useEffect(() => {
     supportApi.listAll()
       .then(({ data }) => setTickets(data))
       .catch(() => setError('No se pudieron cargar los tickets.'))
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(load, []);
-
-  const handleStatusSelect = (id_support: string, status: string) => {
+  const handleStatusSelect = (id_support: string, status: TicketStatus) => {
     setPendingStatus(prev => ({ ...prev, [id_support]: status }));
   };
 
-  const handleConfirmStatus = async (id_support: string, status: string) => {
+  const handleConfirmStatus = async (id_support: string, status: TicketStatus) => {
     const solution = solutionDrafts[id_support]?.trim();
     if (status === 'resolved' && !solution) {
       setError('Para marcar el ticket como resuelto debes escribir la solución.');
@@ -89,13 +91,17 @@ function TicketsTab() {
     setUpdatingId(id_support);
     setError('');
     try {
-      await supportApi.updateStatus(id_support, status as any, solution || undefined);
+      await supportApi.updateStatus(id_support, status, solution || undefined);
       setTickets(prev => prev.map(t =>
         (t.id_support ?? t.id_ticket) === id_support
-          ? { ...t, status: status as any, solution: solution || t.solution }
+          ? { ...t, status, solution: solution || t.solution }
           : t
       ));
-      setPendingStatus(prev => { const { [id_support]: _drop, ...rest } = prev; return rest; });
+      setPendingStatus(prev => {
+        const next = { ...prev };
+        delete next[id_support];
+        return next;
+      });
     } catch {
       setError('No se pudo actualizar el estado del ticket. Solo Soporte puede solucionar tickets.');
     } finally {
@@ -184,7 +190,7 @@ function TicketsTab() {
                         <select
                           value={draftStatus ?? t.status ?? 'pending'}
                           disabled={updatingId === id}
-                          onChange={e => handleStatusSelect(id, e.target.value)}
+                          onChange={e => handleStatusSelect(id, e.target.value as TicketStatus)}
                           style={{
                             padding: '5px 8px', borderRadius: 6, border: '1.5px solid var(--gray-200)',
                             fontSize: '0.78rem', fontFamily: 'var(--font-body)', cursor: 'pointer',
@@ -237,8 +243,10 @@ function FeedbackAdminTab() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [responseDrafts, setResponseDrafts] = useState<Record<string, string>>({});
 
-  const load = () => {
-    setLoading(true);
+  // Carga inicial (ver comentario en TicketsTab): sin setState síncrono
+  // dentro del effect; `isSupport` entra en las dependencias porque decide
+  // si se piden también las respuestas rápidas.
+  useEffect(() => {
     feedbackApi.listAll()
       .then(({ data }) => setItems(data))
       .catch(() => setError('No se pudieron cargar las valoraciones.'))
@@ -246,9 +254,7 @@ function FeedbackAdminTab() {
     if (isSupport) {
       feedbackApi.quickReplies().then(({ data }) => setQuickReplies(data)).catch(() => {});
     }
-  };
-
-  useEffect(load, []);
+  }, [isSupport]);
 
   const handleMarkReviewed = async (fb: FeedbackItemWithUser, quickReplyKey?: string) => {
     const id = fb.id_feedback!;
@@ -262,7 +268,11 @@ function FeedbackAdminTab() {
     try {
       const { data } = await feedbackApi.setReviewed(id, true, { response, quickReplyKey });
       setItems(prev => prev.map(f => f.id_feedback === id ? { ...f, is_reviewed: true, support_response: data.support_response } : f));
-      setResponseDrafts(prev => { const { [id]: _drop, ...rest } = prev; return rest; });
+      setResponseDrafts(prev => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
     } catch {
       setError('No se pudo marcar la valoración como revisada. Solo Soporte puede hacerlo.');
     } finally {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../api/client';
-import { Logo, Btn, Alert, Card, PasswordInput, PasswordRequirements } from '../components/UI';
+import { Logo, Btn, Alert, Card, Input, PasswordInput, PasswordRequirements } from '../components/UI';
 import { Footer } from '../components/Footer';
 
 // ── Componente de countdown reutilizable ──────────────────────────────────────
@@ -140,7 +140,6 @@ export function ForgotPassword() {
 // ── ResetPassword ─────────────────────────────────────────────────────────────
 export function ResetPassword() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const token = params.get('token') ?? '';
 
   const [password, setPassword] = useState('');
@@ -171,8 +170,10 @@ export function ResetPassword() {
     try {
       await authApi.resetPassword(token, password);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Token inválido o expirado');
+    } catch (err) {
+      const detalle = (err as { response?: { data?: { detail?: string } } })
+        .response?.data?.detail;
+      setError(detalle ?? 'Token inválido o expirado');
     } finally {
       setLoading(false);
     }

@@ -22,6 +22,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
 from app.core.security import hash_password
+from app.core.views import create_views
 from app.main import app
 from app.models.user import Region, Role, User
 
@@ -44,6 +45,8 @@ def _override_get_db():
 @pytest.fixture(scope="session", autouse=True)
 def _create_tables():
     Base.metadata.create_all(bind=engine)
+    # Mismas vistas vw_* que crea la migración de Alembic, sobre SQLite.
+    create_views(engine)
     yield
 
 

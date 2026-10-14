@@ -8,8 +8,8 @@ import {
   Input,
   PasswordRequirements,
   StatCard,
-  getPasswordStrength,
 } from './UI';
+import { getPasswordStrength } from './passwordStrength';
 
 describe('getPasswordStrength', () => {
   it('devuelve null con contraseña vacía', () => {

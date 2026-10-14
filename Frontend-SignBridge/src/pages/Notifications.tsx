@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { notificationsApi } from '../api/client';
 import type { NotificationItem } from '../api/client';
 import { Card, Spinner, Btn } from '../components/UI';
@@ -36,16 +36,15 @@ export default function Notifications() {
   const [error, setError]       = useState('');
   const [filtro, setFiltro]     = useState<Filtro>('todas');
 
-  const cargar = useCallback(() => {
-    setCargando(true);
-    setError('');
+  // Carga inicial: `cargando` ya arranca en `true`, así que el effect solo
+  // dispara la petición y aplica el resultado en los callbacks asíncronos
+  // (hacer setState síncrono dentro de un effect no está permitido).
+  useEffect(() => {
     notificationsApi.list(false, 100)
       .then(r => setAvisos(r.data))
       .catch(() => setError('No se pudieron cargar las notificaciones.'))
       .finally(() => setCargando(false));
   }, []);
-
-  useEffect(() => { cargar(); }, [cargar]);
 
   const sinLeer = avisos.filter(a => !a.read_at).length;
   const visibles = filtro === 'sin-leer' ? avisos.filter(a => !a.read_at) : avisos;

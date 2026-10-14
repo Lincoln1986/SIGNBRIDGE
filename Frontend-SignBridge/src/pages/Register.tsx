@@ -44,7 +44,7 @@ export default function Register() {
   useEffect(() => {
     authApi.getCities()
       .then(r => {
-        const raw = r.data;
+        const raw: unknown = r.data;
         if (!Array.isArray(raw) || raw.length === 0) return;
 
         // Detecta si la respuesta es string[] u objetos
@@ -52,10 +52,10 @@ export default function Register() {
           setCities(raw as string[]);
         } else {
           // Objetos con region_name / name / city
-          const mapped = (raw as any[])
-            .map((item: any) => item.region_name ?? item.name ?? item.city ?? '')
+          const mapped = (raw as Array<Record<string, unknown>>)
+            .map(item => String(item.region_name ?? item.name ?? item.city ?? ''))
             .filter(Boolean)
-            .sort() as string[];
+            .sort();
           if (mapped.length > 0) setCities(mapped);
         }
       })

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dashboardApi, feedbackApi, supportApi, favoritesApi, lastSession } from '../api/client';
 import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord } from '../api/client';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth-context';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 import TranslationHistory from '../components/TranslationHistory';
 import GoalProgressCard from '../components/GoalProgressCard';
@@ -901,13 +901,12 @@ export default function UserDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Si el rol es Admin y por algún motivo quedó activa la pestaña "support"
-  // (p. ej. quedó guardada de una sesión anterior), la regresamos a "overview".
-  useEffect(() => {
-    if (isAdmin && activeTab === 'support') {
-      setActiveTab('overview');
-    }
-  }, [isAdmin, activeTab]);
+  // Un Administrador nunca debe ver la pestaña "support": la guarda vive en
+  // el handler del TabBar (un effect que hiciera setState síncrono para
+  // corregir la pestaña no está permitido).
+  const irATab = (tab: DashTab) => {
+    setActiveTab(isAdmin && tab === 'support' ? 'overview' : tab);
+  };
 
   return (
     <>
@@ -929,7 +928,7 @@ export default function UserDashboard() {
         </p>
       </div>
 
-      <TabBar active={activeTab} onChange={setActiveTab} isAdmin={isAdmin} />
+      <TabBar active={activeTab} onChange={irATab} isAdmin={isAdmin} />
 
       {activeTab === 'overview'  && <OverviewTab data={data} loading={loading} error={error} />}
       {activeTab === 'history'   && <HistoryTab />}

@@ -65,7 +65,7 @@ export default function SignToText() {
   // Conectar el stream al <video> cuando se habilite la cámara
   const handleVideoRef = useCallback(
     (node: HTMLVideoElement | null) => {
-      (videoRef as React.MutableRefObject<HTMLVideoElement | null>).current = node;
+      videoRef.current = node;
       if (node && permission === 'granted') {
         navigator.mediaDevices
           .getUserMedia({ video: true, audio: false })
