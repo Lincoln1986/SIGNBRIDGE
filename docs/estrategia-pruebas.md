@@ -131,7 +131,11 @@ Cualquier `--ignore-vuln` nuevo debe documentarse aquí con su motivo.
    fixes: revisar en cada sprint.
 4. **Revisiones de Alembic**: el baseline `18c15e7dc120` se autogeneró contra
    SQLite (el entorno local no tiene Docker); la revisión `0a9ba8b6906c`
-   añade las vistas `vw_*` de los dashboards con SQL portable PG/SQLite. El
-   DDL vive en `app/core/views.py`, de modo que la migración y los tests
-   (`tests/test_dashboards.py`) crean exactamente las mismas vistas: verificado
-   con resultados idénticos en SQLite y en PostgreSQL.
+   añade las vistas `vw_*` de los dashboards con SQL portable PG/SQLite —el
+   DDL vive en `app/core/views.py`, así que migración y tests
+   (`tests/test_dashboards.py`) crean exactamente las mismas vistas,
+   verificadas con resultados idénticos en SQLite y en PostgreSQL— y la
+   `3fcd44fad4e6` siembra los roles base (`Cliente`, `Administrador`,
+   `Soporte`) de forma idempotente, para que `POST /auth/register` funcione
+   en una BD recién creada. `alembic/env.py` lee también el `.env` local
+   (SQLite), sin restar prioridad a la variable `DATABASE_URL` de CI.

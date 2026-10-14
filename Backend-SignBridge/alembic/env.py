@@ -10,9 +10,21 @@ from alembic import context
 # access to the values within the .ini file in use.
 config = context.config
 
+# El .env del backend define DATABASE_URL para desarrollo local (SQLite sin
+# Docker). La variable de entorno real tiene prioridad sobre el archivo.
+from dotenv import load_dotenv  # noqa: E402
+
+load_dotenv()
+
 # DATABASE_URL (entorno/CI) tiene prioridad sobre sqlalchemy.url de alembic.ini
 if os.environ.get("DATABASE_URL"):
     config.set_main_option("sqlalchemy.url", os.environ["DATABASE_URL"])
+else:
+    # Sin variable de entorno, se usa la URL del .env (pydantic-settings no
+    # exporta sus variables a os.environ, así que se lee el archivo aquí).
+    from app.core.config import get_settings  # noqa: E402
+
+    config.set_main_option("sqlalchemy.url", get_settings().DATABASE_URL)
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
