@@ -69,11 +69,13 @@ test('el login con credenciales válidas abre el modal y llega al home', async (
 });
 
 test('un 401 del backend limpia la sesión y vuelve al inicio', async ({ page }) => {
-  await page.route('**/auth/login', route =>
+  // Sesión vencida: el token ya no sirve y /auth/me responde 401. El 401 del
+  // login no cierra la sesión (lo cubre login-incorrecto.spec.ts).
+  await page.route('**/auth/me', route =>
     route.fulfill({
       status: 401,
       contentType: 'application/json',
-      body: JSON.stringify({ detail: 'Credenciales incorrectas' }),
+      body: JSON.stringify({ detail: 'Token inválido o expirado' }),
     })
   );
 
@@ -82,11 +84,11 @@ test('un 401 del backend limpia la sesión y vuelve al inicio', async ({ page })
   await expect(modal).toBeVisible();
 
   await page.getByPlaceholder('tu@correo.com').fill('ana@example.com');
-  await page.getByPlaceholder('••••••••').fill('Password2!');
+  await page.getByPlaceholder('••••••••').fill('Password1!');
   await modal.locator('button[type="submit"]').click();
 
-  // El interceptor de axios trata cualquier 401 limpiando la sesión y
-  // redirigiendo al inicio: la app nunca queda autenticada con un 401.
+  // El interceptor de axios limpia la sesión ante cualquier 401 de sesión y
+  // redirige al inicio: la app nunca queda autenticada con un 401.
   await expect(page).toHaveURL(/\/$/);
 
   // La recarga de la navegación puede estar en curso: se reintenta el
