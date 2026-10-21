@@ -3,6 +3,8 @@ import { useNavigate, Link } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { Logo, Input, Btn, Alert, Card, PasswordInput, PasswordRequirements } from '../components/UI';
 import { Footer } from '../components/Footer';
+import { contrasenaValida } from '../utils/contrasena';
+import { capitalize, formatPhone, telefonoValido } from '../utils/formularios';
 
 // Ciudades de respaldo (se usan si el endpoint aún no responde)
 const FALLBACK_CITIES = [
@@ -18,17 +20,6 @@ const FALLBACK_CITIES = [
   'Pamplona', 'Pitalito', 'Rionegro', 'Sahagún', 'San Gil', 'Santa Rosa de Cabal',
   'Sogamoso', 'Soledad', 'Tuluá', 'Tumaco', 'Turbo', 'Ubaté', 'Zipaquirá',
 ].filter((v, i, a) => a.indexOf(v) === i).sort();
-
-// Capitaliza la primera letra y elimina espacios al final
-const capitalize = (val: string) =>
-  val.replace(/(^|\s)\S/g, c => c.toUpperCase());
-
-// Solo permite dígitos, máximo 10, y fuerza que empiece con 3
-const formatPhone = (val: string) => {
-  const digits = val.replace(/\D/g, '').slice(0, 10);
-  if (digits.length > 0 && digits[0] !== '3') return '3' + digits.slice(1, 10);
-  return digits;
-};
 
 export default function Register() {
   const navigate = useNavigate();
@@ -75,12 +66,8 @@ export default function Register() {
     setForm(f => ({ ...f, [k]: f[k as keyof typeof f].trim() }));
 
   const passwordsMatch = form.password === form.confirm;
-  const passwordValid  = form.password.length >= 8 &&
-    /[A-Z]/.test(form.password) &&
-    /[a-z]/.test(form.password) &&
-    /[0-9]/.test(form.password) &&
-    /[^A-Za-z0-9]/.test(form.password);
-  const phoneValid     = form.phone.length === 10 && form.phone.startsWith('3');
+  const passwordValid  = contrasenaValida(form.password);
+  const phoneValid     = telefonoValido(form.phone);
 
   const isFormComplete =
     form.first_name.trim() &&

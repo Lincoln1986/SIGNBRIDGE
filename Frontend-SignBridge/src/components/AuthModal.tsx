@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { useAuth } from '../context/auth-context';
 import { Logo, Input, Btn, Alert, PasswordInput, PasswordRequirements } from './UI';
+import { contrasenaValida } from '../utils/contrasena';
+import { capitalize, formatPhone, telefonoValido } from '../utils/formularios';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -12,15 +14,6 @@ interface AuthModalProps {
   initialTab?: Tab;
   onClose: () => void;
 }
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-const capitalize = (val: string) => val.replace(/(^|\s)\S/g, c => c.toUpperCase());
-const formatPhone = (val: string) => {
-  const digits = val.replace(/\D/g, '').slice(0, 10);
-  if (digits.length > 0 && digits[0] !== '3') return '3' + digits.slice(1, 10);
-  return digits;
-};
 
 // ── Tabs component ─────────────────────────────────────────────────────────
 
@@ -183,11 +176,9 @@ function RegisterForm({ onClose, onTabChange }: { onClose: () => void; onTabChan
     setForm(f => ({ ...f, [k]: val }));
   };
 
-  const passwordValid = form.password.length >= 8 &&
-    /[A-Z]/.test(form.password) && /[a-z]/.test(form.password) &&
-    /[0-9]/.test(form.password) && /[^A-Za-z0-9]/.test(form.password);
+  const passwordValid = contrasenaValida(form.password);
   const passwordsMatch = form.password === form.confirm;
-  const phoneValid = form.phone.length === 10 && form.phone.startsWith('3');
+  const phoneValid = telefonoValido(form.phone);
 
   const isComplete = form.first_name.trim() && form.last_name.trim() && phoneValid &&
     form.city && form.address.trim() && form.email.trim() && passwordValid && passwordsMatch;

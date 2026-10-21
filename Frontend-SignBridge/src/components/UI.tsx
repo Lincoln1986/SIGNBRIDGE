@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { ReactNode, InputHTMLAttributes } from 'react';
 import { getPasswordStrength } from './passwordStrength';
 import type { PasswordStrength } from './passwordStrength';
+import { requisitosContrasena } from '../utils/contrasena';
 
 // ── Logo ───────────────────────────────────────────────────────────────────
 
@@ -212,19 +213,11 @@ export function PasswordInput({ label, error, showStrength, strengthValue, style
 // ── Password requirements checker ─────────────────────────────────────────
 
 export function PasswordRequirements({ password }: { password: string }) {
-  const reqs = [
-    { label: 'Mínimo 8 caracteres',        met: password.length >= 8 },
-    { label: 'Al menos una mayúscula',      met: /[A-Z]/.test(password) },
-    { label: 'Al menos una minúscula',      met: /[a-z]/.test(password) },
-    { label: 'Al menos un número',          met: /[0-9]/.test(password) },
-    { label: 'Al menos un carácter especial', met: /[^A-Za-z0-9]/.test(password) },
-  ];
-
   if (!password) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
-      {reqs.map(r => (
+      {requisitosContrasena(password).map(r => (
         <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: '0.75rem', color: r.met ? '#10b981' : 'var(--gray-400)', lineHeight: 1 }}>
             {r.met ? '✓' : '○'}
