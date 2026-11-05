@@ -21,7 +21,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import Base, get_db
-from app.core.security import hash_password
+from app.core.security import create_access_token, hash_password
 from app.core.views import create_views
 from app.main import app
 from app.models.user import Region, Role, User
@@ -87,6 +87,39 @@ def db(_create_tables):
     session = TestingSessionLocal()
     yield session
     session.close()
+
+
+@pytest.fixture()
+def make_token():
+    """Devuelve una fábrica de tokens: `make_token("Administrador")` → JWT.
+
+    Crea el usuario con el rol pedido (y el rol si aún no existe), para no
+depender del orden de los tests ni de `seed_data`.
+    """
+    def _make_token(role_name: str) -> str:
+        db = TestingSessionLocal()
+        role = db.query(Role).filter(Role.role_name == role_name).first()
+        if role is None:
+            role = Role(id_role=str(uuid.uuid4()), role_name=role_name)
+            db.add(role)
+            db.flush()
+        user = User(
+            id_user=str(uuid.uuid4()),
+            id_role=role.id_role,
+            first_name="Test",
+            last_name="User",
+            phone="3001234567",
+            email=f"{role_name.lower()}-{uuid.uuid4().hex[:6]}@example.com",
+            password_hash=hash_password("Password1!"),
+            is_active=True,
+        )
+        user_id = user.id_user
+        db.add(user)
+        db.commit()
+        db.close()
+        return create_access_token({"sub": user_id})
+
+    return _make_token
 
 
 @pytest.fixture()
