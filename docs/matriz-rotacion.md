@@ -12,10 +12,12 @@ Reglas:
 
 | Integrante (usuario GitHub) | S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8 | S9 |
 |---|---|---|---|---|---|---|---|---|---|
-| @javierperez14 | E2E | API | | | | | | | |
-| @juan-soto350 | E2E | Front | | | | | | | |
-| @Sebas-p-s | E2E | BD | | | | | | | |
-| @Lincoln1986 | E2E | E2E (CI) | | | | | | | |
+| @javierperez14 | E2E | API | | E2E: seguridad y errores | | | | | |
+| @juan-soto350 | E2E | Front | | API: vocabulario | | | | | |
+| @Sebas-p-s | E2E | BD | | Front: contrato del API | | | | | |
+| @Lincoln1986 | E2E | E2E (CI) | | BD: duplicados y datos propios | | | | | |
+
+> S4 (pruebas de API): todos prueban el API, cada uno desde el ángulo de su capa, distinta a la de S2.
 
 > S2: Front, API y BD son distintas a la capa de S1. En un grupo de 4 alguien repite E2E: esta semana esa capa **monta el CI** (`.github/workflows/tests.yml`) y además escribe sus 3 tests unitarios en cualquier capa. Por eso @Lincoln1986 la toma, y en S3 rota a una capa que no haya tenido.
 
