@@ -227,8 +227,10 @@ export const authApi = {
    *  Soporta dos formatos de respuesta:
    *  - string[]  (e.g. ["Bogotá","Medellín",...])
    *  - {id_region, region_name, department}[]  */
+  // Las ciudades salen de GET /regions. Antes pedía /auth/cities, que no existe
+  // (404), y el registro siempre caía en la lista de respaldo escrita a mano.
   getCities: () =>
-    api.get<string[] | { id_region?: string; region_name?: string; name?: string; city?: string; department?: string }[]>('/auth/cities'),
+    api.get<string[] | { id_region?: string; region_name?: string; name?: string; city?: string; department?: string }[]>('/regions'),
 };
 
 // ── Dashboard ──────────────────────────────────────────────────────────────

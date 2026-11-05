@@ -60,9 +60,9 @@ describe('authApi', () => {
     expect(post).toHaveBeenCalledWith('/auth/reset-password', { token: 'tok', new_password: 'Password2!' });
   });
 
-  it('getCities llama al catálogo', async () => {
+  it('getCities llama al catálogo de regiones', async () => {
     await authApi.getCities();
-    expect(get).toHaveBeenCalledWith('/auth/cities');
+    expect(get).toHaveBeenCalledWith('/regions');
   });
 });
 
