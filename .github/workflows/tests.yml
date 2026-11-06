@@ -32,8 +32,9 @@ jobs:
         working-directory: Frontend-SignBridge
     steps:
       - uses: actions/checkout@v4
-      # Lee la versión del campo "packageManager" del package.json
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -110,6 +111,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -132,8 +135,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # ── Frontend ────────────────────────────────────────────────────────
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -144,7 +148,6 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm audit
-      # ── Backend ─────────────────────────────────────────────────────────
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -168,3 +171,15 @@ jobs:
             --ignore-vuln PYSEC-2026-3456 \
             --ignore-vuln PYSEC-2026-3455 \
             --ignore-vuln PYSEC-2026-1805
+
+    evidencia-individual:
+    name: Evidencia individual
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Commits de test por autor esta semana
+        run: |
+          echo "### Commits de test por autor desde el lunes" >> "$GITHUB_STEP_SUMMARY"
+          git shortlog -sn --since="last Monday" HEAD -- '*tests/*' '*.test.*' '*e2e/*' >> "$GITHUB_STEP_SUMMARY"
