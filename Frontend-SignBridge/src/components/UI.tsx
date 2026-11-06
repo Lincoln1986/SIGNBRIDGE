@@ -1,5 +1,8 @@
 import { useState } from 'react';
 import type { ReactNode, InputHTMLAttributes } from 'react';
+import { getPasswordStrength } from './passwordStrength';
+import type { PasswordStrength } from './passwordStrength';
+import { requisitosContrasena } from '../utils/contrasena';
 
 // ── Logo ───────────────────────────────────────────────────────────────────
 
@@ -94,22 +97,6 @@ export function Input({ label, error, icon, style, ...rest }: InputProps) {
 // ── PasswordInput ──────────────────────────────────────────────────────────
 // Ojo para mostrar/ocultar contraseña + barra de fortaleza opcional
 
-export type PasswordStrength = 'weak' | 'fair' | 'strong' | 'very-strong';
-
-export function getPasswordStrength(password: string): PasswordStrength | null {
-  if (!password) return null;
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[a-z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-  if (score <= 2) return 'weak';
-  if (score === 3) return 'fair';
-  if (score === 4 || score === 5) return 'strong';
-  return 'very-strong';
-}
 
 const strengthMeta: Record<PasswordStrength, { label: string; color: string; bars: number }> = {
   weak:        { label: 'Débil',      color: '#ef4444', bars: 1 },
@@ -226,19 +213,11 @@ export function PasswordInput({ label, error, showStrength, strengthValue, style
 // ── Password requirements checker ─────────────────────────────────────────
 
 export function PasswordRequirements({ password }: { password: string }) {
-  const reqs = [
-    { label: 'Mínimo 8 caracteres',        met: password.length >= 8 },
-    { label: 'Al menos una mayúscula',      met: /[A-Z]/.test(password) },
-    { label: 'Al menos una minúscula',      met: /[a-z]/.test(password) },
-    { label: 'Al menos un número',          met: /[0-9]/.test(password) },
-    { label: 'Al menos un carácter especial', met: /[^A-Za-z0-9]/.test(password) },
-  ];
-
   if (!password) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
-      {reqs.map(r => (
+      {requisitosContrasena(password).map(r => (
         <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: '0.75rem', color: r.met ? '#10b981' : 'var(--gray-400)', lineHeight: 1 }}>
             {r.met ? '✓' : '○'}

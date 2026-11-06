@@ -14,7 +14,10 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (r) => r,
   (error) => {
-    if (error.response?.status === 401) {
+    // Un 401 del login es una contraseña equivocada: el modal muestra el
+    // error; recargar aquí lo tacha. Los demás 401 siguen cerrando la sesión.
+    const enLogin = error.config?.url === '/auth/login';
+    if (error.response?.status === 401 && !enLogin) {
       localStorage.clear();
       window.location.href = '/';
     }

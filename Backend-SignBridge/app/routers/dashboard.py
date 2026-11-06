@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import func, text
 from typing import List
 import uuid
 
@@ -151,12 +151,14 @@ def create_lexical_unit(
     _admin: User = Depends(require_admin),
 ):
     """Crea una nueva palabra en el vocabulario. Solo admin."""
+    # "Hola", "hola" y " Hola " son la misma palabra: así se colaron los
+    # duplicados que ya hay en la base (Adiós/adios, Buenos Dias/buenos dias).
     existing = db.query(LexicalUnit).filter(
-        LexicalUnit.text == payload.text,
+        func.lower(func.trim(LexicalUnit.text)) == payload.text.strip().lower(),
         LexicalUnit.deleted_at.is_(None),
     ).first()
     if existing:
-        raise HTTPException(status_code=400, detail="Ya existe una palabra con ese texto")
+        raise HTTPException(status_code=409, detail="Ya existe una palabra con ese texto")
 
     unit = LexicalUnit(
         id_lexicalunit = str(uuid.uuid4()),

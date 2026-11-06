@@ -1,19 +1,32 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { Logo } from '../components/UI';
 import { AuthModal } from '../components/AuthModal';
 
+type ModalTab = 'login' | 'register' | 'forgot' | null;
+
+/** Pestaña que pide el `state` de navegación (si es que pide alguna). */
+function tabDesdeState(state: unknown): ModalTab {
+  const openModal = (state as { openModal?: string } | null)?.openModal;
+  if (openModal === 'login')    return 'login';
+  if (openModal === 'register') return 'register';
+  if (openModal === 'forgot')   return 'forgot';
+  return null;
+}
+
 export default function Landing() {
   const location = useLocation();
-  const [modalTab, setModalTab] = useState<'login' | 'register' | 'forgot' | null>(null);
+  // La pestaña inicial se deriva del state en el initializer; si el state
+  // cambia durante la sesión, se ajusta durante el render (patrón de React
+  // "adjusting state when a prop changes") en vez de con un effect.
+  const [modalTab, setModalTab] = useState<ModalTab>(() => tabDesdeState(location.state));
+  const [prevState, setPrevState] = useState(location.state);
 
-  // Abre el modal automáticamente si viene de un redirect con state
-  useEffect(() => {
-    const state = location.state as { openModal?: string } | null;
-    if (state?.openModal === 'login')    setModalTab('login');
-    if (state?.openModal === 'register') setModalTab('register');
-    if (state?.openModal === 'forgot')   setModalTab('forgot');
-  }, [location.state]);
+  if (location.state !== prevState) {
+    setPrevState(location.state);
+    const tab = tabDesdeState(location.state);
+    if (tab) setModalTab(tab);
+  }
 
   const features = [
     { icon: '🤟', title: 'Traducción LSC', desc: 'Traduce texto e imágenes a Lengua de Señas Colombiana en tiempo real.' },
