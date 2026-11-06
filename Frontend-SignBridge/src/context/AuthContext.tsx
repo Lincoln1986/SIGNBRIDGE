@@ -1,35 +1,25 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { authApi } from '../api/client';
-import type { UserProfile, TokenResponse } from '../api/client';
-
-interface AuthState {
-  token: string | null;
-  user: UserProfile | null;
-  role: string | null;
-  loading: boolean;
-}
-
-interface AuthContextType extends AuthState {
-  login: (data: TokenResponse) => Promise<void>;
-  logout: () => void;
-  isAdmin: boolean;
-  isSupport: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | null>(null);
+import type { TokenResponse } from '../api/client';
+import { AuthContext } from './auth-context';
+import type { AuthState } from './auth-context';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AuthState>({
-    token: localStorage.getItem('token'),
-    user: null,
-    role: localStorage.getItem('role'),
-    loading: true,
+  // El estado inicial se deriva de localStorage en el propio initializer:
+  // así no hace falta un effect que haga setState síncrono al montar.
+  const [state, setState] = useState<AuthState>(() => {
+    const token = localStorage.getItem('token');
+    return {
+      token,
+      user: null,
+      role: localStorage.getItem('role'),
+      loading: !!token,   // sin token no hay nada que cargar
+    };
   });
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (!token) { setState(s => ({ ...s, loading: false })); return; }
+    if (!localStorage.getItem('token')) return;
     authApi.me()
       .then(r => setState(s => ({ ...s, user: r.data, loading: false })))
       .catch(() => { localStorage.clear(); setState({ token: null, user: null, role: null, loading: false }); });
@@ -58,10 +48,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error('useAuth must be used within AuthProvider');
-  return ctx;
 }

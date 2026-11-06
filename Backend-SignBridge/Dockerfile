@@ -1,5 +1,8 @@
 FROM python:3.11-slim
 
+# uv (Astral) como gestor de paquetes: instala desde uv.lock de forma determinista.
+COPY --from=ghcr.io/astral-sh/uv:0.12.24 /uv /uvx /bin/
+
 WORKDIR /app
 
 # Librerías del sistema que necesita MediaPipe para importarse.
@@ -17,10 +20,12 @@ RUN apt-get update \
       libglib2.0-0 \
  && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
 COPY . .
+ENV UV_COMPILE_BYTECODE=1
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 

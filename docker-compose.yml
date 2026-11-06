@@ -13,12 +13,16 @@ services:
     image: postgres:17
     container_name: signbridge_postgres
     restart: unless-stopped
+    networks:
+      - db_network
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_DB: ${POSTGRES_DB:-signbridge}
+    # Solo accesible desde la red interna db_network (backend) y desde el
+    # propio host para cargar respaldos: no se expone a la red pública.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -56,6 +60,9 @@ services:
       postgres:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - web_network
+      - db_network
 
   frontend:
     build:
@@ -72,6 +79,20 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+    networks:
+      - web_network
 
 volumes:
   postgres_data:
+
+# Segmentación de tráfico:
+#   web_network  → proxy/app (frontend ↔ backend). Nunca toca la base de datos.
+#   db_network   → red interna hermética (backend ↔ postgres). Sin salida a
+#                  internet público: PostgreSQL solo escucha en esta red y en
+#                  127.0.0.1 del host.
+networks:
+  web_network:
+    driver: bridge
+  db_network:
+    driver: bridge
+    internal: true

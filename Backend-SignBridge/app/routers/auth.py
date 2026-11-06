@@ -154,7 +154,12 @@ async def forgot_password(
 
     if user:
         token = create_reset_token(user.email)
-        await send_reset_email(user.email, token)
+        # El correo no debe romper la petición si el SMTP no responde
+        try:
+            await send_reset_email(user.email, token)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("No se pudo enviar correo de restablecimiento: %s", exc)
 
     return {"message": "Si el correo existe, recibirás un enlace para restablecer tu contraseña"}
 
