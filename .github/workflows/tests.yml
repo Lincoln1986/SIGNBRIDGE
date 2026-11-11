@@ -32,11 +32,12 @@ jobs:
         working-directory: Frontend-SignBridge
     steps:
       - uses: actions/checkout@v4
-      # Lee la versión del campo "packageManager" del package.json
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
           cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
       - name: Instalar dependencias (sin comodines, lockfile exacto)
@@ -110,9 +111,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
           cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
@@ -132,11 +135,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # ── Frontend ────────────────────────────────────────────────────────
       - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
           cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
       - name: pnpm audit (dependencias de producción y desarrollo)
@@ -144,7 +148,6 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
           pnpm audit
-      # ── Backend ─────────────────────────────────────────────────────────
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
@@ -153,18 +156,21 @@ jobs:
         working-directory: Backend-SignBridge
         run: |
           uv sync --frozen
-          # 7 avisos ignorados, todos sin fix compatible con el stack actual:
-          #   ecdsa/python-jose → python-jose 3.4.0 es la última versión;
-          #     sin parche upstream (PYSEC-2026-1325, GHSA-3qf3-8w2g-rqmx).
-          #   pyasn1 ×4 → python-jose declara pyasn1<0.5.0; subirlo exige
-          #     reemplazar python-jose por PyJWT (pendiente de refactor).
+          # 1 aviso ignorado, sin fix compatible con el stack actual:
           #   protobuf → mediapipe 0.10.x declara protobuf<5; el fix requiere
-          #     migrar a mediapipe 1.x (pendiente en S4).
-          uv run pip-audit \
-            --ignore-vuln PYSEC-2026-1325 \
-            --ignore-vuln GHSA-3qf3-8w2g-rqmx \
-            --ignore-vuln PYSEC-2026-2263 \
-            --ignore-vuln PYSEC-2026-3457 \
-            --ignore-vuln PYSEC-2026-3456 \
-            --ignore-vuln PYSEC-2026-3455 \
-            --ignore-vuln PYSEC-2026-1805
+          #     migrar a mediapipe 1.x.
+          # (python-jose se reemplazó por PyJWT: ya no hacen falta los 6
+          #  ignores de ecdsa y pyasn1.)
+          uv run pip-audit --ignore-vuln PYSEC-2026-1805
+
+  evidencia-individual:
+    name: Evidencia individual
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Commits de test por autor esta semana
+        run: |
+          echo "### Commits de test por autor desde el lunes" >> "$GITHUB_STEP_SUMMARY"
+          git shortlog -sn --since="last Monday" HEAD -- '*tests/*' '*.test.*' '*e2e/*' >> "$GITHUB_STEP_SUMMARY"
