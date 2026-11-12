@@ -27,7 +27,7 @@ def test_registro_exitoso(client, seed_data):
 def test_registro_email_duplicado(client, seed_data):
     client.post("/auth/register", json=_payload())
     res = client.post("/auth/register", json=_payload())
-    assert res.status_code == 400
+    assert res.status_code == 409
     assert "registrado" in res.json()["detail"]
 
 
