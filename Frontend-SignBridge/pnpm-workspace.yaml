@@ -1,0 +1,12 @@
+minimumReleaseAgeExclude:
+  - vite@8.3.4
+
+# Versiones parcheadas de dependencias transitivas que reporta `pnpm audit`.
+# Ninguna se usa directamente: llegan por jsdom (undici), axios
+# (follow-redirects) y ESLint (zod, minimatch). Quitar cada línea cuando la
+# librería que la trae ya incluya la versión segura.
+overrides:
+  undici: 8.12.3            # GHSA-55wc-3pg8-jfw6 y otras 7 (DoS, TLS, caché)
+  follow-redirects: 1.16.2  # cabeceras sensibles en redirecciones (axios)
+  zod: 4.6.7                # agotamiento de memoria al validar
+  minimatch: 11.0.3         # GHSA-g3hv-75wg-m249 (DoS por globparts)

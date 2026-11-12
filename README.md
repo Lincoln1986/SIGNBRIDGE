@@ -144,10 +144,12 @@ SIGNBRIDGE/
 │   │   ├── routers/             # endpoints por dominio
 │   │   ├── schemas/             # validación con Pydantic
 │   │   └── services/            # traducción, MediaPipe, correo, notificaciones
-│   ├── migrations/              # migraciones SQL en orden cronológico
+│   ├── alembic/                 # migraciones del esquema (alembic upgrade head)
+│   ├── tests/                   # suite pytest con cobertura
 │   ├── .env.example             # plantilla para ejecución sin Docker
 │   ├── Dockerfile
-│   └── requirements.txt
+│   ├── pyproject.toml           # dependencias (gestor: uv)
+│   └── uv.lock                  # árbol determinista de paquetes
 │
 ├── Frontend-SignBridge/         # SPA en React + TypeScript + Vite
 │   ├── src/
@@ -156,8 +158,11 @@ SIGNBRIDGE/
 │   │   ├── context/             # contexto de autenticación
 │   │   ├── hooks/               # cámara, reconocimiento de voz
 │   │   └── pages/               # pantallas por ruta
+│   ├── e2e/                     # tests E2E con Playwright
 │   ├── .env.example
-│   └── Dockerfile
+│   ├── Dockerfile
+│   ├── package.json             # versiones exactas (sin ^ ni ~)
+│   └── pnpm-lock.yaml           # árbol determinista de paquetes
 │
 ├── Base-de-datos/               # estructura y migraciones de PostgreSQL
 │   ├── schema.sql
@@ -217,13 +222,43 @@ docker exec -i signbridge_postgres psql -U postgres -d signbridge < respaldo.sql
 
 ## Tecnologías
 
-**Backend** — FastAPI 0.111 · SQLAlchemy 2.0 · PostgreSQL 17 · MediaPipe 0.10 ·
-python-jose (JWT) · passlib con bcrypt · fastapi-mail
+**Backend** — FastAPI 0.143 · SQLAlchemy 2.0 · PostgreSQL 17 · MediaPipe 0.10 ·
+python-jose (JWT) · passlib con bcrypt · aiosmtplib
 
 **Frontend** — React 19 · TypeScript · Vite · React Router · Axios · Recharts ·
 Web Speech API
 
-**Infraestructura** — Docker · Docker Compose
+**Infraestructura** — Docker · Docker Compose · uv (Python) · pnpm (Node) ·
+Alembic · GitHub Actions
+
+---
+
+## Pruebas
+
+| Capa | Comando | Umbral |
+|---|---|---|
+| Backend | `cd Backend-SignBridge && uv run pytest` | cobertura ≥ 55% (trinquete) |
+| Frontend | `cd Frontend-SignBridge && pnpm test:coverage` | cobertura ≥ 30% (trinquete) |
+| E2E | `cd Frontend-SignBridge && pnpm test:e2e` | flujo de login (Playwright) |
+| Seguridad | `pnpm audit` / `uv run pip-audit` | 0 avisos activos |
+
+Requisitos: `uv` y `pnpm` instalados (los contenedores no los necesitan).
+
+```bash
+cd Backend-SignBridge
+uv sync                  # instala desde uv.lock
+uv run pytest            # suite + cobertura
+
+cd ../Frontend-SignBridge
+pnpm install --frozen-lockfile
+pnpm test:coverage
+pnpm exec playwright install chromium   # primera vez
+pnpm test:e2e
+```
+
+Los mismos cinco checks corren en CI (`.github/workflows/tests.yml`) y deben
+estar en verde antes de fusionar en `main`. La estrategia completa está en
+`docs/estrategia-pruebas.md`.
 
 ---
 

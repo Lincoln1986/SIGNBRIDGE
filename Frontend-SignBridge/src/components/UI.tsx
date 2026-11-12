@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import type { ReactNode, InputHTMLAttributes } from 'react';
+import { getPasswordStrength } from './passwordStrength';
+import type { PasswordStrength } from './passwordStrength';
+import { requisitosContrasena } from '../utils/contrasena';
 
 // ── Logo ───────────────────────────────────────────────────────────────────
 
@@ -68,12 +71,21 @@ interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
 }
 
 export function Input({ label, error, icon, style, ...rest }: InputProps) {
+  const generatedId = useId();
+  const inputId = rest.id ?? generatedId;
+  const errorId = `${inputId}-error`;
+  // El aria-describedby externo se combina con el del error: nunca lo pisa.
+  const { 'aria-describedby': ariaDescribedBy, ...inputRest } = rest;
+  const describedBy = [error ? errorId : null, ariaDescribedBy].filter(Boolean).join(' ') || undefined;
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%' }}>
-      {label && <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>{label}</label>}
+      {label && <label htmlFor={inputId} style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>{label}</label>}
       <div style={{ position: 'relative' }}>
         {icon && <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', display: 'flex' }}>{icon}</span>}
         <input
+          id={inputId}
+          aria-describedby={describedBy}
           style={{
             width: '100%', padding: icon ? '10px 14px 10px 38px' : '10px 14px',
             border: `1.5px solid ${error ? 'var(--danger)' : 'var(--gray-200)'}`,
@@ -83,10 +95,10 @@ export function Input({ label, error, icon, style, ...rest }: InputProps) {
           }}
           onFocus={e => { e.target.style.borderColor = 'var(--violet)'; }}
           onBlur={e => { e.target.style.borderColor = error ? 'var(--danger)' : 'var(--gray-200)'; }}
-          {...rest}
+          {...inputRest}
         />
       </div>
-      {error && <span style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>{error}</span>}
+      {error && <span id={errorId} role="alert" style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>{error}</span>}
     </div>
   );
 }
@@ -94,22 +106,6 @@ export function Input({ label, error, icon, style, ...rest }: InputProps) {
 // ── PasswordInput ──────────────────────────────────────────────────────────
 // Ojo para mostrar/ocultar contraseña + barra de fortaleza opcional
 
-export type PasswordStrength = 'weak' | 'fair' | 'strong' | 'very-strong';
-
-export function getPasswordStrength(password: string): PasswordStrength | null {
-  if (!password) return null;
-  let score = 0;
-  if (password.length >= 8) score++;
-  if (password.length >= 12) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[a-z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-  if (score <= 2) return 'weak';
-  if (score === 3) return 'fair';
-  if (score === 4 || score === 5) return 'strong';
-  return 'very-strong';
-}
 
 const strengthMeta: Record<PasswordStrength, { label: string; color: string; bars: number }> = {
   weak:        { label: 'Débil',      color: '#ef4444', bars: 1 },
@@ -128,13 +124,19 @@ interface PasswordInputProps extends Omit<InputHTMLAttributes<HTMLInputElement>,
 
 export function PasswordInput({ label, error, showStrength, strengthValue, style, ...rest }: PasswordInputProps) {
   const [visible, setVisible] = useState(false);
+  const generatedId = useId();
+  const inputId = rest.id ?? generatedId;
+  const errorId = `${inputId}-error`;
+  // Igual que en Input: el aria-describedby externo se suma, no reemplaza.
+  const { 'aria-describedby': ariaDescribedBy, ...inputRest } = rest;
+  const describedBy = [error ? errorId : null, ariaDescribedBy].filter(Boolean).join(' ') || undefined;
   const val = String(strengthValue ?? rest.value ?? '');
   const strength = showStrength ? getPasswordStrength(val) : null;
   const meta = strength ? strengthMeta[strength] : null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 5, width: '100%' }}>
-      {label && <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>{label}</label>}
+      {label && <label htmlFor={inputId} style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--gray-600)' }}>{label}</label>}
       <div style={{ position: 'relative' }}>
         {/* lock icon */}
         <span style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--gray-400)', display: 'flex', pointerEvents: 'none' }}>
@@ -144,6 +146,8 @@ export function PasswordInput({ label, error, showStrength, strengthValue, style
           </svg>
         </span>
         <input
+          id={inputId}
+          aria-describedby={describedBy}
           type={visible ? 'text' : 'password'}
           style={{
             width: '100%',
@@ -158,12 +162,11 @@ export function PasswordInput({ label, error, showStrength, strengthValue, style
           }}
           onFocus={e => { e.target.style.borderColor = 'var(--violet)'; }}
           onBlur={e => { e.target.style.borderColor = error ? 'var(--danger)' : 'var(--gray-200)'; }}
-          {...rest}
+          {...inputRest}
         />
         {/* eye toggle */}
         <button
           type="button"
-          tabIndex={-1}
           aria-label={visible ? 'Ocultar contraseña' : 'Mostrar contraseña'}
           onClick={() => setVisible(v => !v)}
           style={{
@@ -218,7 +221,7 @@ export function PasswordInput({ label, error, showStrength, strengthValue, style
         </div>
       )}
 
-      {error && <span style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>{error}</span>}
+      {error && <span id={errorId} role="alert" style={{ fontSize: '0.78rem', color: 'var(--danger)' }}>{error}</span>}
     </div>
   );
 }
@@ -226,19 +229,11 @@ export function PasswordInput({ label, error, showStrength, strengthValue, style
 // ── Password requirements checker ─────────────────────────────────────────
 
 export function PasswordRequirements({ password }: { password: string }) {
-  const reqs = [
-    { label: 'Mínimo 8 caracteres',        met: password.length >= 8 },
-    { label: 'Al menos una mayúscula',      met: /[A-Z]/.test(password) },
-    { label: 'Al menos una minúscula',      met: /[a-z]/.test(password) },
-    { label: 'Al menos un número',          met: /[0-9]/.test(password) },
-    { label: 'Al menos un carácter especial', met: /[^A-Za-z0-9]/.test(password) },
-  ];
-
   if (!password) return null;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 2 }}>
-      {reqs.map(r => (
+      {requisitosContrasena(password).map(r => (
         <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span style={{ fontSize: '0.75rem', color: r.met ? '#10b981' : 'var(--gray-400)', lineHeight: 1 }}>
             {r.met ? '✓' : '○'}
