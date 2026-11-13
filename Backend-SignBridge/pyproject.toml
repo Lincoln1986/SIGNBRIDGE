@@ -37,7 +37,7 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # cov-fail-under: trinquete de cobertura. Sube en cada sprint, nunca baja.
-addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=55"
+addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=62"
 
 [tool.coverage.run]
 source = ["app"]

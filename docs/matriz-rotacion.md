@@ -12,10 +12,12 @@ Reglas:
 
 | Integrante (usuario GitHub) | S1 | S2 | S3 | S4 | S5 | S6 | S7 | S8 | S9 |
 |---|---|---|---|---|---|---|---|---|---|
-| @javierperez14 | E2E | API | | E2E: seguridad y errores | | | | | |
-| @juan-soto350 | E2E | Front | | API: vocabulario | | | | | |
-| @Sebas-p-s | E2E | BD | | Front: contrato del API | | | | | |
-| @Lincoln1986 | E2E | E2E (CI) | | BD: duplicados y datos propios | | | | | |
+| @javierperez14 | E2E ([#17](https://github.com/Lincoln1986/SIGNBRIDGE/pull/17)) | API ([#14](https://github.com/Lincoln1986/SIGNBRIDGE/pull/14)) | Front: Register ([#15](https://github.com/Lincoln1986/SIGNBRIDGE/pull/15)) | E2E: seguridad y errores ([#16](https://github.com/Lincoln1986/SIGNBRIDGE/pull/16)) | | | | | |
+| @juan-soto350 | E2E ([#24](https://github.com/Lincoln1986/SIGNBRIDGE/pull/24)) | Front ([#24](https://github.com/Lincoln1986/SIGNBRIDGE/pull/24)) | Front: Input y PasswordInput ([#23](https://github.com/Lincoln1986/SIGNBRIDGE/pull/23)) | API: vocabulario ([#23](https://github.com/Lincoln1986/SIGNBRIDGE/pull/23)) | | | | | |
+| @Sebas-p-s | E2E | BD | Front: recuperar contraseña ([#18](https://github.com/Lincoln1986/SIGNBRIDGE/pull/18)) | Front: contrato del API ([#19](https://github.com/Lincoln1986/SIGNBRIDGE/pull/19)) | | | | | |
+| @Lincoln1986 | E2E | E2E (CI) ([#20](https://github.com/Lincoln1986/SIGNBRIDGE/pull/20)) | Front: Vocabulario ([#21](https://github.com/Lincoln1986/SIGNBRIDGE/pull/21)) | BD: duplicados y datos propios ([#22](https://github.com/Lincoln1986/SIGNBRIDGE/pull/22)) | | | | | |
+
+> S3 (componentes React): cada integrante probó un componente distinto.
 
 > S4 (pruebas de API): todos prueban el API, cada uno desde el ángulo de su capa, distinta a la de S2.
 
@@ -28,12 +30,13 @@ Anota la cobertura real al cerrar cada semana (mismos valores que `docs/estrateg
 | Semana | Frontend (%) | Backend (%) | Umbral configurado para la semana siguiente |
 |---|---:|---:|---|
 | S1 (línea base) | 36.0 | 58.3 | 30 (front) · 55 (back) |
+| S4 (cierre, 11 nov) | 45.8 | 62.8 | 45 líneas · 44 statements · 40 functions · 40 branches (front) · 62 (back) |
 
 ## Regla de rama
 
 | Repo | Regla |
 |---|---|
-| Lincoln1986/SIGNBRIDGE | Pendiente: se activa con el ruleset de `main` (exigir los 5 checks de `.github/workflows/tests.yml`) |
+| Lincoln1986/SIGNBRIDGE | Regla manual del grupo mientras se activa el ruleset de `main`: nadie fusiona un PR sin la aprobación de otro integrante ni con algún check en rojo (6 checks de `.github/workflows/tests.yml`). |
 
 ## Registro de vocero aleatorio
 
