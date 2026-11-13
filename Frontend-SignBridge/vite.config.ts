@@ -20,8 +20,9 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'text-summary'],
-      // trinquete de cobertura S1: sube en cada sprint, nunca baja
-      thresholds: { lines: 30, functions: 30, statements: 30, branches: 30 },
+      // trinquete de cobertura: sube en cada sprint, nunca baja.
+      // Cierre S4 (11 nov): real 45.77 / 44.27 / 40.39 / 40.29 → redondeado hacia abajo
+      thresholds: { lines: 45, functions: 40, statements: 44, branches: 40 },
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx'],
     },
