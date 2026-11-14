@@ -32,6 +32,29 @@ services:
       retries: 10
       start_period: 10s
 
+  # Postgres SOLO para las pruebas de integración (S5). Puerto 5433 para no
+  # chocar con el de desarrollo, datos en memoria (tmpfs) para que cada vez
+  # arranque vacío, y perfil "test" para que `docker compose up` normal no lo
+  # levante. Uso:
+  #   docker compose --profile test up -d postgres-test
+  postgres-test:
+    image: postgres:17
+    container_name: signbridge_postgres_test
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: signbridge_test
+    ports:
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d signbridge_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   backend:
     build:
       context: ./Backend-SignBridge

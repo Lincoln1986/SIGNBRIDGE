@@ -38,6 +38,9 @@ package = false
 testpaths = ["tests"]
 # cov-fail-under: trinquete de cobertura. Sube en cada sprint, nunca baja.
 addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=62"
+markers = [
+    "integracion: pruebas contra PostgreSQL real; necesitan TEST_DATABASE_URL",
+]
 
 [tool.coverage.run]
 source = ["app"]
