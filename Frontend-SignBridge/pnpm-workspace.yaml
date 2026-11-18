@@ -10,3 +10,12 @@ overrides:
   follow-redirects: 1.16.2  # cabeceras sensibles en redirecciones (axios)
   zod: 4.6.7                # agotamiento de memoria al validar
   minimatch: 11.0.3         # GHSA-g3hv-75wg-m249 (DoS por globparts)
+
+# Avisos ignorados con justificación (se revisan en cada sprint).
+# GHSA-fc5q-39xc-vjpf · picomatch <=4.0.7 (ReDoS con extglobs): todavía no hay
+# versión corregida. Solo llega por herramientas de desarrollo (vitest, vite,
+# tinyglobby): no está en el código que se entrega al usuario. Quitar esta
+# línea cuando salga el parche y agregarlo a `overrides`.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
