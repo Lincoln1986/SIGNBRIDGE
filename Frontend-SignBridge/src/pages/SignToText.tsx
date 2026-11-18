@@ -416,19 +416,6 @@ export default function SignToText() {
               </div>
             )}
 
-            {/* Indicador de confirmación: la letra solo se agrega al historial
-                cuando se mantiene estable varias lecturas seguidas. Mostrarlo
-                evita que el usuario crea que el sistema se colgó. */}
-            {isTranslating && enPausa && (
-              <div style={{
-                marginBottom: 12, padding: '8px 12px', borderRadius: 8,
-                background: 'rgba(39,168,95,0.10)', border: '1px solid rgba(39,168,95,0.3)',
-                fontSize: '0.82rem', color: '#27A85F', fontWeight: 600, textAlign: 'center',
-              }}>
-                ✓ Letra registrada — preparate para la siguiente
-              </div>
-            )}
-
             {isTranslating && !enPausa && candidata && (
               <div style={{ marginBottom: 12 }}>
                 <div style={{
