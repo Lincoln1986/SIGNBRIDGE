@@ -21,6 +21,22 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+# ── Error inesperado: siempre JSON, nunca detalles internos ───────────────────
+# Sin esto, un fallo no previsto (la BD caída, un bug) respondía 500 en texto
+# plano ("Internal Server Error"): el frontend lee error.response.data.detail
+# y no encontraba nada. El detalle real queda en el log del servidor.
+import logging
+
+from fastapi import Request
+from fastapi.responses import JSONResponse
+
+
+@app.exception_handler(Exception)
+async def error_inesperado(request: Request, exc: Exception) -> JSONResponse:
+    logging.getLogger("signbridge").exception("Error no controlado en %s %s", request.method, request.url.path)
+    return JSONResponse(status_code=500, content={"detail": "Error interno del servidor"})
+
+
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,

@@ -13,12 +13,16 @@ services:
     image: postgres:17
     container_name: signbridge_postgres
     restart: unless-stopped
+    networks:
+      - db_network
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_DB: ${POSTGRES_DB:-signbridge}
+    # Solo accesible desde la red interna db_network (backend) y desde el
+    # propio host para cargar respaldos: no se expone a la red pública.
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,6 +31,29 @@ services:
       timeout: 5s
       retries: 10
       start_period: 10s
+
+  # Postgres SOLO para las pruebas de integración (S5). Puerto 5433 para no
+  # chocar con el de desarrollo, datos en memoria (tmpfs) para que cada vez
+  # arranque vacío, y perfil "test" para que `docker compose up` normal no lo
+  # levante. Uso:
+  #   docker compose --profile test up -d postgres-test
+  postgres-test:
+    image: postgres:17
+    container_name: signbridge_postgres_test
+    profiles: ["test"]
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: signbridge_test
+    ports:
+      - "127.0.0.1:${POSTGRES_TEST_PORT:-5433}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d signbridge_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   backend:
     build:
@@ -56,6 +83,9 @@ services:
       postgres:
         condition: service_healthy
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - web_network
+      - db_network
 
   frontend:
     build:
@@ -72,6 +102,20 @@ services:
       - /app/node_modules
     depends_on:
       - backend
+    networks:
+      - web_network
 
 volumes:
   postgres_data:
+
+# Segmentación de tráfico:
+#   web_network  → proxy/app (frontend ↔ backend). Nunca toca la base de datos.
+#   db_network   → red interna hermética (backend ↔ postgres). Sin salida a
+#                  internet público: PostgreSQL solo escucha en esta red y en
+#                  127.0.0.1 del host.
+networks:
+  web_network:
+    driver: bridge
+  db_network:
+    driver: bridge
+    internal: true

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import text
+from sqlalchemy import func, text
 import uuid
 
 from app.core.database import get_db
@@ -23,8 +23,10 @@ router = APIRouter(prefix="/auth", tags=["Autenticación"])
 
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 async def register(payload: UserRegister, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == payload.email).first():
-        raise HTTPException(status_code=400, detail="El correo ya está registrado")
+    # El correo no distingue mayúsculas: "Ana@x.com" y "ana@x.com" son la misma persona.
+    # 409 Conflict: el dato es válido, pero choca con lo que ya está guardado.
+    if db.query(User).filter(func.lower(User.email) == payload.email.lower()).first():
+        raise HTTPException(status_code=409, detail="El correo ya está registrado")
 
     # Asignar rol 'usuario' / 'Cliente' por defecto
     default_role = (
@@ -76,7 +78,7 @@ async def register(payload: UserRegister, db: Session = Depends(get_db)):
 @router.post("/login", response_model=TokenResponse)
 async def login(payload: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(
-        User.email == payload.email,
+        func.lower(User.email) == payload.email.lower(),
         User.deleted_at.is_(None),
     ).first()
 
@@ -154,7 +156,12 @@ async def forgot_password(
 
     if user:
         token = create_reset_token(user.email)
-        await send_reset_email(user.email, token)
+        # El correo no debe romper la petición si el SMTP no responde
+        try:
+            await send_reset_email(user.email, token)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("No se pudo enviar correo de restablecimiento: %s", exc)
 
     return {"message": "Si el correo existe, recibirás un enlace para restablecer tu contraseña"}
 

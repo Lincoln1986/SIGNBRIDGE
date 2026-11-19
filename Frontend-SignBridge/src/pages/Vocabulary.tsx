@@ -238,7 +238,7 @@ function WordCard({
         <button
           onClick={() => onOpenLightbox(unit)}
           style={{
-            display: 'block', width: '100%', aspectRatio: '16/9',
+            width: '100%', aspectRatio: '16/9',
             background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
             border: 'none', cursor: 'pointer',
             display: 'flex', flexDirection: 'column',

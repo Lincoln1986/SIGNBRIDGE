@@ -93,7 +93,7 @@ export default function TranslationHistory() {
             fontWeight: 800, fontSize: '1.2rem',
             fontFamily: 'var(--font-display)', color: 'var(--gray-800)',
           }}>
-            {entries.length} traducción{entries.length !== 1 ? 'es' : ''}
+            {entries.length} {entries.length === 1 ? 'traducción' : 'traducciones'}
           </div>
           <div style={{ fontSize: '0.8rem', color: 'var(--gray-400)', marginTop: 2 }}>
             en {days.length} día{days.length !== 1 ? 's' : ''}

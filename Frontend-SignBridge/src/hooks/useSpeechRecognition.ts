@@ -12,19 +12,51 @@ interface UseSpeechRecognitionReturn {
   resetTranscript: () => void;
 }
 
+interface UseSpeechRecognitionOptions {
+  /**
+   * Se invoca con el texto final dictado en el mismo instante en que el hook
+   * pasa a estado `processing`. Es el punto natural para reaccionar al
+   * dictado: al ser una llamada desde un callback del evento `onresult` (una
+   * suscripción a un sistema externo), el consumidor no necesita un effect
+   * que haga setState síncrono.
+   */
+  onFinalText?: (text: string) => void;
+}
+
 // Declaración de tipos para la Web Speech API (no incluida en lib.dom por defecto)
 declare global {
   interface Window {
     SpeechRecognition: typeof SpeechRecognition;
     webkitSpeechRecognition: typeof SpeechRecognition;
   }
+
+  // lib.dom de TypeScript no declara la interfaz SpeechRecognition
+  // (API de reconocimiento de voz, aún no estándar), sólo sus eventos.
+  interface SpeechRecognition extends EventTarget {
+    lang: string;
+    interimResults: boolean;
+    continuous: boolean;
+    maxAlternatives: number;
+    onstart: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+    onresult: ((this: SpeechRecognition, ev: SpeechRecognitionEvent) => unknown) | null;
+    onerror: ((this: SpeechRecognition, ev: SpeechRecognitionErrorEvent) => unknown) | null;
+    onend: ((this: SpeechRecognition, ev: Event) => unknown) | null;
+    start(): void;
+    stop(): void;
+    abort(): void;
+  }
+
+  var SpeechRecognition: {
+    prototype: SpeechRecognition;
+    new (): SpeechRecognition;
+  };
 }
 
 /**
  * Hook para reconocimiento de voz usando la Web Speech API del navegador.
  * Compatible con Chrome y Edge. Firefox requiere una flag experimental.
  */
-export function useSpeechRecognition(): UseSpeechRecognitionReturn {
+export function useSpeechRecognition(options: UseSpeechRecognitionOptions = {}): UseSpeechRecognitionReturn {
   const SpeechRecognitionAPI =
     typeof window !== 'undefined'
       ? window.SpeechRecognition || window.webkitSpeechRecognition
@@ -36,6 +68,13 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
   const [transcript, setTranscript] = useState('');
   const [error, setError] = useState<string | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+
+  // El callback se guarda en un ref para que `startListening` (useCallback de
+  // dependencias fijas) siempre invoque la última versión sin recrearse.
+  const onFinalTextRef = useRef<((text: string) => void) | null>(null);
+  useEffect(() => {
+    onFinalTextRef.current = options.onFinalText ?? null;
+  }, [options.onFinalText]);
 
   useEffect(() => {
     return () => {
@@ -82,8 +121,10 @@ export function useSpeechRecognition(): UseSpeechRecognitionReturn {
       });
 
       if (finalText) {
-        setTranscript(finalText.trim());
+        const texto = finalText.trim();
+        setTranscript(texto);
         setState('processing');
+        onFinalTextRef.current?.(texto);
       }
     };
 

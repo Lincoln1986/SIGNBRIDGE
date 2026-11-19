@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/auth-context';
 import { Card, Btn } from '../components/UI';
 
 const CONFIG: Record<string, { icon: string; title: string; desc: string }> = {

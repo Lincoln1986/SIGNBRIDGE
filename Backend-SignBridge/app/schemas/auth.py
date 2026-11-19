@@ -2,6 +2,7 @@
 from pydantic import BaseModel, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
+from urllib.parse import urlparse
 import re
 
 
@@ -24,6 +25,20 @@ def _validate_strong_password(v: str) -> list[str]:
     if not re.search(r'[!@#$%^&*()\-_=+\[\]{};:\'",.<>/?\\|`~]', v):
         errors.append('Debe incluir al menos un carácter especial (!@#$%...)')
     return errors
+
+
+# ── Validador de URL de video (reutilizable) ──────────────────────────────────
+
+def _validate_video_url(v: str) -> str:
+    """Solo acepta http/https con host.
+
+    Rechaza vacío, rutas relativas y otros esquemas como `javascript:`.
+    """
+    v = v.strip()
+    parsed = urlparse(v)
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise ValueError('El video_url debe ser una URL http o https válida')
+    return v
 
 
 # ── Registro ──────────────────────────────────────────────────────────────────
@@ -168,9 +183,29 @@ class LexicalUnitCreate(BaseModel):
     language:  str = "es_Co"
     video_url: Optional[str] = None
 
+    @field_validator('text')
+    @classmethod
+    def validate_text_length(cls, v: str) -> str:
+        """La columna es VARCHAR(100): se rechaza antes de llegar a la base de datos."""
+        if len(v) > 100:
+            raise ValueError('El texto no puede superar los 100 caracteres')
+        return v
+
+    @field_validator('video_url')
+    @classmethod
+    def validate_video_url(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        return _validate_video_url(v)
+
 
 class LexicalUnitVideoUpdate(BaseModel):
     video_url: str
+
+    @field_validator('video_url')
+    @classmethod
+    def validate_video_url(cls, v: str) -> str:
+        return _validate_video_url(v)
 
 # ── Gestión de usuarios (admin) ───────────────────────────────────────────────
 

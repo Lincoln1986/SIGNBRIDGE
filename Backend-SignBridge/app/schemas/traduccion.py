@@ -74,9 +74,9 @@ class TextoTraduccionRequest(BaseModel):
     @field_validator("texto")
     @classmethod
     def normalize_text(cls, v: str) -> str:
-        v = v.strip()
-        # Eliminar caracteres especiales que no aportan a la traducción
-        v = re.sub(r"[^\w\s áéíóúüñÁÉÍÓÚÜÑ.,!?¿¡'-]", "", v)
+        # Eliminar caracteres especiales que no aportan a la traducción.
+        # El strip() va DESPUÉS: si no, "hola 😀" quedaba guardado como "hola ".
+        v = re.sub(r"[^\w\s áéíóúüñÁÉÍÓÚÜÑ.,!?¿¡'-]", "", v).strip()
         if not v:
             raise ValueError("El texto no puede estar vacío o contener sólo caracteres especiales.")
         return v
@@ -135,8 +135,7 @@ class VozTraduccionRequest(BaseModel):
     @field_validator("texto_dictado")
     @classmethod
     def normalize_dictated(cls, v: str) -> str:
-        v = v.strip()
-        v = re.sub(r"[^\w\s áéíóúüñÁÉÍÓÚÜÑ.,!?¿¡'-]", "", v)
+        v = re.sub(r"[^\w\s áéíóúüñÁÉÍÓÚÜÑ.,!?¿¡'-]", "", v).strip()
         if not v:
             raise ValueError("El texto dictado no puede estar vacío.")
         return v

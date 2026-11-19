@@ -38,9 +38,20 @@ export default function SignSequencePlayer({
 }: SignSequencePlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [ytPlayer, setYtPlayer] = useState<YT.Player | null>(null);
+  // El player de YouTube es un objeto imperativo: vive en un ref (no en
+  // estado) para que crear/destruir el player no provoque renders.
+  const ytPlayerRef = useRef<YTPlayer | null>(null);
   const ytContainerRef = useRef<HTMLDivElement | null>(null);
   const ytPlayerReadyRef = useRef(false);
+
+  // ── Resetear al inicio cuando cambian las señas ──────────────────────────
+  // Se ajusta durante el render (patrón de React "adjusting state when a prop
+  // changes") en vez de con un effect que haga setState síncrono.
+  const [signsPrevios, setSignsPrevios] = useState(signs);
+  if (signs !== signsPrevios) {
+    setSignsPrevios(signs);
+    setCurrentIndex(0);
+  }
 
   // Solo señas con video encontrado
   const playableSigns = signs.filter(s => s.found && s.video_url);
@@ -63,9 +74,9 @@ export default function SignSequencePlayer({
     if (!ytContainerRef.current) return;
 
     // Destruir player anterior si existe
-    if (ytPlayer) {
-      try { ytPlayer.destroy(); } catch { /* ok */ }
-      setYtPlayer(null);
+    if (ytPlayerRef.current) {
+      try { ytPlayerRef.current.destroy(); } catch { /* ok */ }
+      ytPlayerRef.current = null;
       ytPlayerReadyRef.current = false;
     }
 
@@ -108,11 +119,11 @@ export default function SignSequencePlayer({
             },
           },
         });
-        setYtPlayer(player);
+        ytPlayerRef.current = player;
       } catch { /* player init failed */ }
     };
     initPlayer();
-  }, [total, ytPlayer]);
+  }, [total]);
 
   // ── Cuando cambia currentIndex, reproducir el video correspondiente ──────
   useEffect(() => {
@@ -129,11 +140,6 @@ export default function SignSequencePlayer({
       }
     }
   }, [currentIndex, current, createYtPlayer]);
-
-  // ── Resetear al inicio cuando cambian las señas ──────────────────────────
-  useEffect(() => {
-    setCurrentIndex(0);
-  }, [signs]);
 
   // ── Handlers de navegación ───────────────────────────────────────────────
   const goNext = useCallback(() => {

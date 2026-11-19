@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { authApi } from '../api/client';
-import { Logo, Btn, Alert, Card, PasswordInput, PasswordRequirements } from '../components/UI';
+import { Logo, Btn, Alert, Card, Input, PasswordInput, PasswordRequirements } from '../components/UI';
 import { Footer } from '../components/Footer';
+import { contrasenaValida } from '../utils/contrasena';
 
 // ── Componente de countdown reutilizable ──────────────────────────────────────
 function RedirectCountdown({ seconds, to, navigate }: { seconds: number; to: string; navigate: ReturnType<typeof useNavigate> }) {
@@ -140,7 +141,6 @@ export function ForgotPassword() {
 // ── ResetPassword ─────────────────────────────────────────────────────────────
 export function ResetPassword() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
   const token = params.get('token') ?? '';
 
   const [password, setPassword] = useState('');
@@ -153,12 +153,7 @@ export function ResetPassword() {
     e.preventDefault();
     setError('');
 
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[^A-Za-z0-9]/.test(password);
-
-    if (password.length < 8 || !hasUpper || !hasLower || !hasNumber || !hasSpecial) {
+    if (!contrasenaValida(password)) {
       setError('La contraseña debe tener al menos 8 caracteres, una mayúscula, una minúscula, un número y un carácter especial');
       return;
     }
@@ -171,8 +166,10 @@ export function ResetPassword() {
     try {
       await authApi.resetPassword(token, password);
       setSuccess(true);
-    } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Token inválido o expirado');
+    } catch (err) {
+      const detalle = (err as { response?: { data?: { detail?: string } } })
+        .response?.data?.detail;
+      setError(detalle ?? 'Token inválido o expirado');
     } finally {
       setLoading(false);
     }

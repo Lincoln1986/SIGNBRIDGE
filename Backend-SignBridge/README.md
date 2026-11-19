@@ -6,31 +6,36 @@ API REST construida con **FastAPI + PostgreSQL** para la aplicación de traducci
 
 ## Requisitos
 
-- Python 3.11+
-- PostgreSQL 14+ con la base de datos `sign_bridge` ya creada y el script SQL ejecutado
+- Python 3.11+ y [uv](https://docs.astral.sh/uv/)
+- PostgreSQL 14+ con la base de datos `sign_bridge` ya creada, **o** SQLite
+  para desarrollo local sin Docker (ver nota al final de la instalación)
 
 ---
 
 ## Instalación rápida
 
 ```bash
-# 1. Clonar / descomprimir el proyecto
-cd sign_bridge
+# 1. Descomprimir / clonar el proyecto y entrar al backend
+cd Backend-SignBridge
 
-# 2. Crear entorno virtual
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+# 2. Instalar dependencias exactas del lockfile
+uv sync --frozen
 
-# 3. Instalar dependencias
-pip install -r requirements.txt
-
-# 4. Configurar variables de entorno
+# 3. Configurar variables de entorno
 cp .env.example .env
 # Edita .env con tus credenciales de PostgreSQL y Mailtrap
 
+# 4. Crear/esquematizar la base de datos con Alembic
+uv run alembic upgrade head
+
 # 5. Arrancar el servidor
-uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000
 ```
+
+> **Modo local sin Docker:** si en `.env` dejas
+> `DATABASE_URL=sqlite:///./signbridge-local.db`, el paso 4 crea el archivo de
+> SQLite (quedado en `.gitignore`) y no necesitas PostgreSQL. El job
+> `Database Integration` de CI sí valida las migraciones contra PostgreSQL 17.
 
 La API queda disponible en: http://localhost:8000  
 Documentación interactiva: http://localhost:8000/docs
@@ -120,7 +125,7 @@ sign_bridge/
 │       ├── support.py       # /support/* — CRUD tickets de soporte
 │       ├── favorites.py     # /favorites/* — CRUD palabras favoritas
 │       └── admin_users.py   # /admin/users/* — CRUD usuarios (admin)
-├── requirements.txt
+├── uv.lock
 ├── .env.example
 └── README.md
 ```
