@@ -22,7 +22,8 @@ export default defineConfig({
       reporter: ['text', 'text-summary'],
       // trinquete de cobertura: sube en cada sprint, nunca baja.
       // Cierre S4 (11 nov): real 45.77 / 44.27 / 40.39 / 40.29 → redondeado hacia abajo
-      thresholds: { lines: 45, functions: 40, statements: 44, branches: 40 },
+      // Cierre S6 (18 nov): real 83.13 / 80.06 / 74.06 / 77.74 → redondeado hacia abajo
+      thresholds: { lines: 83, functions: 74, statements: 80, branches: 77 },
       include: ['src/**/*.{ts,tsx}'],
       exclude: ['src/**/*.test.{ts,tsx}', 'src/test/**', 'src/main.tsx'],
     },
