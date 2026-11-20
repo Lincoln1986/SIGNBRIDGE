@@ -1,6 +1,17 @@
-from fastapi import FastAPI
+import logging
+from typing import List
+
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from app.core.config import get_settings
+from app.core.database import get_db
+from app.core.security import get_current_user, require_admin
+from app.models.user import User
+from app.schemas.auth import AdminDashboardRow, SystemStats, UserDashboardRow
 from app.routers import auth, dashboard, traduccion
 from app.routers import regions, messages, feedback, support, favorites
 from app.routers import admin_users
@@ -25,10 +36,6 @@ app = FastAPI(
 # Sin esto, un fallo no previsto (la BD caída, un bug) respondía 500 en texto
 # plano ("Internal Server Error"): el frontend lee error.response.data.detail
 # y no encontraba nada. El detalle real queda en el log del servidor.
-import logging
-
-from fastapi import Request
-from fastapi.responses import JSONResponse
 
 
 @app.exception_handler(Exception)
@@ -60,14 +67,6 @@ app.include_router(stats.router)
 app.include_router(notifications.router)
 
 # Aliases de dashboard con prefijos directos (GET /admin/dashboard, etc.)
-from fastapi import Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import text
-from app.core.database import get_db
-from app.core.security import get_current_user, require_admin
-from app.models.user import User
-from app.schemas.auth import AdminDashboardRow, UserDashboardRow, SystemStats
-from typing import List
 
 @app.get("/admin/dashboard", response_model=List[AdminDashboardRow], tags=["Dashboards"])
 def admin_dashboard_alias(db: Session = Depends(get_db), _admin: User = Depends(require_admin)):
