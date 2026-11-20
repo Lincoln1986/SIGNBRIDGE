@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/auth-context';
 import { dashboardApi } from '../api/client';
 import type { UserDashboardRow } from '../api/client';
+import { primerNombre, saludoPorHora } from '../utils/saludo';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Static data
@@ -62,9 +63,8 @@ export default function Home() {
   const [openSection, setOpenSection] = useState<number | null>(null);
   const [stats, setStats] = useState<UserDashboardRow | null>(null);
 
-  const firstName = user?.full_name?.split(' ')[0] ?? 'Usuario';
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
+  const firstName = primerNombre(user?.full_name);
+  const greeting = saludoPorHora(new Date().getHours());
 
   // Ruta del panel según el rol: Admin -> /admin, Soporte -> /support, resto -> /dashboard
   const panelPath = isAdmin ? '/admin' : isSupport ? '/support' : '/dashboard';
