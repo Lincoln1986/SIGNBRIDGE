@@ -6,10 +6,11 @@ import uuid
 
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin
-from app.models.user import User, LexicalUnit
+from app.models.user import User, LexicalUnit, Role
 from app.schemas.auth import (
-    AdminDashboardRow, UserDashboardRow, SystemStats, UserProfile,
+    AdminDashboardRow, UserDashboardRow, SystemStats,
     LexicalUnitOut, LexicalUnitCreate, LexicalUnitVideoUpdate,
+    UserAdminRow, UserRoleUpdate,
 )
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -216,9 +217,6 @@ def delete_lexical_unit(
     unit.deleted_at = datetime.now(timezone.utc)
     db.commit()
 # ── Gestión de usuarios (solo admin) ─────────────────────────────────────────
-
-from app.models.user import Role
-from app.schemas.auth import UserAdminRow, UserRoleUpdate
 
 
 @router.get("/users/admin", response_model=List[UserAdminRow])

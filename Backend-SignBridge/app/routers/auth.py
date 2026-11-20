@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from sqlalchemy import func, text
+from sqlalchemy import func
 import uuid
 
 from app.core.database import get_db
