@@ -1,15 +1,19 @@
 # =============================================================================
-# SignBridge — pipeline de pruebas (Sprint S1 → S7)
+# SignBridge — pipeline de pruebas y calidad (Sprint S1 → S7)
 #
-# 5 jobs obligatorios, todos en paralelo. El ruleset de la rama main debe
-# exigir este check antes de fusionar (ver docs/estrategia-pruebas.md):
+# 7 jobs, todos en paralelo. El ruleset de main exige que pasen antes de
+# fusionar (ver docs/estrategia-pruebas.md):
 #
-#   1. frontend-tests       → vitest con trinquete de cobertura ≥30% (S1)
-#   2. backend-tests        → pytest con trinquete de cobertura ≥55% (S1)
-#   3. database-integration → alembic upgrade head sobre postgres-test
-#                             antes de lanzar la suite (S5)
-#   4. e2e-tests            → Playwright: flujo de login (S1/S6)
-#   5. security-audit       → pnpm audit + pip-audit concurrentes (S7)
+#   1. frontend-tests       → vitest + umbrales de cobertura (vite.config.ts)
+#   2. backend-tests        → pytest + --cov-fail-under (pyproject.toml)
+#   3. code-quality         → pnpm lint, pnpm build y ruff (S7)
+#   4. database-integration → alembic upgrade head sobre Postgres + suite
+#   5. e2e-tests            → Playwright: registro, login por rol, traducción
+#   6. security-audit       → pnpm audit + pip-audit
+#   7. evidencia-individual → commits de test por autor en la semana
+#
+# Cada corrida guarda artefactos: cobertura-frontend, cobertura-backend y
+# playwright-report (se descargan al final de la corrida en Actions).
 # =============================================================================
 
 name: Tests
@@ -43,7 +47,14 @@ jobs:
       - name: Instalar dependencias (sin comodines, lockfile exacto)
         run: pnpm install --frozen-lockfile
       - name: Tests unitarios con cobertura (umbral en vite.config.ts)
-        run: pnpm test:coverage
+        run: pnpm test:coverage --coverage.reporter=text-summary --coverage.reporter=html --coverage.reporter=json-summary
+      - name: Guardar reporte de cobertura del frontend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-frontend
+          path: Frontend-SignBridge/coverage/
+          retention-days: 14
 
   backend-tests:
     name: Backend Tests
@@ -61,7 +72,52 @@ jobs:
       - name: Instalar dependencias (uv.lock exacto)
         run: uv sync --frozen
       - name: Tests con cobertura (umbral en pyproject.toml)
-        run: uv run pytest
+        run: uv run pytest --cov-report=xml --cov-report=html
+      - name: Guardar reporte de cobertura del backend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-backend
+          path: |
+            Backend-SignBridge/htmlcov/
+            Backend-SignBridge/coverage.xml
+          retention-days: 14
+
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ── Frontend: ESLint y compilación de producción ──
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - name: Instalar dependencias del frontend
+        working-directory: Frontend-SignBridge
+        run: pnpm install --frozen-lockfile
+      - name: Lint del frontend (ESLint)
+        working-directory: Frontend-SignBridge
+        run: pnpm lint
+      - name: Build de producción (TypeScript + Vite)
+        working-directory: Frontend-SignBridge
+        run: pnpm build
+      # ── Backend: ruff (reglas en [tool.ruff] de pyproject.toml) ──
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Instalar Python 3.12 y dependencias
+        working-directory: Backend-SignBridge
+        run: |
+          uv python install 3.12
+          uv sync --frozen
+      - name: Lint del backend (ruff)
+        working-directory: Backend-SignBridge
+        run: uv run ruff check app tests
 
   database-integration:
     name: Database Integration
@@ -123,12 +179,25 @@ jobs:
           cache: pnpm
           cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - name: Instalar Chromium de Playwright
+      - name: Versión de Playwright (llave de la caché)
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Caché del navegador de Playwright
+        id: cache-navegador
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Instalar Chromium de Playwright (solo si no está en caché)
+        if: steps.cache-navegador.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium
-      - name: Flujos E2E (login)
+      - name: Dependencias del sistema para Chromium (con caché)
+        if: steps.cache-navegador.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - name: Flujos E2E críticos (registro, login por rol, traducción)
         run: pnpm test:e2e
       - uses: actions/upload-artifact@v4
-        if: failure()
+        if: always()
         with:
           name: playwright-report
           path: Frontend-SignBridge/playwright-report/
