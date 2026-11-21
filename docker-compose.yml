@@ -82,7 +82,16 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # Antes de arrancar la API aplica las migraciones de Alembic: la base queda
+    # siempre en la última versión del esquema, sin correr SQL a mano.
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    # Sano = /health responde 200. El frontend espera a que esto pase.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
     networks:
       - web_network
       - db_network
@@ -101,7 +110,8 @@ services:
       - ./Frontend-SignBridge:/app
       - /app/node_modules
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - web_network
 

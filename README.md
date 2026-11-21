@@ -68,28 +68,18 @@ docker compose up -d --build
 La primera vez tarda varios minutos: descarga las imágenes, instala las
 dependencias de Python y de Node, y compila.
 
-### Cargar la base de datos
+### Base de datos: se crea sola
 
-El contenedor de PostgreSQL arranca con la base vacía. Hay que cargar la
-estructura y las migraciones **en este orden**:
+No hay que correr ningún archivo `.sql`. Al arrancar, el backend ejecuta
+`alembic upgrade head`: crea las tablas, las vistas y los roles base, y deja la
+base en la última versión del esquema. Las siguientes veces solo aplica las
+migraciones nuevas.
+
+Para comprobarlo:
 
 ```bash
-# 1. Estructura base
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Base-de-datos/schema.sql
-
-# 2. Migraciones, en orden
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/add_is_active_to_user.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/create_message_table.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/cleanup_duplicate_roles.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/add_solution_and_word_rating.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Base-de-datos/migracion_02_voto_unico.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Base-de-datos/migracion_03_notificaciones.sql
-```
-
-En Windows con PowerShell, si el `<` da problemas, usá:
-
-```powershell
-Get-Content Base-de-datos\schema.sql | docker exec -i signbridge_postgres psql -U postgres -d signbridge
+docker compose logs backend | grep alembic   # "Running upgrade ... -> ..."
+docker compose ps                            # backend en estado "healthy"
 ```
 
 ### Verificar
@@ -119,8 +109,8 @@ docker compose down -v             # detener Y BORRAR la base de datos
 
 ## Cuentas de prueba
 
-Si cargaste un respaldo con datos, usá las credenciales del equipo. Si partiste
-de `schema.sql` la base queda sin usuarios: registrá uno desde la aplicación y
+Si cargaste un respaldo con datos, usá las credenciales del equipo. Con la base
+recién creada por Alembic no hay usuarios: registrá uno desde la aplicación y
 asignale el rol desde la base:
 
 ```sql
@@ -164,11 +154,6 @@ SIGNBRIDGE/
 │   ├── package.json             # versiones exactas (sin ^ ni ~)
 │   └── pnpm-lock.yaml           # árbol determinista de paquetes
 │
-├── Base-de-datos/               # estructura y migraciones de PostgreSQL
-│   ├── schema.sql
-│   ├── migracion_02_voto_unico.sql
-│   └── migracion_03_notificaciones.sql
-│
 ├── DOCS/                        # documentación del proyecto formativo
 │   ├── HISTORIAS_DE_USUARIO.md
 │   ├── ESTIMACION_SPRINTS.md
@@ -184,25 +169,30 @@ SIGNBRIDGE/
 
 ## Base de datos
 
-PostgreSQL 17. El esquema tiene 16 tablas, 4 vistas, funciones y triggers.
+PostgreSQL 17. El esquema tiene 17 tablas y 4 vistas.
 
-### Migraciones
+### Migraciones (solo Alembic)
 
-| Archivo | Qué agrega |
+El esquema se maneja **únicamente con migraciones de Alembic** en
+`Backend-SignBridge/alembic/versions/`. No se usan scripts SQL manuales: cada
+cambio queda versionado, en orden, y se aplica igual en desarrollo, en el CI y
+en producción.
+
+| Migración | Qué hace |
 |---|---|
-| `add_is_active_to_user.sql` | Columna `is_active` para desactivar cuentas |
-| `create_message_table.sql` | Tabla `Message` para mensajería interna |
-| `cleanup_duplicate_roles.sql` | Unifica el rol Soporte y elimina duplicados |
-| `add_solution_and_word_rating.sql` | `Support.solution`, `Feedback.id_lexicalunit` y `Feedback.support_response` |
-| `migracion_02_voto_unico.sql` | Índice único: un voto por usuario y por palabra |
-| `migracion_03_notificaciones.sql` | Tabla `Notification` para los avisos in-app |
+| `18c15e7dc120_baseline_esquema_inicial_signbridge` | Las 17 tablas del sistema |
+| `0a9ba8b6906c_vistas_vw__para_dashboards_sql_portable_` | Las 4 vistas `vw_*` de los dashboards |
+| `3fcd44fad4e6_seed_roles_base_del_sistema` | Roles Cliente, Administrador y Soporte |
 
-### Regenerar el esquema
+### Cambiar el esquema
 
-Después de un cambio estructural:
+1. Modificá el modelo en `app/models/`.
+2. Generá la migración y revisala antes de subirla:
 
 ```bash
-docker exec -t signbridge_postgres pg_dump -U postgres -d signbridge --schema-only > Base-de-datos/schema.sql
+cd Backend-SignBridge
+uv run alembic revision --autogenerate -m "descripcion del cambio"
+uv run alembic upgrade head
 ```
 
 ### Respaldos con datos reales
