@@ -47,7 +47,8 @@ select = ["E4", "E7", "E9", "F"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # cov-fail-under: trinquete de cobertura. Sube en cada sprint, nunca baja.
-addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=79"
+# Cierre S7 (20 nov): real 88.09 → 88.
+addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=88"
 markers = [
     "integracion: pruebas contra PostgreSQL real; necesitan TEST_DATABASE_URL",
 ]
