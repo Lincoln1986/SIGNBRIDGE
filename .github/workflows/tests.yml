@@ -8,12 +8,13 @@
 #   2. backend-tests        → pytest + --cov-fail-under (pyproject.toml)
 #   3. code-quality         → pnpm lint, pnpm build y ruff (S7)
 #   4. database-integration → alembic upgrade head sobre Postgres + suite
+#                             + colección de Postman con Newman (S7)
 #   5. e2e-tests            → Playwright: registro, login por rol, traducción
 #   6. security-audit       → pnpm audit + pip-audit
 #   7. evidencia-individual → commits de test por autor en la semana
 #
 # Cada corrida guarda artefactos: cobertura-frontend, cobertura-backend y
-# playwright-report (se descargan al final de la corrida en Actions).
+# playwright-report y newman-report (se descargan al final de la corrida).
 # =============================================================================
 
 name: Tests
@@ -161,6 +162,34 @@ jobs:
         run: uv run pytest
       - name: Integración en Postgres (corrida 2, debe ser estable)
         run: uv run pytest tests/integracion --no-cov
+      # ── Pruebas de contrato de la API con Postman + Newman ──
+      # La API corre de verdad (uvicorn + Postgres) y Newman ejecuta la
+      # colección de postman/: cada petición valida el código y el cuerpo.
+      # Se usa el uvicorn del .venv directo (no `uv run`): un `uv run` que
+      # queda corriendo bloquea la caché de uv y el paso de limpieza de
+      # setup-uv falla al final del job.
+      - name: Levantar la API para Newman
+        run: |
+          nohup .venv/bin/uvicorn app.main:app --port 8000 > api.log 2>&1 &
+          echo $! > api.pid
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+      - name: Colección de Postman con Newman
+        run: >-
+          npx --yes newman@6.2.1 run ../postman/SignBridge.postman_collection.json
+          -e ../postman/local.postman_environment.json
+          --reporters cli,junit --reporter-junit-export newman-report.xml
+      - name: Detener la API
+        if: always()
+        run: kill "$(cat api.pid)" 2>/dev/null || true
+      - name: Guardar reporte de Newman
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-report
+          path: |
+            Backend-SignBridge/newman-report.xml
+            Backend-SignBridge/api.log
+          retention-days: 14
 
   e2e-tests:
     name: End-to-End Tests
