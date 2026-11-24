@@ -183,6 +183,7 @@ en producción.
 | `18c15e7dc120_baseline_esquema_inicial_signbridge` | Las 17 tablas del sistema |
 | `0a9ba8b6906c_vistas_vw__para_dashboards_sql_portable_` | Las 4 vistas `vw_*` de los dashboards |
 | `3fcd44fad4e6_seed_roles_base_del_sistema` | Roles Cliente, Administrador y Soporte |
+| `7b2e5c1d9a40_voto_unico_por_palabra` | Un solo voto activo por usuario y palabra (índice único parcial) |
 
 ### Cambiar el esquema
 

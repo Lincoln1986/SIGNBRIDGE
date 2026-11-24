@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, ForeignKey, Integer, Boolean, Text, func, text
+from sqlalchemy import Column, String, DateTime, ForeignKey, Index, Integer, Boolean, Text, func, text
 from sqlalchemy.orm import relationship
 from app.core.database import Base
 
@@ -169,8 +169,22 @@ class DeviceConfiguration(Base):
     user = relationship("User", back_populates="device_config")
 
 
+# Votos de palabra activos: uno por usuario y palabra (issue #45).
+# Índice parcial: no toca las valoraciones de sesión (id_lexicalunit NULL)
+# ni las borradas, que se conservan por trazabilidad.
+_VOTO_PALABRA_ACTIVO = "id_lexicalunit IS NOT NULL AND deleted_at IS NULL"
+
+
 class Feedback(Base):
     __tablename__ = "Feedback"
+    __table_args__ = (
+        Index(
+            "uq_feedback_usuario_palabra", "id_user", "id_lexicalunit",
+            unique=True,
+            postgresql_where=text(_VOTO_PALABRA_ACTIVO),
+            sqlite_where=text(_VOTO_PALABRA_ACTIVO),
+        ),
+    )
 
     id_feedback = Column(String(36), primary_key=True)
     id_user = Column(String(36), ForeignKey("User.id_user"))
