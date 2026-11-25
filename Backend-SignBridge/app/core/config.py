@@ -20,7 +20,10 @@ class Settings(BaseSettings):
 
     # App
     APP_NAME: str = "Sign_Bridge"
-    FRONTEND_URL: str = "http://localhost:3000"
+    # Puerto de Vite (pnpm dev) y del frontend en Docker. Antes era 3000: el
+    # navegador bloqueaba por CORS el frontend local y los enlaces de los
+    # correos (recuperar contraseña) apuntaban a un puerto donde no hay nada.
+    FRONTEND_URL: str = "http://localhost:5173"
 
     class Config:
         env_file = ".env"
