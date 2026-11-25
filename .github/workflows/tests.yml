@@ -10,6 +10,7 @@
 #   4. database-integration → alembic upgrade head sobre Postgres + suite
 #                             + colección de Postman con Newman (S7)
 #   5. e2e-tests            → Playwright: registro, login por rol, traducción
+#                             + E2E real contra el backend, sin page.route (S7)
 #   6. security-audit       → pnpm audit + pip-audit
 #   7. evidencia-individual → commits de test por autor en la semana
 #
@@ -197,6 +198,27 @@ jobs:
     defaults:
       run:
         working-directory: Frontend-SignBridge
+    # Base real para el E2E sin simulación (e2e/real)
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: signbridge_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:admin@localhost:5432/signbridge_e2e
+      SECRET_KEY: segredo-de-ci-e2e
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_FROM: ci@test.com
+      FRONTEND_URL: http://localhost:5173
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -225,11 +247,33 @@ jobs:
         run: pnpm exec playwright install-deps chromium
       - name: Flujos E2E críticos (registro, login por rol, traducción)
         run: pnpm test:e2e
+      # ── E2E real: el navegador contra el backend de verdad, sin page.route ──
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Backend para el E2E real (Python 3.12 + Alembic)
+        working-directory: Backend-SignBridge
+        run: |
+          uv python install 3.12
+          uv sync --frozen
+          .venv/bin/alembic upgrade head
+          nohup .venv/bin/uvicorn app.main:app --port 8000 > api-e2e.log 2>&1 &
+          echo $! > api-e2e.pid
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+      - name: E2E real sin simulación (registro y login contra el backend)
+        run: pnpm exec playwright test -c playwright.real.config.ts
+      - name: Detener el backend del E2E real
+        if: always()
+        working-directory: Backend-SignBridge
+        run: kill "$(cat api-e2e.pid)" 2>/dev/null || true
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: playwright-report
-          path: Frontend-SignBridge/playwright-report/
+          path: |
+            Frontend-SignBridge/playwright-report/
+            Frontend-SignBridge/playwright-report-real/
+            Backend-SignBridge/api-e2e.log
           retention-days: 7
 
   security-audit:
