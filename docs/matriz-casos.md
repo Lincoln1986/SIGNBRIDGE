@@ -18,6 +18,8 @@ crea un issue con la etiqueta `defecto` y su severidad, y pon el número en *Iss
 
 ---
 
+> **Nota (25 nov):** el CP-18 se re-ejecutó después de fusionar el arreglo del #45. Los resultados del 24 se subieron directo a `develop` sin PR; esta corrección sí pasa por PR y revisión.
+
 ## Casos
 
 | ID | HU | Caso | Precondición | Pasos | Resultado esperado | Prioridad | Resultado | Issue |
@@ -39,7 +41,7 @@ crea un issue con la etiqueta `defecto` y su severidad, y pon el número en *Iss
 | CP-15 | HU-04 | Reproducción secuencial | Sesión de Cliente | Traducir "hola amigo" | Los videos se reproducen uno después del otro | Media | ✅ Pasa | |
 | CP-16 | HU-12 | Buscar en el vocabulario | Sesión de Cliente | Buscar "agua" en Vocabulario | Muestra la seña con su video | Media | ✅ Pasa | |
 | CP-17 | HU-06 | Valorar una traducción | CP-11 hecho | Dar 5 estrellas con un comentario | Valoración guardada y aparece en "Mis valoraciones" | Media | ✅ Pasa | |
-| CP-18 | HU-06 | Votar la misma palabra dos veces | CP-17 hecho | Volver a calificar la misma palabra | Debe quedar **un solo voto** por usuario y palabra (issue #45) | Alta | ✅ Pasa | |
+| CP-18 | HU-06 | Votar la misma palabra dos veces | CP-17 hecho | Volver a calificar la misma palabra | Debe quedar **un solo voto** por usuario y palabra (issue #45) | Alta | ✅ Pasa (re-ejecutado 25 nov, con #45 corregido) | |
 | CP-19 | HU-07 | Crear ticket de soporte | Sesión de Cliente | Escribir asunto y mensaje, enviar | Ticket en "Pendiente" y aparece en mis tickets | Alta | ✅ Pasa | |
 | CP-20 | HU-07 | Editar ticket ya tomado | CP-19 hecho y Soporte lo pasó a "En proceso" | El Cliente intenta editarlo | No deja editar (409) | Media | ✅ Pasa | |
 | CP-21 | HU-24 | Soporte resuelve un ticket | CP-19 hecho, sesión de Soporte | Cambiar a "Resuelto" sin escribir solución | Rechaza: la solución es obligatoria | Alta | ✅ Pasa | |
