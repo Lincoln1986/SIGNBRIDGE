@@ -12,15 +12,22 @@ export function Logo({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const textSize = size === 'lg' ? '1.5rem' : size === 'md' ? '1.15rem' : '0.95rem';
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <svg width={px} height={px} viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="48" height="48" rx="12" fill="#5B4FCF"/>
-        <path d="M14 30 C14 22 20 16 28 16 C32 16 35 18 36 21" stroke="#F6A623" strokeWidth="3" strokeLinecap="round"/>
-        <path d="M20 34 C22 28 26 24 32 24" stroke="#F6A623" strokeWidth="3" strokeLinecap="round"/>
-        <circle cx="34" cy="32" r="4" fill="#F6A623"/>
-        <circle cx="16" cy="18" r="3" fill="white" opacity="0.7"/>
-      </svg>
-      <span style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: textSize, color: 'var(--violet)', letterSpacing: '-0.02em' }}>
-        Sign<span style={{ color: 'var(--amber)' }}>Bridge</span>
+      {/* Ícono oficial (las dos manos). El archivo vive en public/ */}
+      <img
+        src="/signbridge-icono.png"
+        alt=""
+        width={px}
+        height={px}
+        style={{ display: 'block', objectFit: 'contain' }}
+      />
+      {/* Wordmark con el mismo degradado azul → menta del logo oficial */}
+      <span style={{
+        fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: textSize, letterSpacing: '-0.02em',
+        background: 'linear-gradient(100deg, #6C8BFF 0%, #2ED9A3 100%)',
+        WebkitBackgroundClip: 'text', backgroundClip: 'text',
+        WebkitTextFillColor: 'transparent', color: 'transparent',
+      }}>
+        SignBridge
       </span>
     </div>
   );
