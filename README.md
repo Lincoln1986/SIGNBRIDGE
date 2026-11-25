@@ -233,10 +233,10 @@ Cifras al cierre de la S7 (24 de noviembre):
 
 | Capa | Comando | Pruebas | Umbral (trinquete) |
 |---|---|---:|---|
-| Backend | `cd Backend-SignBridge && uv run pytest` | 419 | cobertura ≥ 88 % (real 88,2 %) |
+| Backend | `cd Backend-SignBridge && uv run pytest` | 422 | cobertura ≥ 88 % (real 88,2 %) |
 | Integración (PostgreSQL) | `TEST_DATABASE_URL=... uv run pytest tests/integracion` | 18 | — |
 | Frontend | `cd Frontend-SignBridge && pnpm test:coverage` | 305 | líneas ≥ 84 % · statements ≥ 81 % · branches ≥ 78 % · funciones ≥ 75 % |
-| E2E | `cd Frontend-SignBridge && pnpm test:e2e` | 18 | registro, login por rol y traducción (Playwright) |
+| E2E | `cd Frontend-SignBridge && pnpm test:e2e` | 20 | registro, login por rol y traducción (Playwright), 2 contra el backend real |
 | API real | `npx newman@6.2.1 run postman/SignBridge.postman_collection.json -e postman/local.postman_environment.json` | 28 validaciones | todas en verde |
 | Calidad | `uv run ruff check app tests` · `pnpm lint` · `pnpm build` | — | 0 errores |
 | Seguridad | `pnpm audit` / `uv run pip-audit` | — | 0 avisos activos |
