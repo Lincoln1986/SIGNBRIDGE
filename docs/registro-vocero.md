@@ -14,18 +14,19 @@ el trabajo de los demás, no solo el propio.
 
 ## Registro
 
-Llenar **solo con lo que de verdad pasó**. Si una semana no hubo vocero, escribir
-"No se hizo" en vez de inventarlo.
+Durante las semanas S1 a S7 el equipo no llevó registro de vocero: no hubo una
+ronda en la que se eligiera a alguien al azar para responder por el equipo. Desde
+el ensayo del 26 de noviembre se registra cada vez.
 
 | Semana | Fecha | Vocero | Capa o tema preguntado | Pregunta principal | Resultado (Alto / Medio / Bajo) | Qué reforzar |
 |---|---|---|---|---|---|---|
-| S1 | _(llenar)_ | _(llenar)_ | _(llenar)_ | _(llenar)_ | _(llenar)_ | _(llenar)_ |
-| S2 | | | | | | |
-| S3 | | | | | | |
-| S4 | | | | | | |
-| S5 | | | | | | |
-| S6 | | | | | | |
-| S7 | | | | | | |
+| S1 | — | No se hizo | — | — | — | — |
+| S2 | — | No se hizo | — | — | — | — |
+| S3 | — | No se hizo | — | — | — | — |
+| S4 | — | No se hizo | — | — | — | — |
+| S5 | — | No se hizo | — | — | — | — |
+| S6 | — | No se hizo | — | — | — | — |
+| S7 | — | No se hizo | — | — | — | — |
 | Ensayo (26 nov) | 26 nov | _(se elige al azar)_ | | | | |
 | Sustentación (27 nov) | 27 nov | _(lo elige el instructor)_ | | | | |
 
