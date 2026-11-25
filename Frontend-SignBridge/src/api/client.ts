@@ -1,7 +1,12 @@
 import axios from 'axios';
 
+// URL del backend: se toma de VITE_API_URL (Frontend-SignBridge/.env) y, si no
+// está definida, se usa la del entorno local. Antes estaba fija en el código y
+// la variable de .env.example no tenía ningún efecto.
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 const api = axios.create({
-  baseURL: 'http://localhost:8000',
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
 });
 
