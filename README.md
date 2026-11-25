@@ -183,6 +183,7 @@ en producción.
 | `18c15e7dc120_baseline_esquema_inicial_signbridge` | Las 17 tablas del sistema |
 | `0a9ba8b6906c_vistas_vw__para_dashboards_sql_portable_` | Las 4 vistas `vw_*` de los dashboards |
 | `3fcd44fad4e6_seed_roles_base_del_sistema` | Roles Cliente, Administrador y Soporte |
+| `7b2e5c1d9a40_voto_unico_por_palabra` | Un solo voto activo por usuario y palabra (índice único parcial) |
 
 ### Cambiar el esquema
 
@@ -212,25 +213,33 @@ docker exec -i signbridge_postgres psql -U postgres -d signbridge < respaldo.sql
 
 ## Tecnologías
 
-**Backend** — FastAPI 0.143 · SQLAlchemy 2.0 · PostgreSQL 17 · MediaPipe 0.10 ·
-python-jose (JWT) · passlib con bcrypt · aiosmtplib
+**Backend** — FastAPI 0.143 · SQLAlchemy 2.0 · Alembic · PostgreSQL 17 ·
+MediaPipe 0.10 · PyJWT · passlib con bcrypt · aiosmtplib
 
 **Frontend** — React 19 · TypeScript · Vite · React Router · Axios · Recharts ·
 Web Speech API
 
-**Infraestructura** — Docker · Docker Compose · uv (Python) · pnpm (Node) ·
-Alembic · GitHub Actions
+**Infraestructura** — Docker · Docker Compose · nginx · uv (Python) · pnpm (Node) ·
+GitHub Actions
+
+**Pruebas y calidad** — pytest · Vitest · Testing Library · Playwright ·
+Postman + Newman · ruff · ESLint
 
 ---
 
 ## Pruebas
 
-| Capa | Comando | Umbral |
-|---|---|---|
-| Backend | `cd Backend-SignBridge && uv run pytest` | cobertura ≥ 55% (trinquete) |
-| Frontend | `cd Frontend-SignBridge && pnpm test:coverage` | cobertura ≥ 30% (trinquete) |
-| E2E | `cd Frontend-SignBridge && pnpm test:e2e` | flujo de login (Playwright) |
-| Seguridad | `pnpm audit` / `uv run pip-audit` | 0 avisos activos |
+Cifras al cierre de la S7 (24 de noviembre):
+
+| Capa | Comando | Pruebas | Umbral (trinquete) |
+|---|---|---:|---|
+| Backend | `cd Backend-SignBridge && uv run pytest` | 419 | cobertura ≥ 88 % (real 88,2 %) |
+| Integración (PostgreSQL) | `TEST_DATABASE_URL=... uv run pytest tests/integracion` | 18 | — |
+| Frontend | `cd Frontend-SignBridge && pnpm test:coverage` | 305 | líneas ≥ 84 % · statements ≥ 81 % · branches ≥ 78 % · funciones ≥ 75 % |
+| E2E | `cd Frontend-SignBridge && pnpm test:e2e` | 18 | registro, login por rol y traducción (Playwright) |
+| API real | `npx newman@6.2.1 run postman/SignBridge.postman_collection.json -e postman/local.postman_environment.json` | 28 validaciones | todas en verde |
+| Calidad | `uv run ruff check app tests` · `pnpm lint` · `pnpm build` | — | 0 errores |
+| Seguridad | `pnpm audit` / `uv run pip-audit` | — | 0 avisos activos |
 
 Requisitos: `uv` y `pnpm` instalados (los contenedores no los necesitan).
 
@@ -246,9 +255,11 @@ pnpm exec playwright install chromium   # primera vez
 pnpm test:e2e
 ```
 
-Los mismos cinco checks corren en CI (`.github/workflows/tests.yml`) y deben
-estar en verde antes de fusionar en `main`. La estrategia completa está en
-`docs/estrategia-pruebas.md`.
+Los **7 checks** del CI (`.github/workflows/tests.yml`) deben estar en verde
+antes de fusionar: Frontend Tests, Backend Tests, Code Quality, Database
+Integration (incluye Newman), End-to-End Tests, Security Audit y Evidencia
+individual. La estrategia está en `docs/estrategia-pruebas.md` y el plan en
+`docs/plan-pruebas.md`.
 
 ---
 
@@ -273,13 +284,29 @@ el componente `ProtectedRoute`.
 
 ## Documentación del proyecto
 
-En la carpeta `DOCS/`:
+En la carpeta `DOCS/` (proyecto formativo):
 
-- **HISTORIAS_DE_USUARIO.md** — 19 historias del V Trimestre con criterios de
+- **HISTORIAS_DE_USUARIO.md** — historias del V Trimestre con criterios de
   aceptación y estado, más el backlog de los Sprints 8 y 9
 - **ESTIMACION_SPRINTS.md** — planificación con puntaje, capacidad y velocidad
 - **DAILY_SCRUMS.md** — registro de las reuniones diarias
 - **CLICKUP_TRELLO.md** — enlaces a los tableros ágiles
+
+En la carpeta `docs/` (técnica y pruebas):
+
+| Documento | Qué tiene |
+|---|---|
+| `vision-cierre.md` | Avance de las historias y plan del VI trimestre |
+| `backends.md` | Evolución del backend y manejo de la base con Alembic |
+| `arquitectura.md` | Diagramas de contenedores, redes, arranque y CI |
+| `instalacion-desde-cero.md` | Registro de la instalación en un equipo limpio |
+| `estrategia-pruebas.md` | Cómo se prueba cada capa y el pipeline de CI |
+| `plan-pruebas.md` | Alcance, criterios de entrada y salida, cronograma |
+| `matriz-casos.md` | Casos de prueba manuales y su ejecución |
+| `matriz-rotacion.md` | Capa de cada integrante por semana y cobertura semanal |
+| `retrospectivas-s5-s6.md` | Qué funcionó y qué se cambió |
+| `deuda-tecnica.md` | Deuda técnica priorizada |
+| `openapi.json` | Contrato de la API (también en `/docs` con el backend corriendo) |
 
 ---
 
@@ -301,9 +328,10 @@ cambia el Dockerfile.
 `pg_dump --clean` empiezan borrando objetos. Sobre una base vacía esos avisos
 son esperados y no impiden la restauración.
 
-**Un archivo nuevo del backend no se detecta.** El recargado automático de
-uvicorn no siempre detecta archivos creados dentro de volúmenes montados desde
-Windows. Reiniciá el contenedor con `docker compose restart backend`.
+**Cambié código y el contenedor no lo muestra.** Las imágenes son de
+producción: no montan el código. Reconstruí con `docker compose up -d --build`,
+o para desarrollar con recarga automática corré cada parte en local
+(`uv run uvicorn app.main:app --reload` y `pnpm dev`).
 
 ---
 
