@@ -47,7 +47,7 @@ En *Resultado* escribe ✅ o ❌, y en *Tiempo* cuánto tardó el paso.
 
 ### Detalle del paso 3: la `SECRET_KEY`
 
-La `SECRET_KEY` firma los tokens de inicio de sesión. La que viene en `.env.example` (b656f18e5f2748282b745fee191648a5df40ccad1ecc0411809a784334f08449) es pública: con ella cualquiera podría fabricar un token válido y entrar como otro usuario. Por eso cada instalación pone la suya.
+La `SECRET_KEY` firma los tokens de inicio de sesión. La que viene en `.env.example` (cambia_esto_por_una_clave_aleatoria_larga) es pública: con ella cualquiera podría fabricar un token válido y entrar como otro usuario. Por eso cada instalación pone la suya.
 
 1. **3b:** el comando de Python imprime una clave aleatoria. Si no tienes Python, sirve cualquier texto largo y difícil de adivinar (más de 32 caracteres).
 2. **3c:** `notepad .env` abre el archivo en el Bloc de notas. Busca la línea    `SECRET_KEY=cambia_esto_por_una_clave_aleatoria_larga`, reemplaza todo lo que va después del `=` por tu clave y guarda con `Ctrl+S`.
