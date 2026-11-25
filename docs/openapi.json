@@ -1,0 +1,5170 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sign_Bridge",
+    "description": "API REST para la aplicación de traducción de lenguaje de señas Sign Bridge.",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Register",
+        "operationId": "register_auth_register_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRegister"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Login",
+        "operationId": "login_auth_login_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserLogin"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Get Me",
+        "operationId": "get_me_auth_me_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfile"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Forgot Password",
+        "operationId": "forgot_password_auth_forgot_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgotPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": [
+          "Autenticación"
+        ],
+        "summary": "Reset Password",
+        "operationId": "reset_password_auth_reset_password_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/admin": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Admin Dashboard",
+        "description": "Lista todos los usuarios con sus métricas.\nRequiere rol administrador.\nUsa la vista SQL: vw_admin_dashboard",
+        "operationId": "admin_dashboard_dashboard_admin_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminDashboardRow"
+                  },
+                  "type": "array",
+                  "title": "Response Admin Dashboard Dashboard Admin Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/dashboard/user": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "User Dashboard",
+        "description": "Devuelve las métricas del usuario autenticado.\nUsa la vista SQL: vw_user_dashboard",
+        "operationId": "user_dashboard_dashboard_user_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDashboardRow"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/dashboard/stats": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "System Stats",
+        "description": "Estadísticas globales del sistema.\nRequiere rol administrador.\nUsa la vista SQL: vw_system_statistics",
+        "operationId": "system_stats_dashboard_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/dashboard/lexical-units": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "List Lexical Units",
+        "description": "Lista el vocabulario del sistema.\nIncluye id_lexicalunit para que los usuarios puedan marcar favoritos.\nIncluye average_rating y total_ratings: el promedio de estrellas que la\ngente le ha dado a la traducción de cada palabra (calificación por separado\nde la palabra, no de la sesión completa).",
+        "operationId": "list_lexical_units_dashboard_lexical_units_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Create Lexical Unit",
+        "description": "Crea una nueva palabra en el vocabulario. Solo admin.",
+        "operationId": "create_lexical_unit_dashboard_lexical_units_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LexicalUnitCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LexicalUnitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/dashboard/lexical-units/admin": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "List Lexical Units Admin",
+        "description": "Lista todas las palabras con su ID para gestión desde el panel admin.",
+        "operationId": "list_lexical_units_admin_dashboard_lexical_units_admin_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/LexicalUnitOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Lexical Units Admin Dashboard Lexical Units Admin Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/dashboard/lexical-units/{id_lexicalunit}/video": {
+      "patch": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Update Lexical Unit Video",
+        "description": "Actualiza el video_url de una palabra del vocabulario.\nAcepta URLs de YouTube (watch o embed) o cualquier URL directa de video.\nSolo admin.",
+        "operationId": "update_lexical_unit_video_dashboard_lexical_units__id_lexicalunit__video_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_lexicalunit",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Lexicalunit"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LexicalUnitVideoUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LexicalUnitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/lexical-units/{id_lexicalunit}": {
+      "delete": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Delete Lexical Unit",
+        "description": "Elimina (soft delete) una palabra del vocabulario. Solo admin.",
+        "operationId": "delete_lexical_unit_dashboard_lexical_units__id_lexicalunit__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_lexicalunit",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Lexicalunit"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/users/admin": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "List Users Admin",
+        "description": "Lista todos los usuarios con su rol, para gestión desde el panel admin.",
+        "operationId": "list_users_admin_dashboard_users_admin_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserAdminRow"
+                  },
+                  "type": "array",
+                  "title": "Response List Users Admin Dashboard Users Admin Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/dashboard/roles": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "List Roles",
+        "description": "Lista los roles disponibles en el sistema.",
+        "operationId": "list_roles_dashboard_roles_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/dashboard/users/{id_user}/role": {
+      "patch": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Update User Role",
+        "description": "Cambia el rol de un usuario. Solo admin.",
+        "operationId": "update_user_role_dashboard_users__id_user__role_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id User"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRoleUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAdminRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dashboard/users/{id_user}": {
+      "delete": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Delete User",
+        "description": "Elimina (soft delete) un usuario. Solo admin.",
+        "operationId": "delete_user_dashboard_users__id_user__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id User"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/traduccion/frame": {
+      "post": {
+        "tags": [
+          "Traducción LSC"
+        ],
+        "summary": "H03 — Detectar seña desde un frame de video",
+        "description": "Recibe un frame de video del frontend en **Base64** y utiliza MediaPipe Hands\npara detectar la posición de las manos. El resultado se devuelve como el texto\nde la seña detectada junto con el nivel de confianza.\n\n- Si el frame no contiene manos detectables se retorna `detected_sign: null`.\n- Si la imagen no es válida se retorna HTTP 400.\n- Acepta el prefijo `data:image/...;base64,` o el string Base64 puro.",
+        "operationId": "procesar_frame_api_traduccion_frame_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/traduccion/frame/upload": {
+      "post": {
+        "tags": [
+          "Traducción LSC"
+        ],
+        "summary": "H03 — Detectar seña desde archivo de imagen (multipart)",
+        "description": "Alternativa multipart/form-data para enviar el frame como archivo de imagen\ndirectamente (JPEG, PNG, WebP). Útil para clientes que prefieren no codificar\nen Base64.",
+        "operationId": "procesar_frame_multipart_api_traduccion_frame_upload_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_procesar_frame_multipart_api_traduccion_frame_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FrameResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/traduccion/texto": {
+      "post": {
+        "tags": [
+          "Traducción LSC"
+        ],
+        "summary": "H08 — Traducir texto libre a secuencia de señas LSC",
+        "description": "Recibe un texto en español y retorna la secuencia ordenada de unidades léxicas\nen Lengua de Señas Colombiana (LSC) con las URLs de los videos correspondientes.\n\n**Comportamiento para palabras sin traducción:**\n- Se intenta deletrear la palabra letra a letra (alfabeto dactilológico LSC).\n- Si tampoco existe entrada letra a letra, la palabra se incluye en\n  `untranslated_words` y su entrada en `signs` tendrá `found: false`.\n\n**Simplificación lingüística básica:**\n- Se omiten artículos, preposiciones simples y cópulas, ya que LSC\n  generalmente los omite en su gramática visual-gestual.",
+        "operationId": "traducir_texto_api_traduccion_texto_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextoTraduccionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TextoTraduccionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/traduccion/voz": {
+      "post": {
+        "tags": [
+          "Traducción LSC"
+        ],
+        "summary": "H16 — Traducir texto dictado por voz a señas LSC",
+        "description": "Recibe el texto generado por la **Web Speech API** del navegador y lo traduce\na señas en LSC. El frontend convierte el audio a texto antes de enviarlo;\neste endpoint procesa ese texto de la misma forma que `/api/traduccion/texto`.\n\n**Campos adicionales respecto a /texto:**\n- `idioma`: código de idioma detectado por la Web Speech API (ej. `\"es-CO\"`).\n- `texto_reconocido`: eco del texto dictado para confirmación visual.\n\nReutiliza completamente la lógica de traducción de H08.",
+        "operationId": "traducir_voz_api_traduccion_voz_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VozTraduccionRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VozTraduccionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/api/traduccion/calibrar": {
+      "post": {
+        "tags": [
+          "Traducción LSC"
+        ],
+        "summary": "Mediciones de la mano para calibrar el abecedario",
+        "description": "Devuelve las mediciones geométricas crudas de la mano en el frame.\n\nHerramienta de desarrollo para ajustar los umbrales del clasificador del\nabecedario. Se hace la seña frente a la cámara y se comparan los valores\ndevueltos con los umbrales de `app/services/abecedario.py`.\n\nEjemplo: si al hacer la A el campo `pulgar_largo` da 0.62 y el umbral es\n0.80, hay que bajar el umbral. Los valores por defecto se estimaron sin\nmanos reales, así que conviene verificarlos.",
+        "operationId": "calibrar_mano_api_traduccion_calibrar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FrameRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/regions": {
+      "get": {
+        "tags": [
+          "Regiones"
+        ],
+        "summary": "Listar regiones/ciudades",
+        "description": "Devuelve todas las regiones activas ordenadas alfabéticamente por nombre.\nPúblico — no requiere autenticación.\nReemplaza la lista hardcodeada del frontend.",
+        "operationId": "list_regions_regions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/RegionOut"
+                  },
+                  "type": "array",
+                  "title": "Response List Regions Regions Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages": {
+      "post": {
+        "tags": [
+          "Mensajería"
+        ],
+        "summary": "Enviar un mensaje a otro usuario",
+        "description": "Envía un mensaje al usuario indicado en `id_receiver`.\nEl remitente es el usuario autenticado.",
+        "operationId": "send_message_messages_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/messages/conversation/{other_user_id}": {
+      "get": {
+        "tags": [
+          "Mensajería"
+        ],
+        "summary": "Historial de conversación entre dos usuarios",
+        "description": "Devuelve los mensajes entre el usuario autenticado y `other_user_id`,\nordenados de más antiguo a más reciente.",
+        "operationId": "get_conversation_messages_conversation__other_user_id__get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "other_user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Other User Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageOut"
+                  },
+                  "title": "Response Get Conversation Messages Conversation  Other User Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/messages/inbox": {
+      "get": {
+        "tags": [
+          "Mensajería"
+        ],
+        "summary": "Lista de conversaciones del usuario autenticado",
+        "description": "Devuelve un resumen de todas las conversaciones del usuario autenticado,\ncon el último mensaje y la cantidad de mensajes no leídos.",
+        "operationId": "list_conversations_messages_inbox_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/ConversationPreview"
+                  },
+                  "type": "array",
+                  "title": "Response List Conversations Messages Inbox Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/messages/conversation/{other_user_id}/read": {
+      "patch": {
+        "tags": [
+          "Mensajería"
+        ],
+        "summary": "Marcar como leídos los mensajes de una conversación",
+        "description": "Marca como leídos todos los mensajes enviados por `other_user_id`\nal usuario autenticado que aún no tenían `read_at`.",
+        "operationId": "mark_as_read_messages_conversation__other_user_id__read_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "other_user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Other User Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/quick-replies": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Respuestas rápidas disponibles (Soporte o Admin)",
+        "description": "Catálogo de respuestas rápidas. Solo aplican a valoraciones con rating 4 o 5.",
+        "operationId": "list_quick_replies_feedback_quick_replies_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/feedback": {
+      "post": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Crear feedback de una sesión de traducción o de una palabra",
+        "description": "Registra un feedback (rating 1-5 + comentario opcional).\n\n- Si viene `id_session`, es una valoración de la sesión de traducción completa\n  (debe pertenecer al usuario autenticado).\n- Si viene `id_lexicalunit`, es una valoración puntual de la traducción de esa\n  palabra, para poder mostrar su promedio de estrellas por separado.",
+        "operationId": "create_feedback_feedback_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/feedback/my": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Historial de feedback del usuario autenticado",
+        "description": "Devuelve todos los feedbacks del usuario autenticado, del más reciente al más antiguo.",
+        "operationId": "my_feedback_feedback_my_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackOut"
+                  },
+                  "type": "array",
+                  "title": "Response My Feedback Feedback My Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/feedback/word/{id_lexicalunit}/summary": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Promedio de calificación de la traducción de una palabra",
+        "description": "Devuelve cuántas estrellas ha tenido en promedio la traducción de una palabra,\npara que cualquier usuario pueda verlo (por ejemplo en el diccionario).",
+        "operationId": "word_rating_summary_feedback_word__id_lexicalunit__summary_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_lexicalunit",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Lexicalunit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WordRatingSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/all": {
+      "get": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Todas las valoraciones, con datos de quién la dejó (Soporte o Admin)",
+        "description": "Lista todas las valoraciones del sistema junto con el nombre/correo del usuario\nque las dejó. Pensado para el Panel de Soporte (accesible a Soporte y Admin).",
+        "operationId": "all_feedback_feedback_all_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FeedbackOutWithUser"
+                  },
+                  "type": "array",
+                  "title": "Response All Feedback Feedback All Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/feedback/{id_feedback}/review": {
+      "patch": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Marcar/desmarcar una valoración como revisada (exclusivo de Soporte)",
+        "description": "Marca (o desmarca) una valoración como revisada/atendida.\n\nRevisar una valoración es una acción exclusiva de Soporte. Para marcarla como\nrevisada es obligatorio dar una respuesta:\n- Con cualquier rating se puede escribir una respuesta manual (`response`).\n- Solo si el rating es 4 o 5 se desbloquean las respuestas rápidas (`quick_reply`),\n  tomadas del catálogo de GET /feedback/quick-replies.",
+        "operationId": "set_feedback_reviewed_feedback__id_feedback__review_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_feedback",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Feedback"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackReviewUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FeedbackOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/feedback/{id_feedback}": {
+      "delete": {
+        "tags": [
+          "Feedback"
+        ],
+        "summary": "Eliminar (ocultar) una valoración (Soporte o Admin)",
+        "description": "Elimina (soft-delete) una valoración: deja de aparecer en el Panel de Soporte\ny en el promedio general, pero no se borra físicamente de la base de datos.",
+        "operationId": "delete_feedback_feedback__id_feedback__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_feedback",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Feedback"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support": {
+      "post": {
+        "tags": [
+          "Soporte"
+        ],
+        "summary": "Crear ticket de soporte",
+        "description": "Abre un nuevo ticket de soporte para el usuario autenticado.",
+        "operationId": "create_ticket_support_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/support/my": {
+      "get": {
+        "tags": [
+          "Soporte"
+        ],
+        "summary": "Tickets del usuario autenticado",
+        "description": "Lista todos los tickets del usuario autenticado, del más reciente al más antiguo.",
+        "operationId": "my_tickets_support_my_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupportOut"
+                  },
+                  "type": "array",
+                  "title": "Response My Tickets Support My Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/support/admin/all": {
+      "get": {
+        "tags": [
+          "Soporte"
+        ],
+        "summary": "Todos los tickets (solo admin)",
+        "description": "Lista todos los tickets del sistema. Requiere rol admin. (Se mantiene por compatibilidad.)",
+        "operationId": "all_tickets_support_admin_all_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupportOut"
+                  },
+                  "type": "array",
+                  "title": "Response All Tickets Support Admin All Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/support/all": {
+      "get": {
+        "tags": [
+          "Soporte"
+        ],
+        "summary": "Todos los tickets, con datos de quién lo creó (Soporte o Admin)",
+        "description": "Lista todos los tickets del sistema junto con el nombre/correo del usuario que\nlo creó. Pensado para el Panel de Soporte (accesible a Soporte y Admin).",
+        "operationId": "all_tickets_for_support_support_all_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SupportOutWithUser"
+                  },
+                  "type": "array",
+                  "title": "Response All Tickets For Support Support All Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/support/{id_support}/status": {
+      "patch": {
+        "tags": [
+          "Soporte",
+          "Soporte"
+        ],
+        "summary": "Cambiar estado de un ticket (exclusivo de Soporte)",
+        "description": "Actualiza el estado de un ticket. Estados válidos: pending, in_progress, resolved, closed.\n\nSolucionar un ticket (pasarlo a 'resolved') es una acción exclusiva del rol Soporte,\ny requiere que se envíe el texto de la solución. El Admin puede ver los tickets\n(GET /support/all) pero no puede cambiar su estado.",
+        "operationId": "update_ticket_status_support_support__id_support__status_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_support",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Support"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportStatusUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/support/{id_support}": {
+      "put": {
+        "tags": [
+          "Soporte"
+        ],
+        "summary": "Editar mi ticket",
+        "description": "Permite al autor corregir el asunto o el mensaje de su ticket.\n\nSolo mientras siga pendiente: una vez que Soporte lo tomó, cambiar el\nenunciado dejaría la solución sin contexto.",
+        "operationId": "update_my_ticket_support__id_support__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_support",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Support"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Soporte"
+        ],
+        "summary": "Eliminar mi ticket",
+        "description": "Borrado lógico del ticket propio.\n\nNo se borra la fila: se marca `deleted_at`. Así el historial de soporte\nqueda íntegro para las estadísticas, pero el ticket deja de aparecer.",
+        "operationId": "delete_my_ticket_support__id_support__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_support",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Support"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favorites/{id_lexicalunit}": {
+      "post": {
+        "tags": [
+          "Palabras Favoritas"
+        ],
+        "summary": "Marcar / desmarcar una palabra como favorita",
+        "description": "Si la palabra ya es favorita la elimina (soft delete); si no, la agrega.\nDevuelve `action: \"added\"` o `action: \"removed\"`.",
+        "operationId": "toggle_favorite_favorites__id_lexicalunit__post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_lexicalunit",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Lexicalunit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteWordToggle"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favorites/my": {
+      "get": {
+        "tags": [
+          "Palabras Favoritas"
+        ],
+        "summary": "Listar palabras favoritas del usuario autenticado",
+        "description": "Devuelve todas las palabras favoritas del usuario, ordenadas por las más usadas.",
+        "operationId": "my_favorites_favorites_my_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/FavoriteWordOut"
+                  },
+                  "type": "array",
+                  "title": "Response My Favorites Favorites My Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/favorites/{id_lexicalunit}/use": {
+      "post": {
+        "tags": [
+          "Palabras Favoritas"
+        ],
+        "summary": "Incrementar contador de uso de una palabra favorita",
+        "description": "Incrementa `times_used` de la palabra favorita del usuario autenticado.\nLlamar cada vez que el usuario utilice esa seña en una traducción.",
+        "operationId": "increment_usage_favorites__id_lexicalunit__use_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_lexicalunit",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Lexicalunit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/favorites/{id_favorite}": {
+      "put": {
+        "tags": [
+          "Palabras Favoritas"
+        ],
+        "summary": "Actualizar un favorito",
+        "description": "Modifica un favorito propio.\n\nHoy el único campo editable es el contador de uso, que sirve para\nreiniciarlo cuando el usuario ya domina esa seña.",
+        "operationId": "update_favorite_favorites__id_favorite__put",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_favorite",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Favorite"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FavoriteWordUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FavoriteWordOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Palabras Favoritas"
+        ],
+        "summary": "Quitar un favorito",
+        "description": "Elimina un favorito propio (borrado lógico).\n\nExiste además POST /favorites/{id_lexicalunit}, que alterna el favorito\npor palabra. Este endpoint borra por id del favorito, que es lo que\nnecesita una lista donde cada fila ya conoce su propio id.",
+        "operationId": "delete_favorite_favorites__id_favorite__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_favorite",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Favorite"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": [
+          "Admin — Usuarios"
+        ],
+        "summary": "Listar todos los usuarios (admin)",
+        "description": "Devuelve todos los usuarios no eliminados con nombre completo, email,\nrol, región, estado `is_active` y fecha de registro.\n\nEl frontend puede usar este JSON para armar un CSV si lo prefiere,\no usar `GET /admin/users/export` para descarga directa.\n\nParámetro opcional:\n- `is_active=true`  → solo activos\n- `is_active=false` → solo inactivos",
+        "operationId": "list_users_admin_users_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "is_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por estado activo/inactivo",
+              "title": "Is Active"
+            },
+            "description": "Filtrar por estado activo/inactivo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserAdminRow"
+                  },
+                  "title": "Response List Users Admin Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin — Usuarios"
+        ],
+        "summary": "Crear un usuario",
+        "description": "Da de alta un usuario desde el panel de administración.\n\nA diferencia del registro público, acá el admin elige el rol: sirve para\ncrear cuentas de Soporte, que de otro modo habría que crear como Cliente\ny después cambiarles el rol a mano.\n\nLa contraseña se guarda hasheada con bcrypt, nunca en texto plano.",
+        "operationId": "create_user_admin_users_post",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserAdminCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAdminRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id_user}/role": {
+      "patch": {
+        "tags": [
+          "Admin — Usuarios"
+        ],
+        "summary": "Cambiar rol de un usuario por id_role (admin)",
+        "description": "Cambia el `id_role` del usuario indicado.\n\n**Body:**\n```json\n{ \"id_role\": \"uuid-del-rol\" }\n```\n\n**Reglas:**\n- Un admin no puede cambiar su propio rol.\n- El `id_role` debe existir en la tabla `Role`.\n\n**Response 200:** datos actualizados del usuario.",
+        "operationId": "update_user_role_by_id_admin_users__id_user__role_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id User"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserRoleUpdateById"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAdminRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id_user}/status": {
+      "patch": {
+        "tags": [
+          "Admin — Usuarios"
+        ],
+        "summary": "Activar o desactivar un usuario (admin)",
+        "description": "Activa (`is_active: true`) o desactiva (`is_active: false`) un usuario.\nUn usuario desactivado puede seguir existiendo en la BD pero no podrá\nautenticarse (el login verificará este campo).\n\n**Body:**\n```json\n{ \"is_active\": false }\n```\n\n**Reglas:**\n- Un admin no puede desactivarse a sí mismo.\n\n**Response 200:** datos actualizados del usuario.",
+        "operationId": "update_user_status_admin_users__id_user__status_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id User"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UserStatusUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserAdminRow"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/export": {
+      "get": {
+        "tags": [
+          "Admin — Usuarios"
+        ],
+        "summary": "Exportar todos los usuarios como CSV (admin)",
+        "description": "Descarga un archivo CSV con todos los usuarios.\n\n**Columnas:** nombre completo, email, rol, región, estado, fecha de registro.\n\nEl header de respuesta incluye `Content-Disposition: attachment; filename=usuarios_signbridge.csv`\npara que el navegador lo descargue directamente.\n\nParámetro opcional `is_active` para filtrar solo activos o inactivos.\n\n**Ejemplo de uso desde el frontend:**\n```js\nwindow.location.href = '/admin/users/export?is_active=true'\n```",
+        "operationId": "export_users_csv_admin_users_export_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "is_active",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por estado activo/inactivo",
+              "title": "Is Active"
+            },
+            "description": "Filtrar por estado activo/inactivo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/users/{id_user}": {
+      "delete": {
+        "tags": [
+          "Admin — Usuarios"
+        ],
+        "summary": "Eliminar un usuario",
+        "description": "Borrado lógico de un usuario.\n\nNo se borra la fila: se marca `deleted_at` y se desactiva la cuenta. Sus\ntraducciones, tickets y valoraciones siguen existiendo, así que las\nestadísticas históricas no se rompen.\n\nUn admin no puede eliminarse a sí mismo: dejaría el sistema sin nadie que\npueda administrarlo si fuera el único.",
+        "operationId": "delete_user_admin_users__id_user__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_user",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id User"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/mias/palabras": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Tus palabras más traducidas",
+        "description": "Las señas que más ha usado el usuario autenticado, de mayor a menor.",
+        "operationId": "mis_palabras_mas_usadas_stats_mias_palabras_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "description": "Cuántas palabras devolver",
+              "default": 10,
+              "title": "Limite"
+            },
+            "description": "Cuántas palabras devolver"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopWordRow"
+                  },
+                  "title": "Response Mis Palabras Mas Usadas Stats Mias Palabras Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/mias/actividad": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Tu actividad de traducción por día",
+        "description": "Cuántas traducciones hizo el usuario cada día en el período indicado.",
+        "operationId": "mi_actividad_stats_mias_actividad_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dias",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Dias"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityRow"
+                  },
+                  "title": "Response Mi Actividad Stats Mias Actividad Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/mias/canales": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Cómo traducís: texto, voz o seña",
+        "description": "Distribución de las traducciones del usuario por canal de entrada.",
+        "operationId": "mis_canales_stats_mias_canales_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TranslationTypeRow"
+                  },
+                  "type": "array",
+                  "title": "Response Mis Canales Stats Mias Canales Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/stats/globales/palabras": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Palabras más traducidas de todo el sistema (Admin)",
+        "description": "Ranking global de señas más usadas, con el promedio de estrellas de cada una.\n\nCruzar \"muy traducida\" con \"mal calificada\" es lo que indica qué contenido\nconviene revisar primero.",
+        "operationId": "palabras_mas_usadas_stats_globales_palabras_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 10,
+              "title": "Limite"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopWordRow"
+                  },
+                  "title": "Response Palabras Mas Usadas Stats Globales Palabras Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/globales/actividad": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Traducciones por día de todo el sistema (Admin)",
+        "description": "Evolución del uso de la plataforma en los últimos días.",
+        "operationId": "actividad_global_stats_globales_actividad_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dias",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "default": 30,
+              "title": "Dias"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ActivityRow"
+                  },
+                  "title": "Response Actividad Global Stats Globales Actividad Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/globales/canales": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Uso por canal de entrada de todo el sistema (Admin)",
+        "description": "Qué canal usa más la gente: escribir, dictar o mostrar señas a la cámara.",
+        "operationId": "canales_globales_stats_globales_canales_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/TranslationTypeRow"
+                  },
+                  "type": "array",
+                  "title": "Response Canales Globales Stats Globales Canales Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/stats/globales/resumen": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Resumen de interacción con el software (Admin)",
+        "description": "Indicadores de uso: cuánto se traduce, cuánta variedad de vocabulario se\nusa y cuántas palabras pide la gente que todavía no están en el diccionario.",
+        "operationId": "resumen_interaccion_stats_globales_resumen_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InteractionSummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/stats/mias/historial": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Tu historial de traducciones, agrupado por día",
+        "description": "Las traducciones del usuario ordenadas por fecha, de la más reciente a\nla más antigua, con las señas que tuvo cada una.\n\nSe agrupa acá y no en el frontend para no mandar una fila por seña y que\nel navegador tenga que rearmar la estructura.",
+        "operationId": "mi_historial_stats_mias_historial_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "dias",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 365,
+              "minimum": 1,
+              "description": "Cuántos días hacia atrás",
+              "default": 30,
+              "title": "Dias"
+            },
+            "description": "Cuántos días hacia atrás"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HistoryDay"
+                  },
+                  "title": "Response Mi Historial Stats Mias Historial Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/stats/globales/sin-usar": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Señas que nadie tradujo todavía (Admin)",
+        "description": "Vocabulario cargado que nunca apareció en una traducción.\n\nAntes la tarjeta \"Señas que nadie usó\" mostraba el mismo listado que las\notras dos, porque solo existía el ranking de las MÁS usadas. Esta consulta\ndevuelve justo lo contrario.",
+        "operationId": "senas_sin_usar_stats_globales_sin_usar_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UnusedSign"
+                  },
+                  "type": "array",
+                  "title": "Response Senas Sin Usar Stats Globales Sin Usar Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/stats/mias/progreso": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Tu progreso hacia la próxima meta de traducciones",
+        "description": "Cuántas traducciones llevás en la meta en curso y cuáles ya cumpliste.\n\nLa barra se reinicia sola en cada meta: si llevás 23 traducciones y la meta\nes de 10, van 2 metas cumplidas y 3 en la actual.\n\nNo hace falta una tabla de rachas. Las metas se derivan del historial de\nsesiones ordenado por fecha: la sesión número 10 marca la primera meta, la\n20 la segunda, y así. Como sale del historial, también cuenta lo que el\nusuario ya había traducido antes de que existiera esta función.",
+        "operationId": "mi_progreso_stats_mias_progreso_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoalProgress"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/stats/globales/tickets": {
+      "get": {
+        "tags": [
+          "Estadísticas"
+        ],
+        "summary": "Desglose de los tickets de soporte (Admin)",
+        "description": "Cuántos tickets hay por estado, cuál lleva más tiempo sin resolver y\ncuánto se tarda en promedio en resolverlos.",
+        "operationId": "resumen_tickets_stats_globales_tickets_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TicketSummary"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Mis notificaciones",
+        "description": "Notificaciones del usuario, de la más reciente a la más antigua.",
+        "operationId": "listar_notifications_get",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "solo_sin_leer",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Devolver únicamente las no leídas",
+              "default": false,
+              "title": "Solo Sin Leer"
+            },
+            "description": "Devolver únicamente las no leídas"
+          },
+          {
+            "name": "limite",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Limite"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/NotificationOut"
+                  },
+                  "title": "Response Listar Notifications Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Cuántas tengo sin leer",
+        "description": "Solo el número, para el punto rojo de la campana.\n\nSe consulta seguido, así que devuelve un entero en lugar de la lista\ncompleta de notificaciones.",
+        "operationId": "contar_sin_leer_notifications_unread_count_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnreadCount"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/notifications/{id_notification}/read": {
+      "patch": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Marcar una como leída",
+        "description": "Marca una notificación propia como leída.",
+        "operationId": "marcar_leida_notifications__id_notification__read_patch",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_notification",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Notification"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Marcar todas como leídas",
+        "description": "Marca como leídas todas las notificaciones pendientes del usuario.",
+        "operationId": "marcar_todas_notifications_read_all_patch",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarkReadResult"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/notifications/{id_notification}": {
+      "delete": {
+        "tags": [
+          "Notificaciones"
+        ],
+        "summary": "Eliminar una notificación",
+        "description": "Borrado lógico: deja de aparecer pero queda en la base.",
+        "operationId": "eliminar_notifications__id_notification__delete",
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id_notification",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Id Notification"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/admin/dashboard": {
+      "get": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "Admin Dashboard Alias",
+        "description": "GET /admin/dashboard — alias del dashboard de administrador.",
+        "operationId": "admin_dashboard_alias_admin_dashboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AdminDashboardRow"
+                  },
+                  "type": "array",
+                  "title": "Response Admin Dashboard Alias Admin Dashboard Get"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/user/dashboard": {
+      "get": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "User Dashboard Alias",
+        "description": "GET /user/dashboard — alias del dashboard de usuario.",
+        "operationId": "user_dashboard_alias_user_dashboard_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDashboardRow"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/admin/stats": {
+      "get": {
+        "tags": [
+          "Dashboards"
+        ],
+        "summary": "Admin Stats Alias",
+        "description": "GET /admin/stats — estadísticas globales del sistema.",
+        "operationId": "admin_stats_alias_admin_stats_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SystemStats"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
+      }
+    },
+    "/": {
+      "get": {
+        "tags": [
+          "Root"
+        ],
+        "summary": "Root",
+        "operationId": "root__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "Root"
+        ],
+        "summary": "Health",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/info": {
+      "get": {
+        "tags": [
+          "Root"
+        ],
+        "summary": "Info",
+        "description": "Información pública del proyecto para la landing page.\nNo requiere autenticación.",
+        "operationId": "info_info_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActivityRow": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "total"
+        ],
+        "title": "ActivityRow",
+        "description": "Traducciones por día, para ver la evolución del uso."
+      },
+      "AdminDashboardRow": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "total_translations": {
+            "type": "integer",
+            "title": "Total Translations",
+            "default": 0
+          },
+          "support_tickets": {
+            "type": "integer",
+            "title": "Support Tickets",
+            "default": 0
+          },
+          "feedback_count": {
+            "type": "integer",
+            "title": "Feedback Count",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "email",
+          "role_name"
+        ],
+        "title": "AdminDashboardRow"
+      },
+      "Body_procesar_frame_multipart_api_traduccion_frame_upload_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "Archivo de imagen del frame."
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "ID de sesión (opcional)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "file"
+        ],
+        "title": "Body_procesar_frame_multipart_api_traduccion_frame_upload_post"
+      },
+      "ConversationPreview": {
+        "properties": {
+          "other_user_id": {
+            "type": "string",
+            "title": "Other User Id"
+          },
+          "other_user_name": {
+            "type": "string",
+            "title": "Other User Name"
+          },
+          "last_message": {
+            "type": "string",
+            "title": "Last Message"
+          },
+          "last_message_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Last Message At"
+          },
+          "unread_count": {
+            "type": "integer",
+            "title": "Unread Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "other_user_id",
+          "other_user_name",
+          "last_message",
+          "last_message_at",
+          "unread_count"
+        ],
+        "title": "ConversationPreview",
+        "description": "Resumen de la última conversación con otro usuario."
+      },
+      "FavoriteWordOut": {
+        "properties": {
+          "id_favorite": {
+            "type": "string",
+            "title": "Id Favorite"
+          },
+          "id_lexicalunit": {
+            "type": "string",
+            "title": "Id Lexicalunit"
+          },
+          "word_text": {
+            "type": "string",
+            "title": "Word Text"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          },
+          "times_used": {
+            "type": "integer",
+            "title": "Times Used"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_favorite",
+          "id_lexicalunit",
+          "word_text",
+          "times_used",
+          "created_at"
+        ],
+        "title": "FavoriteWordOut"
+      },
+      "FavoriteWordToggle": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "id_favorite": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Favorite"
+          },
+          "id_lexicalunit": {
+            "type": "string",
+            "title": "Id Lexicalunit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "id_lexicalunit"
+        ],
+        "title": "FavoriteWordToggle",
+        "description": "Respuesta al marcar/desmarcar un favorito."
+      },
+      "FavoriteWordUpdate": {
+        "properties": {
+          "times_used": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Times Used"
+          }
+        },
+        "type": "object",
+        "title": "FavoriteWordUpdate",
+        "description": "Campos editables de un favorito.\n\n`times_used` se puede corregir a mano (por ejemplo, para reiniciar el\ncontador de una palabra que ya se aprendió)."
+      },
+      "FeedbackCreate": {
+        "properties": {
+          "id_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Session"
+          },
+          "id_lexicalunit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Lexicalunit"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "rating"
+        ],
+        "title": "FeedbackCreate"
+      },
+      "FeedbackOut": {
+        "properties": {
+          "id_feedback": {
+            "type": "string",
+            "title": "Id Feedback"
+          },
+          "id_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Session"
+          },
+          "id_lexicalunit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Lexicalunit"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "is_reviewed": {
+            "type": "boolean",
+            "title": "Is Reviewed",
+            "default": false
+          },
+          "support_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Response"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_feedback",
+          "rating",
+          "date"
+        ],
+        "title": "FeedbackOut"
+      },
+      "FeedbackOutWithUser": {
+        "properties": {
+          "id_feedback": {
+            "type": "string",
+            "title": "Id Feedback"
+          },
+          "id_session": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Session"
+          },
+          "id_lexicalunit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Lexicalunit"
+          },
+          "rating": {
+            "type": "integer",
+            "title": "Rating"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "is_reviewed": {
+            "type": "boolean",
+            "title": "Is Reviewed",
+            "default": false
+          },
+          "support_response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Support Response"
+          },
+          "user_full_name": {
+            "type": "string",
+            "title": "User Full Name"
+          },
+          "user_email": {
+            "type": "string",
+            "title": "User Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_feedback",
+          "rating",
+          "date",
+          "user_full_name",
+          "user_email"
+        ],
+        "title": "FeedbackOutWithUser",
+        "description": "Igual que FeedbackOut, pero incluye datos de quién dejó la valoración (panel de Soporte/Admin)."
+      },
+      "FeedbackReviewUpdate": {
+        "properties": {
+          "is_reviewed": {
+            "type": "boolean",
+            "title": "Is Reviewed"
+          },
+          "response": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Response"
+          },
+          "quick_reply": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quick Reply"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_reviewed"
+        ],
+        "title": "FeedbackReviewUpdate",
+        "description": "Marca (o desmarca) una valoración como revisada.\n\nPara marcar como revisada (is_reviewed=True) Soporte debe dar una respuesta:\n- `response`: respuesta manual, siempre permitida.\n- `quick_reply`: clave de una respuesta rápida (ver GET /feedback/quick-replies),\n  solo permitida cuando la valoración tiene rating 4 o 5."
+      },
+      "ForgotPasswordRequest": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "title": "ForgotPasswordRequest"
+      },
+      "FrameRequest": {
+        "properties": {
+          "frame_base64": {
+            "type": "string",
+            "minLength": 10,
+            "title": "Frame Base64",
+            "description": "Imagen del frame codificada en Base64 (sin prefijo data:image/…;base64,)."
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "ID de sesión activa del usuario (opcional)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "frame_base64"
+        ],
+        "title": "FrameRequest",
+        "description": "Payload para POST /api/traduccion/frame (base64)."
+      },
+      "FrameResponse": {
+        "properties": {
+          "detected_sign": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detected Sign",
+            "description": "Texto de la seña detectada. None si no se reconoció ninguna."
+          },
+          "confidence": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence",
+            "description": "Nivel de confianza del modelo (0.0 – 1.0)."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Mensaje descriptivo del resultado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "FrameResponse",
+        "description": "Respuesta de POST /api/traduccion/frame."
+      },
+      "GoalMilestone": {
+        "properties": {
+          "numero": {
+            "type": "integer",
+            "title": "Numero"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha"
+          }
+        },
+        "type": "object",
+        "required": [
+          "numero"
+        ],
+        "title": "GoalMilestone",
+        "description": "Una meta de traducciones alcanzada."
+      },
+      "GoalProgress": {
+        "properties": {
+          "meta": {
+            "type": "integer",
+            "title": "Meta"
+          },
+          "total_traducciones": {
+            "type": "integer",
+            "title": "Total Traducciones"
+          },
+          "en_ciclo_actual": {
+            "type": "integer",
+            "title": "En Ciclo Actual"
+          },
+          "metas_completadas": {
+            "type": "integer",
+            "title": "Metas Completadas"
+          },
+          "historial": {
+            "items": {
+              "$ref": "#/components/schemas/GoalMilestone"
+            },
+            "type": "array",
+            "title": "Historial",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "meta",
+          "total_traducciones",
+          "en_ciclo_actual",
+          "metas_completadas"
+        ],
+        "title": "GoalProgress",
+        "description": "Progreso del usuario hacia su próxima meta de traducciones.\n\nNo hay tabla de rachas: todo se deriva del historial de sesiones, así que\nfunciona también para las traducciones que ya existían."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "HistoryDay": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "sessions": {
+            "items": {
+              "$ref": "#/components/schemas/HistorySession"
+            },
+            "type": "array",
+            "title": "Sessions",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "total"
+        ],
+        "title": "HistoryDay",
+        "description": "Las traducciones de un día, agrupadas."
+      },
+      "HistorySession": {
+        "properties": {
+          "id_session": {
+            "type": "string",
+            "title": "Id Session"
+          },
+          "date_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date Time"
+          },
+          "translation_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Translation Type"
+          },
+          "signs": {
+            "items": {
+              "$ref": "#/components/schemas/HistorySign"
+            },
+            "type": "array",
+            "title": "Signs",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_session"
+        ],
+        "title": "HistorySession",
+        "description": "Una traducción concreta: cuándo, por qué canal y qué señas tuvo."
+      },
+      "HistorySign": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word"
+        ],
+        "title": "HistorySign",
+        "description": "Una seña dentro de una traducción del historial."
+      },
+      "InteractionSummary": {
+        "properties": {
+          "total_sessions": {
+            "type": "integer",
+            "title": "Total Sessions"
+          },
+          "total_words_translated": {
+            "type": "integer",
+            "title": "Total Words Translated"
+          },
+          "distinct_words_used": {
+            "type": "integer",
+            "title": "Distinct Words Used"
+          },
+          "words_not_found": {
+            "type": "integer",
+            "title": "Words Not Found"
+          },
+          "active_users": {
+            "type": "integer",
+            "title": "Active Users"
+          },
+          "avg_words_per_session": {
+            "type": "number",
+            "title": "Avg Words Per Session"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_sessions",
+          "total_words_translated",
+          "distinct_words_used",
+          "words_not_found",
+          "active_users",
+          "avg_words_per_session"
+        ],
+        "title": "InteractionSummary",
+        "description": "Resumen de cómo se está usando la aplicación."
+      },
+      "LexicalUnitCreate": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language",
+            "default": "es_Co"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "LexicalUnitCreate"
+      },
+      "LexicalUnitOut": {
+        "properties": {
+          "id_lexicalunit": {
+            "type": "string",
+            "title": "Id Lexicalunit"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_lexicalunit",
+          "text",
+          "language"
+        ],
+        "title": "LexicalUnitOut"
+      },
+      "LexicalUnitVideoUpdate": {
+        "properties": {
+          "video_url": {
+            "type": "string",
+            "title": "Video Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_url"
+        ],
+        "title": "LexicalUnitVideoUpdate"
+      },
+      "MarkReadResult": {
+        "properties": {
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          },
+          "unread": {
+            "type": "integer",
+            "title": "Unread"
+          }
+        },
+        "type": "object",
+        "required": [
+          "updated",
+          "unread"
+        ],
+        "title": "MarkReadResult",
+        "description": "Resultado de marcar como leídas."
+      },
+      "MessageCreate": {
+        "properties": {
+          "id_receiver": {
+            "type": "string",
+            "title": "Id Receiver"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_receiver",
+          "content"
+        ],
+        "title": "MessageCreate"
+      },
+      "MessageOut": {
+        "properties": {
+          "id_message": {
+            "type": "string",
+            "title": "Id Message"
+          },
+          "id_sender": {
+            "type": "string",
+            "title": "Id Sender"
+          },
+          "id_receiver": {
+            "type": "string",
+            "title": "Id Receiver"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_message",
+          "id_sender",
+          "id_receiver",
+          "content",
+          "created_at"
+        ],
+        "title": "MessageOut"
+      },
+      "NotificationOut": {
+        "properties": {
+          "id_notification": {
+            "type": "string",
+            "title": "Id Notification"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "body": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Body"
+          },
+          "reference_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reference Id"
+          },
+          "read_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Read At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_notification",
+          "type",
+          "title"
+        ],
+        "title": "NotificationOut",
+        "description": "Una notificación tal como la ve el usuario."
+      },
+      "OldestPendingTicket": {
+        "properties": {
+          "id_support": {
+            "type": "string",
+            "title": "Id Support"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha"
+          },
+          "dias": {
+            "type": "integer",
+            "title": "Dias"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_support",
+          "subject",
+          "status",
+          "dias"
+        ],
+        "title": "OldestPendingTicket",
+        "description": "El ticket sin resolver que más tiempo lleva esperando."
+      },
+      "RegionOut": {
+        "properties": {
+          "id_region": {
+            "type": "string",
+            "title": "Id Region"
+          },
+          "region_name": {
+            "type": "string",
+            "title": "Region Name"
+          },
+          "department": {
+            "type": "string",
+            "title": "Department"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_region",
+          "region_name",
+          "department"
+        ],
+        "title": "RegionOut"
+      },
+      "ResetPasswordRequest": {
+        "properties": {
+          "token": {
+            "type": "string",
+            "title": "Token"
+          },
+          "new_password": {
+            "type": "string",
+            "title": "New Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "token",
+          "new_password"
+        ],
+        "title": "ResetPasswordRequest"
+      },
+      "SignUnit": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word",
+            "description": "Palabra o frase buscada en el diccionario LSC."
+          },
+          "found": {
+            "type": "boolean",
+            "title": "Found",
+            "description": "True si existe entrada en la base de datos LSC."
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url",
+            "description": "URL del video de la seña en LSC."
+          },
+          "id_lexicalunit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Lexicalunit",
+            "description": "ID de la unidad léxica en BD."
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "found"
+        ],
+        "title": "SignUnit",
+        "description": "Unidad léxica dentro de la respuesta de traducción a LSC."
+      },
+      "SupportCreate": {
+        "properties": {
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "subject",
+          "message"
+        ],
+        "title": "SupportCreate"
+      },
+      "SupportOut": {
+        "properties": {
+          "id_support": {
+            "type": "string",
+            "title": "Id Support"
+          },
+          "id_user": {
+            "type": "string",
+            "title": "Id User"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "solution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solution"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_support",
+          "id_user",
+          "subject",
+          "message",
+          "status",
+          "date"
+        ],
+        "title": "SupportOut"
+      },
+      "SupportOutWithUser": {
+        "properties": {
+          "id_support": {
+            "type": "string",
+            "title": "Id Support"
+          },
+          "id_user": {
+            "type": "string",
+            "title": "Id User"
+          },
+          "subject": {
+            "type": "string",
+            "title": "Subject"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "solution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solution"
+          },
+          "date": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Date"
+          },
+          "user_full_name": {
+            "type": "string",
+            "title": "User Full Name"
+          },
+          "user_email": {
+            "type": "string",
+            "title": "User Email"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_support",
+          "id_user",
+          "subject",
+          "message",
+          "status",
+          "date",
+          "user_full_name",
+          "user_email"
+        ],
+        "title": "SupportOutWithUser",
+        "description": "Igual que SupportOut, pero incluye datos de quién abrió el ticket (panel de Soporte/Admin)."
+      },
+      "SupportStatusUpdate": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "in_progress",
+              "resolved",
+              "closed"
+            ],
+            "title": "Status"
+          },
+          "solution": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Solution"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "SupportStatusUpdate"
+      },
+      "SystemStats": {
+        "properties": {
+          "total_users": {
+            "type": "integer",
+            "title": "Total Users"
+          },
+          "total_translations": {
+            "type": "integer",
+            "title": "Total Translations"
+          },
+          "total_support_requests": {
+            "type": "integer",
+            "title": "Total Support Requests"
+          },
+          "total_feedback": {
+            "type": "integer",
+            "title": "Total Feedback"
+          },
+          "average_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Rating"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total_users",
+          "total_translations",
+          "total_support_requests",
+          "total_feedback"
+        ],
+        "title": "SystemStats"
+      },
+      "TextoTraduccionRequest": {
+        "properties": {
+          "texto": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Texto",
+            "description": "Texto libre en español para traducir a LSC."
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "ID de sesión activa del usuario (opcional)."
+          }
+        },
+        "type": "object",
+        "required": [
+          "texto"
+        ],
+        "title": "TextoTraduccionRequest",
+        "description": "Payload para POST /api/traduccion/texto."
+      },
+      "TextoTraduccionResponse": {
+        "properties": {
+          "original_text": {
+            "type": "string",
+            "title": "Original Text",
+            "description": "Texto original enviado por el usuario."
+          },
+          "id_session": {
+            "type": "string",
+            "title": "Id Session",
+            "description": "ID de la TranslationSession creada o reutilizada. Guárdalo en el frontend para enviarlo en llamadas siguientes y al registrar feedback."
+          },
+          "signs": {
+            "items": {
+              "$ref": "#/components/schemas/SignUnit"
+            },
+            "type": "array",
+            "title": "Signs",
+            "description": "Lista ordenada de unidades léxicas en LSC."
+          },
+          "untranslated_words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Untranslated Words",
+            "description": "Palabras sin traducción disponible en LSC."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Mensaje descriptivo del resultado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_text",
+          "id_session",
+          "message"
+        ],
+        "title": "TextoTraduccionResponse",
+        "description": "Respuesta de POST /api/traduccion/texto."
+      },
+      "TicketStatusRow": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "total"
+        ],
+        "title": "TicketStatusRow",
+        "description": "Cuántos tickets hay en cada estado."
+      },
+      "TicketSummary": {
+        "properties": {
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "por_estado": {
+            "items": {
+              "$ref": "#/components/schemas/TicketStatusRow"
+            },
+            "type": "array",
+            "title": "Por Estado",
+            "default": []
+          },
+          "sin_resolver": {
+            "type": "integer",
+            "title": "Sin Resolver"
+          },
+          "mas_viejo_pendiente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OldestPendingTicket"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dias_promedio_resolucion": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dias Promedio Resolucion"
+          },
+          "resueltos_medidos": {
+            "type": "integer",
+            "title": "Resueltos Medidos",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "sin_resolver"
+        ],
+        "title": "TicketSummary",
+        "description": "Panorama de los tickets de soporte.\n\nUn número suelto de \"9 tickets\" no dice nada accionable; lo útil es cuántos\nestán esperando respuesta y cuál se está quedando atrás."
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type",
+            "default": "bearer"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "user_id": {
+            "type": "string",
+            "title": "User Id"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "role",
+          "user_id",
+          "full_name"
+        ],
+        "title": "TokenResponse"
+      },
+      "TopWordRow": {
+        "properties": {
+          "id_lexicalunit": {
+            "type": "string",
+            "title": "Id Lexicalunit"
+          },
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "times_translated": {
+            "type": "integer",
+            "title": "Times Translated"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          },
+          "average_rating": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Average Rating"
+          },
+          "total_ratings": {
+            "type": "integer",
+            "title": "Total Ratings",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_lexicalunit",
+          "word",
+          "times_translated"
+        ],
+        "title": "TopWordRow",
+        "description": "Una palabra/seña dentro del ranking de más traducidas."
+      },
+      "TranslationTypeRow": {
+        "properties": {
+          "translation_type": {
+            "type": "string",
+            "title": "Translation Type"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "translation_type",
+          "total"
+        ],
+        "title": "TranslationTypeRow",
+        "description": "Cuántas traducciones se hicieron por cada canal (texto, voz, seña)."
+      },
+      "UnreadCount": {
+        "properties": {
+          "unread": {
+            "type": "integer",
+            "title": "Unread"
+          }
+        },
+        "type": "object",
+        "required": [
+          "unread"
+        ],
+        "title": "UnreadCount",
+        "description": "Cantidad de notificaciones sin leer — es lo único que necesita el\nbadge rojo de la campana, así que se consulta aparte para no traer\nla lista completa en cada revisión."
+      },
+      "UnusedSign": {
+        "properties": {
+          "id_lexicalunit": {
+            "type": "string",
+            "title": "Id Lexicalunit"
+          },
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "video_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Video Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_lexicalunit",
+          "word"
+        ],
+        "title": "UnusedSign",
+        "description": "Una seña del diccionario que nadie tradujo todavía."
+      },
+      "UserAdminCreate": {
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "middle_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          },
+          "second_last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Last Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "city": {
+            "type": "string",
+            "title": "City"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "id_region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Region"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          },
+          "id_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "phone",
+          "city",
+          "address",
+          "email",
+          "password"
+        ],
+        "title": "UserAdminCreate",
+        "description": "Alta de usuario desde el panel de administración.\n\nHereda toda la validación de UserRegister (teléfono colombiano, fuerza de\nla contraseña, capitalización) y suma el rol: el registro público siempre\ncrea Clientes, mientras que el admin necesita poder crear Soporte también."
+      },
+      "UserAdminRow": {
+        "properties": {
+          "id_user": {
+            "type": "string",
+            "title": "Id User"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active",
+            "default": true
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_user",
+          "full_name",
+          "email",
+          "role_name"
+        ],
+        "title": "UserAdminRow"
+      },
+      "UserDashboardRow": {
+        "properties": {
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "translations_made": {
+            "type": "integer",
+            "title": "Translations Made",
+            "default": 0
+          },
+          "favorite_words": {
+            "type": "integer",
+            "title": "Favorite Words",
+            "default": 0
+          },
+          "average_rating": {
+            "type": "number",
+            "title": "Average Rating",
+            "default": 0.0
+          },
+          "support_requests": {
+            "type": "integer",
+            "title": "Support Requests",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "full_name",
+          "email"
+        ],
+        "title": "UserDashboardRow"
+      },
+      "UserLogin": {
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "UserLogin"
+      },
+      "UserProfile": {
+        "properties": {
+          "id_user": {
+            "type": "string",
+            "title": "Id User"
+          },
+          "full_name": {
+            "type": "string",
+            "title": "Full Name"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Region"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "city": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "City"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_user",
+          "full_name",
+          "email",
+          "role"
+        ],
+        "title": "UserProfile"
+      },
+      "UserRegister": {
+        "properties": {
+          "first_name": {
+            "type": "string",
+            "title": "First Name"
+          },
+          "middle_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Middle Name"
+          },
+          "last_name": {
+            "type": "string",
+            "title": "Last Name"
+          },
+          "second_last_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Second Last Name"
+          },
+          "phone": {
+            "type": "string",
+            "title": "Phone"
+          },
+          "city": {
+            "type": "string",
+            "title": "City"
+          },
+          "address": {
+            "type": "string",
+            "title": "Address"
+          },
+          "id_region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id Region"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "title": "Email"
+          },
+          "password": {
+            "type": "string",
+            "title": "Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "first_name",
+          "last_name",
+          "phone",
+          "city",
+          "address",
+          "email",
+          "password"
+        ],
+        "title": "UserRegister"
+      },
+      "UserRoleUpdate": {
+        "properties": {
+          "role_name": {
+            "type": "string",
+            "title": "Role Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role_name"
+        ],
+        "title": "UserRoleUpdate"
+      },
+      "UserRoleUpdateById": {
+        "properties": {
+          "id_role": {
+            "type": "string",
+            "title": "Id Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_role"
+        ],
+        "title": "UserRoleUpdateById",
+        "description": "Cambia rol usando id_role directamente."
+      },
+      "UserStatusUpdate": {
+        "properties": {
+          "is_active": {
+            "type": "boolean",
+            "title": "Is Active"
+          }
+        },
+        "type": "object",
+        "required": [
+          "is_active"
+        ],
+        "title": "UserStatusUpdate"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VozTraduccionRequest": {
+        "properties": {
+          "texto_dictado": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Texto Dictado",
+            "description": "Texto generado por la Web Speech API desde el frontend."
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id",
+            "description": "ID de sesión activa del usuario (opcional)."
+          },
+          "idioma": {
+            "type": "string",
+            "title": "Idioma",
+            "description": "Código de idioma detectado por la Web Speech API (ej. 'es-CO').",
+            "default": "es-CO"
+          }
+        },
+        "type": "object",
+        "required": [
+          "texto_dictado"
+        ],
+        "title": "VozTraduccionRequest",
+        "description": "Payload para POST /api/traduccion/voz."
+      },
+      "VozTraduccionResponse": {
+        "properties": {
+          "texto_reconocido": {
+            "type": "string",
+            "title": "Texto Reconocido",
+            "description": "Texto dictado recibido del frontend."
+          },
+          "id_session": {
+            "type": "string",
+            "title": "Id Session",
+            "description": "ID de la TranslationSession creada o reutilizada. Guárdalo en el frontend para enviarlo en llamadas siguientes y al registrar feedback."
+          },
+          "signs": {
+            "items": {
+              "$ref": "#/components/schemas/SignUnit"
+            },
+            "type": "array",
+            "title": "Signs",
+            "description": "Lista ordenada de unidades léxicas en LSC."
+          },
+          "untranslated_words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Untranslated Words",
+            "description": "Palabras sin traducción disponible en LSC."
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Mensaje descriptivo del resultado."
+          }
+        },
+        "type": "object",
+        "required": [
+          "texto_reconocido",
+          "id_session",
+          "message"
+        ],
+        "title": "VozTraduccionResponse",
+        "description": "Respuesta de POST /api/traduccion/voz."
+      },
+      "WordRatingSummary": {
+        "properties": {
+          "id_lexicalunit": {
+            "type": "string",
+            "title": "Id Lexicalunit"
+          },
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "average_rating": {
+            "type": "number",
+            "title": "Average Rating"
+          },
+          "total_ratings": {
+            "type": "integer",
+            "title": "Total Ratings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id_lexicalunit",
+          "word",
+          "average_rating",
+          "total_ratings"
+        ],
+        "title": "WordRatingSummary",
+        "description": "Promedio de calificación de la traducción de una palabra (público para usuarios autenticados)."
+      }
+    },
+    "securitySchemes": {
+      "HTTPBearer": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    }
+  }
+}
