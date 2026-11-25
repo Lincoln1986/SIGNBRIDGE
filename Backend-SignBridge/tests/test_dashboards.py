@@ -19,7 +19,6 @@ from app.models.user import (
     TranslationSession,
     User,
 )
-from tests.conftest import TestingSessionLocal
 
 
 @pytest.fixture()

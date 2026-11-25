@@ -60,7 +60,7 @@ def base_caida():
     """Simula que PostgreSQL se cayó: get_db explota con un mensaje que trae SQL."""
     def _rota():
         raise RuntimeError('could not connect to server: SELECT * FROM "User"')
-        yield  # noqa: unreachable — get_db es un generador
+        yield  # inalcanzable: solo convierte la función en generador, como get_db
 
     app.dependency_overrides[get_db] = _rota
     yield TestClient(app, raise_server_exceptions=False)

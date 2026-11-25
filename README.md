@@ -68,28 +68,18 @@ docker compose up -d --build
 La primera vez tarda varios minutos: descarga las imágenes, instala las
 dependencias de Python y de Node, y compila.
 
-### Cargar la base de datos
+### Base de datos: se crea sola
 
-El contenedor de PostgreSQL arranca con la base vacía. Hay que cargar la
-estructura y las migraciones **en este orden**:
+No hay que correr ningún archivo `.sql`. Al arrancar, el backend ejecuta
+`alembic upgrade head`: crea las tablas, las vistas y los roles base, y deja la
+base en la última versión del esquema. Las siguientes veces solo aplica las
+migraciones nuevas.
+
+Para comprobarlo:
 
 ```bash
-# 1. Estructura base
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Base-de-datos/schema.sql
-
-# 2. Migraciones, en orden
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/add_is_active_to_user.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/create_message_table.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/cleanup_duplicate_roles.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Backend-SignBridge/migrations/add_solution_and_word_rating.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Base-de-datos/migracion_02_voto_unico.sql
-docker exec -i signbridge_postgres psql -U postgres -d signbridge < Base-de-datos/migracion_03_notificaciones.sql
-```
-
-En Windows con PowerShell, si el `<` da problemas, usá:
-
-```powershell
-Get-Content Base-de-datos\schema.sql | docker exec -i signbridge_postgres psql -U postgres -d signbridge
+docker compose logs backend | grep alembic   # "Running upgrade ... -> ..."
+docker compose ps                            # backend en estado "healthy"
 ```
 
 ### Verificar
@@ -119,8 +109,8 @@ docker compose down -v             # detener Y BORRAR la base de datos
 
 ## Cuentas de prueba
 
-Si cargaste un respaldo con datos, usá las credenciales del equipo. Si partiste
-de `schema.sql` la base queda sin usuarios: registrá uno desde la aplicación y
+Si cargaste un respaldo con datos, usá las credenciales del equipo. Con la base
+recién creada por Alembic no hay usuarios: registrá uno desde la aplicación y
 asignale el rol desde la base:
 
 ```sql
@@ -164,11 +154,6 @@ SIGNBRIDGE/
 │   ├── package.json             # versiones exactas (sin ^ ni ~)
 │   └── pnpm-lock.yaml           # árbol determinista de paquetes
 │
-├── Base-de-datos/               # estructura y migraciones de PostgreSQL
-│   ├── schema.sql
-│   ├── migracion_02_voto_unico.sql
-│   └── migracion_03_notificaciones.sql
-│
 ├── DOCS/                        # documentación del proyecto formativo
 │   ├── HISTORIAS_DE_USUARIO.md
 │   ├── ESTIMACION_SPRINTS.md
@@ -184,25 +169,31 @@ SIGNBRIDGE/
 
 ## Base de datos
 
-PostgreSQL 17. El esquema tiene 16 tablas, 4 vistas, funciones y triggers.
+PostgreSQL 17. El esquema tiene 17 tablas y 4 vistas.
 
-### Migraciones
+### Migraciones (solo Alembic)
 
-| Archivo | Qué agrega |
+El esquema se maneja **únicamente con migraciones de Alembic** en
+`Backend-SignBridge/alembic/versions/`. No se usan scripts SQL manuales: cada
+cambio queda versionado, en orden, y se aplica igual en desarrollo, en el CI y
+en producción.
+
+| Migración | Qué hace |
 |---|---|
-| `add_is_active_to_user.sql` | Columna `is_active` para desactivar cuentas |
-| `create_message_table.sql` | Tabla `Message` para mensajería interna |
-| `cleanup_duplicate_roles.sql` | Unifica el rol Soporte y elimina duplicados |
-| `add_solution_and_word_rating.sql` | `Support.solution`, `Feedback.id_lexicalunit` y `Feedback.support_response` |
-| `migracion_02_voto_unico.sql` | Índice único: un voto por usuario y por palabra |
-| `migracion_03_notificaciones.sql` | Tabla `Notification` para los avisos in-app |
+| `18c15e7dc120_baseline_esquema_inicial_signbridge` | Las 17 tablas del sistema |
+| `0a9ba8b6906c_vistas_vw__para_dashboards_sql_portable_` | Las 4 vistas `vw_*` de los dashboards |
+| `3fcd44fad4e6_seed_roles_base_del_sistema` | Roles Cliente, Administrador y Soporte |
+| `7b2e5c1d9a40_voto_unico_por_palabra` | Un solo voto activo por usuario y palabra (índice único parcial) |
 
-### Regenerar el esquema
+### Cambiar el esquema
 
-Después de un cambio estructural:
+1. Modificá el modelo en `app/models/`.
+2. Generá la migración y revisala antes de subirla:
 
 ```bash
-docker exec -t signbridge_postgres pg_dump -U postgres -d signbridge --schema-only > Base-de-datos/schema.sql
+cd Backend-SignBridge
+uv run alembic revision --autogenerate -m "descripcion del cambio"
+uv run alembic upgrade head
 ```
 
 ### Respaldos con datos reales
@@ -222,25 +213,33 @@ docker exec -i signbridge_postgres psql -U postgres -d signbridge < respaldo.sql
 
 ## Tecnologías
 
-**Backend** — FastAPI 0.143 · SQLAlchemy 2.0 · PostgreSQL 17 · MediaPipe 0.10 ·
-python-jose (JWT) · passlib con bcrypt · aiosmtplib
+**Backend** — FastAPI 0.143 · SQLAlchemy 2.0 · Alembic · PostgreSQL 17 ·
+MediaPipe 0.10 · PyJWT · passlib con bcrypt · aiosmtplib
 
 **Frontend** — React 19 · TypeScript · Vite · React Router · Axios · Recharts ·
 Web Speech API
 
-**Infraestructura** — Docker · Docker Compose · uv (Python) · pnpm (Node) ·
-Alembic · GitHub Actions
+**Infraestructura** — Docker · Docker Compose · nginx · uv (Python) · pnpm (Node) ·
+GitHub Actions
+
+**Pruebas y calidad** — pytest · Vitest · Testing Library · Playwright ·
+Postman + Newman · ruff · ESLint
 
 ---
 
 ## Pruebas
 
-| Capa | Comando | Umbral |
-|---|---|---|
-| Backend | `cd Backend-SignBridge && uv run pytest` | cobertura ≥ 55% (trinquete) |
-| Frontend | `cd Frontend-SignBridge && pnpm test:coverage` | cobertura ≥ 30% (trinquete) |
-| E2E | `cd Frontend-SignBridge && pnpm test:e2e` | flujo de login (Playwright) |
-| Seguridad | `pnpm audit` / `uv run pip-audit` | 0 avisos activos |
+Cifras al cierre de la S7 (24 de noviembre):
+
+| Capa | Comando | Pruebas | Umbral (trinquete) |
+|---|---|---:|---|
+| Backend | `cd Backend-SignBridge && uv run pytest` | 422 | cobertura ≥ 88 % (real 88,2 %) |
+| Integración (PostgreSQL) | `TEST_DATABASE_URL=... uv run pytest tests/integracion` | 18 | — |
+| Frontend | `cd Frontend-SignBridge && pnpm test:coverage` | 305 | líneas ≥ 84 % · statements ≥ 81 % · branches ≥ 78 % · funciones ≥ 75 % |
+| E2E | `cd Frontend-SignBridge && pnpm test:e2e` | 20 | registro, login por rol y traducción (Playwright), 2 contra el backend real |
+| API real | `npx newman@6.2.1 run postman/SignBridge.postman_collection.json -e postman/local.postman_environment.json` | 28 validaciones | todas en verde |
+| Calidad | `uv run ruff check app tests` · `pnpm lint` · `pnpm build` | — | 0 errores |
+| Seguridad | `pnpm audit` / `uv run pip-audit` | — | 0 avisos activos |
 
 Requisitos: `uv` y `pnpm` instalados (los contenedores no los necesitan).
 
@@ -256,9 +255,11 @@ pnpm exec playwright install chromium   # primera vez
 pnpm test:e2e
 ```
 
-Los mismos cinco checks corren en CI (`.github/workflows/tests.yml`) y deben
-estar en verde antes de fusionar en `main`. La estrategia completa está en
-`docs/estrategia-pruebas.md`.
+Los **7 checks** del CI (`.github/workflows/tests.yml`) deben estar en verde
+antes de fusionar: Frontend Tests, Backend Tests, Code Quality, Database
+Integration (incluye Newman), End-to-End Tests, Security Audit y Evidencia
+individual. La estrategia está en `docs/estrategia-pruebas.md` y el plan en
+`docs/plan-pruebas.md`.
 
 ---
 
@@ -283,13 +284,29 @@ el componente `ProtectedRoute`.
 
 ## Documentación del proyecto
 
-En la carpeta `DOCS/`:
+En la carpeta `DOCS/` (proyecto formativo):
 
-- **HISTORIAS_DE_USUARIO.md** — 19 historias del V Trimestre con criterios de
+- **HISTORIAS_DE_USUARIO.md** — historias del V Trimestre con criterios de
   aceptación y estado, más el backlog de los Sprints 8 y 9
 - **ESTIMACION_SPRINTS.md** — planificación con puntaje, capacidad y velocidad
 - **DAILY_SCRUMS.md** — registro de las reuniones diarias
 - **CLICKUP_TRELLO.md** — enlaces a los tableros ágiles
+
+En la carpeta `docs/` (técnica y pruebas):
+
+| Documento | Qué tiene |
+|---|---|
+| `vision-cierre.md` | Avance de las historias y plan del VI trimestre |
+| `backends.md` | Evolución del backend y manejo de la base con Alembic |
+| `arquitectura.md` | Diagramas de contenedores, redes, arranque y CI |
+| `instalacion-desde-cero.md` | Registro de la instalación en un equipo limpio |
+| `estrategia-pruebas.md` | Cómo se prueba cada capa y el pipeline de CI |
+| `plan-pruebas.md` | Alcance, criterios de entrada y salida, cronograma |
+| `matriz-casos.md` | Casos de prueba manuales y su ejecución |
+| `matriz-rotacion.md` | Capa de cada integrante por semana y cobertura semanal |
+| `retrospectivas-s5-s6.md` | Qué funcionó y qué se cambió |
+| `deuda-tecnica.md` | Deuda técnica priorizada |
+| `openapi.json` | Contrato de la API (también en `/docs` con el backend corriendo) |
 
 ---
 
@@ -311,9 +328,10 @@ cambia el Dockerfile.
 `pg_dump --clean` empiezan borrando objetos. Sobre una base vacía esos avisos
 son esperados y no impiden la restauración.
 
-**Un archivo nuevo del backend no se detecta.** El recargado automático de
-uvicorn no siempre detecta archivos creados dentro de volúmenes montados desde
-Windows. Reiniciá el contenedor con `docker compose restart backend`.
+**Cambié código y el contenedor no lo muestra.** Las imágenes son de
+producción: no montan el código. Reconstruí con `docker compose up -d --build`,
+o para desarrollar con recarga automática corré cada parte en local
+(`uv run uvicorn app.main:app --reload` y `pnpm dev`).
 
 ---
 

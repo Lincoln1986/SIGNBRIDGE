@@ -2,40 +2,127 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ============================================================
+   SignBridge — Tema oscuro
+   Los nombres de las variables NO cambiaron (--white, --gray-50,
+   etc.), solo sus valores, para que todas las pantallas que ya
+   usaban var(--...) se volteen solas.
+   ============================================================ */
+
 :root {
-  --violet: #5B4FCF;
-  --violet-dark: #3D34A5;
-  --violet-light: #EEF0FB;
-  --violet-mid: #7B6FE0;
-  --amber: #F6A623;
-  --amber-dark: #D4861A;
-  --amber-light: #FEF3DC;
-  --white: #FFFFFF;
-  --gray-50: #F9F9FB;
-  --gray-100: #F0EFF6;
-  --gray-200: #E2E0EE;
-  --gray-400: #9E9BC0;
-  --gray-600: #5A5878;
-  --gray-800: #2D2B45;
-  --danger: #E5534B;
-  --success: #27A85F;
+  color-scheme: dark;
+
+  /* --- Marca ---
+     Los tonos van más vivos que los de la identidad impresa: sobre
+     fondo oscuro un color apagado se apaga todavía más. El índigo
+     profundo de marca vive en --violet-dark (degradados y hover). */
+  --violet: #8B84FF;
+  --violet-dark: #2823BC;
+  --violet-light: #2B2870;   /* tinte índigo: chips, estados activos */
+  --violet-mid: #A9A4FF;
+
+  --amber: #F0813F;          /* terracota encendida */
+  --amber-dark: #C25A22;
+  --amber-light: #46281A;
+
+  /* --- Superficies ---
+     La tarjeta es claramente más clara que el fondo: esa diferencia
+     es la que da profundidad y evita que todo se vea plano. */
+  --white: #1F2350;          /* tarjetas, navbar, footer, inputs */
+  --gray-50: #131634;        /* fondo de página */
+  --gray-100: #333A70;       /* bordes y divisores */
+  --gray-200: #454D92;       /* bordes marcados */
+
+  /* --- Texto (de más tenue a más fuerte) --- */
+  --gray-400: #A6AED0;
+  --gray-600: #D0D6EA;
+  --gray-800: #FFFFFF;
+
+  /* --- Estados (subidos de brillo para fondo oscuro) --- */
+  --danger: #FF6B62;
+  --success: #3DD07E;
+
+  /* --- Resplandores del fondo ---
+     Tres focos muy suaves con los colores de marca. Es lo que evita
+     que el fondo se vea como un bloque negro muerto. */
+  --app-glow:
+    radial-gradient(1100px 650px at 12% -8%,  rgba(110,100,255,0.22), transparent 62%),
+    radial-gradient(900px 600px at 92% 0%,    rgba(46,217,163,0.09),  transparent 65%),
+    radial-gradient(800px 700px at 75% 100%,  rgba(240,129,63,0.07),  transparent 60%);
+
   --font-display: 'Plus Jakarta Sans', sans-serif;
   --font-body: 'Inter', sans-serif;
   --radius: 12px;
   --radius-sm: 8px;
-  --shadow-sm: 0 1px 4px rgba(91,79,207,0.08);
-  --shadow: 0 4px 16px rgba(91,79,207,0.12);
-  --shadow-lg: 0 8px 32px rgba(91,79,207,0.16);
+
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.40);
+  --shadow: 0 8px 24px rgba(0,0,0,0.45);
+  --shadow-lg: 0 18px 50px rgba(0,0,0,0.55);
+}
+
+/* ------------------------------------------------------------
+   Modo claro — lo activa el widget de accesibilidad poniendo
+   data-theme="light" en <html>. Mismos nombres de variables, así
+   que toda la app cambia sin tocar un solo componente.
+   ------------------------------------------------------------ */
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --violet: #2823BC;         /* índigo profundo: legible sobre claro */
+  --violet-dark: #1C1880;
+  --violet-light: #E8E7F7;
+  --violet-mid: #4F49D6;
+
+  --amber: #C25A22;          /* terracota oscura para texto sobre claro */
+  --amber-dark: #96420F;
+  --amber-light: #FBE8DD;
+
+  --white: #FFFFFF;
+  --gray-50: #F5F6FA;
+  --gray-100: #E7E9F2;
+  --gray-200: #D5D8E6;
+
+  --gray-400: #6E7590;
+  --gray-600: #4A5068;
+  --gray-800: #14161F;
+
+  --danger: #C5342C;
+  --success: #1E8A4E;
+
+  --app-glow:
+    radial-gradient(1100px 650px at 12% -8%, rgba(40,35,188,0.07), transparent 62%),
+    radial-gradient(900px 600px at 92% 0%,   rgba(46,217,163,0.06), transparent 65%);
+
+  --shadow-sm: 0 1px 4px rgba(40,35,188,0.08);
+  --shadow: 0 4px 16px rgba(40,35,188,0.12);
+  --shadow-lg: 0 8px 32px rgba(40,35,188,0.16);
 }
 
 html, body, #root {
   height: 100%;
   font-family: var(--font-body);
-  background: var(--gray-50);
   color: var(--gray-800);
   -webkit-font-smoothing: antialiased;
+}
+
+body {
+  background: var(--app-glow), var(--gray-50);
+  background-attachment: fixed;
 }
 
 a { text-decoration: none; color: inherit; }
 button { cursor: pointer; font-family: var(--font-body); }
 input, select, textarea { font-family: var(--font-body); }
+
+::placeholder { color: var(--gray-400); opacity: 1; }
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--gray-800);
+  -webkit-box-shadow: 0 0 0 1000px var(--white) inset;
+}
+
+::-webkit-scrollbar { width: 12px; height: 12px; }
+::-webkit-scrollbar-track { background: var(--gray-50); }
+::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 8px; border: 3px solid var(--gray-50); }
+::-webkit-scrollbar-thumb:hover { background: #5A63B5; }

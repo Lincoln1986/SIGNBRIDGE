@@ -4,6 +4,10 @@
 #   cp .env.example .env      # y editá SECRET_KEY
 #   docker compose up -d --build
 #
+# Las imágenes son de producción: el backend no se recarga solo y el frontend
+# es la versión compilada. Para desarrollar con recarga automática, correr cada
+# parte en local (uv run uvicorn app.main:app --reload / pnpm dev).
+#
 #   Frontend  → http://localhost:5173
 #   API docs  → http://localhost:8000/docs
 # ==============================================================================
@@ -63,8 +67,6 @@ services:
     restart: unless-stopped
     ports:
       - "${BACKEND_PORT:-8000}:8000"
-    volumes:
-      - ./Backend-SignBridge:/app
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-admin}@postgres:5432/${POSTGRES_DB:-signbridge}
       SECRET_KEY: ${SECRET_KEY:?falta SECRET_KEY - copiá .env.example a .env}
@@ -82,7 +84,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    # La imagen ya trae el arranque (alembic upgrade head + uvicorn) y su
+    # HEALTHCHECK contra /health: ver Backend-SignBridge/Dockerfile.
     networks:
       - web_network
       - db_network
@@ -93,15 +96,12 @@ services:
       dockerfile: Dockerfile
     container_name: signbridge_frontend
     restart: unless-stopped
+    # nginx dentro del contenedor escucha en 8080 (usuario sin privilegios).
     ports:
-      - "${FRONTEND_PORT:-5173}:5173"
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://localhost:8000}
-    volumes:
-      - ./Frontend-SignBridge:/app
-      - /app/node_modules
+      - "${FRONTEND_PORT:-5173}:8080"
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     networks:
       - web_network
 

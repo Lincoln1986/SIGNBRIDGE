@@ -1,141 +1,180 @@
 # Estrategia de pruebas — SignBridge
 
-> Estándar: `bc-testing-adso` · Meta final: **≥ 80% de cobertura** en frontend y
-> backend · Estado actual: **Sprint S1 completado**
+> Estándar: `bc-testing-adso` · Meta final: **≥ 80 % de cobertura** en frontend y
+> backend antes del 23 de noviembre · Estado: **Sprint S7, cierre del trimestre (20 nov)**
+>
+> El plan de pruebas (alcance, criterios de entrada y salida, cronograma) está en
+> [`docs/plan-pruebas.md`](plan-pruebas.md).
 
 ---
 
 ## 1. Principios
 
-1. **Trinquete estricto (ratchet):** cada umbral de cobertura está fijado en el
-   repositorio y solo puede subir. Un PR que baje la cobertura falla en CI.
+1. **Trinquete (ratchet):** cada umbral de cobertura está fijado en el
+   repositorio y solo puede subir. Si el grupo supera el piso de la semana, el
+   umbral nuevo queda en la cobertura real redondeada hacia abajo. Un PR que
+   baje la cobertura falla en CI.
 2. **Contratos, no implementación:** los tests de API verifican códigos de
-   estado (200/401/403/422) y payloads; los de UI verifican texto visible y
-   comportamiento, no estilos ni estructura interna.
-3. **Sin red en las pruebas:** la BD se sustituye por SQLite en memoria
-   (backend) y la API se intercepta con mocks o `page.route` (frontend/E2E).
-   Ningún test envía correo ni consulta Mediapipe real.
-4. **Versiones exactas:** `pyproject.toml` y `package.json` no admiten `^` ni
-   `~`. El lockfile (`uv.lock` / `pnpm-lock.yaml`) es la fuente de verdad y CI
-   instala con `--frozen`.
+   estado (200/201/204/400/401/403/404/409/422/500) y el cuerpo de la
+   respuesta; los de UI verifican texto visible y comportamiento, no estilos.
+3. **Sin red en las pruebas unitarias:** la BD es SQLite en memoria, el correo
+   y MediaPipe se reemplazan por dobles de prueba, y en el frontend la API se
+   reemplaza con `vi.spyOn` (componentes) o `page.route` (E2E).
+4. **Base real donde importa:** las pruebas de integración corren contra
+   PostgreSQL con las migraciones de Alembic, porque SQLite no revisa llaves
+   foráneas ni usa funciones de Postgres. El esquema se crea **solo** con
+   Alembic: no se usan scripts SQL manuales.
+5. **Patrón AAA y nombres que describen el comportamiento** (`test_should_…`,
+   `it('should …')`). Cada PR prueba al menos un mutante para demostrar que
+   los tests detectan errores reales.
+6. **Versiones exactas:** el lockfile (`uv.lock` / `pnpm-lock.yaml`) es la
+   fuente de verdad y CI instala con `--frozen`.
 
 ---
 
-## 2. Estado de cobertura (Sprint S1)
+## 2. Estado de cobertura al cierre
 
-| Capa | Tests | Cobertura | Umbral activo (trinquete) |
+| Capa | Tests | Cobertura (líneas) | Umbral activo |
 |---|---:|---:|---|
-| Backend (pytest) | 68 | **58.3%** líneas | `--cov-fail-under=55` en `pyproject.toml` |
-| Frontend (vitest) | 143 | **36.0%** líneas (34.9% stmts · 30.8% branches · 32.2% funcs) | `coverage.thresholds` en `vite.config.ts` (30%) |
-| E2E (Playwright) | 2 | flujo de login completo | — |
+| Backend (pytest, SQLite) | 415 | **88,1 %** | `--cov-fail-under` en `pyproject.toml` |
+| Backend + integración (PostgreSQL) | 415 + 18 | ver job *Database Integration* | — |
+| Frontend (vitest) | 303 | **84,4 %** (81,2 % stmts · 78,7 % branches · 75,5 % funcs) | `coverage.thresholds` en `vite.config.ts` |
+| E2E (Playwright) | 18 | 3 flujos críticos + login, vocabulario y acceso por rol | — |
 
-Los umbrales actuales son conservadores a propósito: al superar una meta de
-sprint se fija el nuevo piso, y de ahí ya no baja.
+### Evolución por semana
 
----
-
-## 3. Distribución de la suite backend
-
-| Archivo | Qué cubre |
-|---|---|
-| `tests/conftest.py` | Env vars de `Settings`, engine SQLite en memoria con `StaticPool`, override de `get_db`, siembra de roles/usuarios, correo mockeado (nunca SMTP real) |
-| `tests/test_schemas_auth.py` | Reglas de negocio duplicadas con el frontend: contraseña fuerte, teléfono colombiano (10 dígitos, inicia en 3), capitalización de nombres |
-| `tests/test_security.py` | bcrypt (hash/verify), JWT (create/decode/expirado/basura), tokens de reset |
-| `tests/test_auth_flow.py` | Registro (éxito, email duplicado, sin rol por defecto), login (éxito, 401, 403 desactivado), `/auth/me`, forgot/reset de contraseña |
-| `tests/test_access_control.py` | 401 sin token o token inválido y 403 con rol insuficiente sobre endpoints admin/soporte; cuenta desactivada bloqueada |
-| `tests/test_dashboards.py` | Las vistas `vw_*` de Alembic sobre SQLite: `/dashboard/admin`, `/dashboard/user`, `/dashboard/stats`, alias `/admin/*`, `vw_users` y filtro de soft-delete |
-
-Cobertura por módulo más relevante: `schemas/auth.py` 100%,
-`core/security.py` y `routers/auth.py` altos; los servicios
-(`mail`, `traduccion`, `abecedario`) son la deuda pendiente de S4 con mocks.
+| Semana | Tema | Piso | Frontend | Backend |
+|---|---|---:|---:|---:|
+| S1 | Línea base + primer E2E | 30 % | 36,0 % | 58,3 % |
+| S2–S4 | Unitarias, componentes, API | 40–60 % | 45,8 % | 62,8 % |
+| S5 | Dobles de prueba + Postgres real | 70 % | 45,8 % | 79,5 % |
+| S6 | Componentes de páginas + E2E críticos | 75 % | 83,1 % | 79,5 % |
+| S7 | API por router + calidad de código | 80 % | 84,4 % | 88,1 % |
 
 ---
 
-## 4. Distribución de la suite frontend
+## 3. Qué se prueba en cada capa y por qué
 
-| Área | Archivos |
-|---|---|
-| UI primitivas | `UI.test.tsx` (fuerza de contraseña, requisitos, botones, inputs, alertas) |
-| Autenticación | `AuthModal.test.tsx` (pestañas, login fallido/exitoso, registro saneado, forgot) |
-| Guardas de ruta | `ProtectedRoute.test.tsx` (401/redirect/roles con `AuthContext` real) |
-| Notificaciones | `NotificationBell.test.tsx`, `Notifications.test.tsx` (contador, filtros, marcar/eliminar) |
-| Accesibilidad | `AccessibilityWidget.test.tsx` (persistencia en localStorage, exclusión mutua, lectura) |
-| Visualización | `StatsCharts.test.tsx`, `StatDetailModal.test.tsx`, `SignSequencePlayer.test.tsx` |
-| Infraestructura | `client.test.ts` (todas las rutas de la capa API), hooks `useCamera`/`useSpeechRecognition` |
-| E2E | `e2e/login.spec.ts` (login válido → `/home` + token; 401 → sesión limpiada) |
+### Backend — unitarias y de API (`Backend-SignBridge/tests/`)
 
-Los gráficos de Recharts se testean con un stub que expone los `data` que el
-componente calcula: se valida el mapeo de datos sin depender del render de SVG
-(en jsdom no hay layout).
-
----
-
-## 5. Pipeline de CI (`.github/workflows/tests.yml`)
-
-Cinco jobs en paralelo; **el ruleset de `main` debe exigir los cinco** antes de
-fusionar (Settings → Rules → Add rule → Require status checks):
-
-| Job | Herramienta | Qué valida |
+| Archivo | Qué cubre | Por qué |
 |---|---|---|
-| `Frontend Tests` | pnpm + vitest | Unitarios + umbral de cobertura 30% |
-| `Backend Tests` | uv + pytest | Unitarios + umbral de cobertura 55% |
-| `Database Integration` | uv + Alembic + `postgres:17` (service) | `alembic upgrade head` sobre BD limpia **antes** de la suite; `alembic current` verifica que quedó en head |
-| `End-to-End Tests` | Playwright (Chromium) | Flujos de login; sube `playwright-report` como artefacto si falla |
-| `Security Audit` | `pnpm audit` + `uv run pip-audit` | 0 vulnerabilidades activas en ambas capas |
+| `conftest.py` | SQLite en memoria, override de `get_db`, fábrica de tokens por rol, correo siempre simulado | Tests rápidos, independientes y sin servicios externos |
+| `test_schemas_auth.py`, `test_validaciones_*.py` | Contraseña fuerte, teléfono colombiano, límites de texto, estados de ticket | Son reglas de negocio que también valida el frontend |
+| `test_security.py`, `test_access_control.py`, `test_api_seguridad.py` | bcrypt, JWT, 401/403 en los 66 endpoints protegidos | Criterio "Alto" del estándar |
+| `test_api_errores.py` | Manejador global: un 500 nunca muestra el detalle interno | Contrato único de error |
+| `test_api_datos.py`, `test_api_contrato_front.py`, `test_api_vocabulario.py` | 409 en duplicados, rutas que consume el frontend, URL de video válida | Errores que se encontraron en el trimestre |
+| `test_dobles_correo_y_avisos.py` | `AsyncMock` en lugar del SMTP: el correo sale solo cuando debe | Dobles de prueba (S5) |
+| `test_dobles_traduccion.py` | MediaPipe reemplazado por un doble; reglas del abecedario con manos sintéticas | Probar nuestra lógica, no el modelo de visión |
+| `test_api_favoritos.py`, `test_api_usuarios_admin.py`, `test_api_tickets_soporte.py`, `test_api_valoraciones.py` | Endpoints completos por rol, con casos no felices | Cierre al 80 % (S7) |
+
+### Backend — integración (`Backend-SignBridge/tests/integracion/`)
+
+Corren solo si existe `TEST_DATABASE_URL` (servicio `postgres-test`, puerto
+5433). Cada test usa una transacción con `join_transaction_mode="create_savepoint"`
+y rollback al final, así la base queda vacía después de cada corrida. Cubren
+las vistas `vw_*`, el flujo registro → login → perfil y reglas que SQLite no
+hace cumplir (llaves foráneas, `unique`).
+
+### Frontend — componentes (`Frontend-SignBridge/src/**/*.test.tsx`)
+
+Testing Library + `vi.spyOn` sobre los objetos del API. Las gráficas de
+Recharts se reemplazan por stubs (jsdom no tiene layout). El micrófono y la
+cámara se reemplazan por dobles de `useSpeechRecognition` y `useCamera`, y el
+deletreo usa relojes falsos (`vi.useFakeTimers`).
+
+### E2E (`Frontend-SignBridge/e2e/`)
+
+Un objeto de página por flujo (`e2e/paginas/`). Los datos se preparan con
+`page.route` y `localStorage`, no llenando pantallas. Los flujos con doble
+clic o carga lenta usan respuestas con demora para comprobar que no se
+duplican pedidos. La cámara es la falsa de Chromium
+(`--use-fake-device-for-media-stream`).
+
+| Flujo crítico | Spec |
+|---|---|
+| Registro + verificación de la cuenta | `registro.spec.ts` |
+| Login + panel según el rol | `login-por-rol.spec.ts` |
+| Traducción texto → seña y seña → texto | `traduccion.spec.ts` |
+
+---
+
+## 4. Pipeline de CI (`.github/workflows/tests.yml`)
+
+Siete jobs en paralelo. El ruleset de `main` exige que pasen antes de fusionar,
+con la aprobación de otro integrante.
+
+| Job | Qué valida | Artefacto |
+|---|---|---|
+| `Frontend Tests` | vitest + umbral de cobertura | `cobertura-frontend` (HTML) |
+| `Backend Tests` | pytest + umbral de cobertura | `cobertura-backend` (HTML + XML) |
+| `Database Integration` | Alembic sobre `postgres:17` + suite completa + integración por segunda vez | — |
+| `End-to-End Tests` | Playwright; Chromium en caché | `playwright-report` (siempre) |
+| `Code Quality` | ESLint, `pnpm build` (TypeScript) y ruff | — |
+| `Security Audit` | `pnpm audit` + `pip-audit` | — |
+| `Evidencia individual` | Commits de test por autor en la semana (`git shortlog`) | Resumen del job |
+
+### Cómo leer la lista de Actions
+
+| Ícono | Significa | Qué hacer |
+|---|---|---|
+| ✅ | La corrida pasó | Nada |
+| ⊘ / ⓘ gris | **Cancelada**, no fallida: llegó un commit nuevo al mismo PR y `concurrency: cancel-in-progress` detuvo la vieja | Mirar la corrida más reciente de ese PR |
+| ❌ | Falló algún job | Abrir el job, corregir y volver a subir |
+
+El 11 de noviembre, siete corridas del PR #24 quedaron canceladas porque los
+cuatro integrantes fusionaron PRs a la misma rama en seis minutos; la última
+(#43) pasó. Las dos fallidas del trimestre (#31 del PR #23 y #45 del PR #26)
+se corrigieron en el mismo PR.
+
+---
+
+## 5. Hallazgos del trimestre y su corrección
+
+Los defectos con impacto en el usuario están registrados como issues con
+etiqueta `defecto` y su severidad (`#41`–`#48`). Cada issue cerrado enlaza el
+commit que lo corrigió.
+
+| # | Hallazgo | Corrección | PR |
+|---|---|---|---|
+| 1 | Texto de traducción con solo espacios pasaba la validación | `strip()` antes de validar | #14 |
+| 2 | Un error 500 podía mostrar el detalle interno | Manejador global en `main.py` | #16 |
+| 3 | El frontend llamaba a `/auth/cities`, que no existe | Cambio a `/regions` + prueba de contrato | #19 |
+| 4 | El CI fallaba en Node 20 (vitest y jsdom piden Node 22) | CI en Node 22 | #20 |
+| 5 | `python-jose` arrastraba vulnerabilidades (pyasn1, ecdsa) | Migración a PyJWT y parches de dependencias | #20 |
+| 6 | Registros duplicados devolvían un error genérico | 409 Conflict | #22 |
+| 7 | `video_url` aceptaba cualquier texto | Validación de URL | #23 |
+| 8 | Los campos con error no lo anunciaban al lector de pantalla | `aria-invalid` + `aria-describedby` | #23 |
+| 9 | `Backend-SignBridge/.env` con secretos estaba en el repo | Borrado de `develop`; rotar claves | #23 |
+| 10 | Avisos nuevos en `dnspython` y `opentelemetry-api` | Actualización en `uv.lock` | #26 |
+| 11 | El historial decía "2 traducciónes" | Plural corregido en `TranslationHistory.tsx` | #34 |
+| 12 | El aviso "Letra registrada" salía dos veces en Señas a Texto | Bloque duplicado eliminado | #32 |
+| 13 | Un usuario podía calificar la misma palabra muchas veces e inflar el promedio | Voto único por usuario y palabra, como migración de Alembic | Issue #45 (abierto) |
+| 14 | La base se instalaba corriendo scripts SQL a mano con `psql` | Solo migraciones de Alembic; `alembic upgrade head` al arrancar | S7 (en curso) |
 
 ---
 
 ## 6. Auditoría de dependencias
 
-- **Frontend:** `pnpm audit` — 0 avisos (se fijaron axios 1.20.0,
-  react-router-dom 7.18.4 y vite 8.3.4, que son las versiones parcheadas).
-- **Backend:** `uv run pip-audit` — 44 avisos originales reducidos a **7
-  ignorados con justificación**:
+- **Frontend:** `pnpm audit` sin avisos (overrides de undici, follow-redirects,
+  zod y minimatch en `pnpm-workspace.yaml`).
+- **Backend:** `pip-audit` sin avisos activos. Un solo ignore justificado:
 
-| ID | Paquete | Motivo del ignore |
+| ID | Paquete | Motivo |
 |---|---|---|
-| `PYSEC-2026-1325` | ecdsa | Sin fix publicado; llega vía python-jose |
-| `GHSA-3qf3-8w2g-rqmx` | python-jose 3.4.0 | 3.4.0 es la última versión; sin parche upstream |
-| `PYSEC-2026-2263/3455/3456/3457` | pyasn1 0.4.8 | python-jose declara `pyasn1<0.5.0`; subirlo exige migrar a PyJWT (pendiente) |
-| `PYSEC-2026-1805` | protobuf 4.25.9 | mediapipe 0.10.x declara `protobuf<5`; el fix requiere migrar a mediapipe 1.x (pendiente S4) |
+| `PYSEC-2026-1805` | protobuf | mediapipe 0.10.x exige `protobuf<5`; el fix requiere migrar mediapipe |
 
 Cualquier `--ignore-vuln` nuevo debe documentarse aquí con su motivo.
 
 ---
 
-## 7. Roadmap de cobertura (Sprints S2–S7)
+## 7. Deuda conocida
 
-| Sprint | Meta | Foco |
-|---|---|---|
-| S2 | ≥ 40% | Extraer validaciones duplicadas (teléfono/contraseña) a un hook compartido y testearlo; tests de `Register.tsx`/`Login.tsx` |
-| S3 | ≥ 50% | `TestClient` sobre `messages`, `support`, `favorites`, `admin_users`; contrato global de errores 4xx/5xx en JSON |
-| S4 | ≥ 60% | `pytest-mock` para `services/mail.py` y `services/traduccion.py` (Mediapipe); MSW en el frontend |
-| S5 | ≥ 70% | Integración transaccional con `postgres-test` y rollback; vistas `vw_admin_dashboard` |
-| S6 | ≥ 75% | E2E: registro+verificación, login+redirect por rol, traducción bidireccional (Page Objects, `page.route` anti-flakiness) |
-| S7 | ≥ 80% | Auditoría final, subir trinquetes al umbral definitivo |
-
----
-
-## 8. Deuda conocida
-
-1. **`pnpm build` (tsc + vite) y `pnpm lint` (eslint) no forman parte del
-   CI**: los 5 jobs solo cubren vitest, pytest, Alembic + Postgres,
-   Playwright y las auditorías. Ambos se ejecutan en local y quedan en verde:
-   0 errores de TypeScript (los 18 preexistentes están corregidos) y 0
-   problemas de lint (24 preexistentes corregidos sin desactivar reglas).
-2. `alembic upgrade head` contra Postgres se ejecuta en CI (service de GitHub
-   Actions) y también se verificó en local contra un clúster temporal de
-   PostgreSQL 16: `upgrade head` crea las 17 tablas + las 4 vistas `vw_*`,
-   `downgrade base` limpia todo y un `upgrade` posterior vuelve a head.
-3. Los `--ignore-vuln` de pip-audit (sección 6) caducan cuando salgan los
-   fixes: revisar en cada sprint.
-4. **Revisiones de Alembic**: el baseline `18c15e7dc120` se autogeneró contra
-   SQLite (el entorno local no tiene Docker); la revisión `0a9ba8b6906c`
-   añade las vistas `vw_*` de los dashboards con SQL portable PG/SQLite —el
-   DDL vive en `app/core/views.py`, así que migración y tests
-   (`tests/test_dashboards.py`) crean exactamente las mismas vistas,
-   verificadas con resultados idénticos en SQLite y en PostgreSQL— y la
-   `3fcd44fad4e6` siembra los roles base (`Cliente`, `Administrador`,
-   `Soporte`) de forma idempotente, para que `POST /auth/register` funcione
-   en una BD recién creada. `alembic/env.py` lee también el `.env` local
-   (SQLite), sin restar prioridad a la variable `DATABASE_URL` de CI.
+1. `GET /admin/users/export` usa `TO_CHAR` (solo PostgreSQL): se cubre con
+   integración, no en la suite unitaria.
+2. `routers/messages.py` (WebSocket) y `routers/stats.py` tienen la cobertura
+   más baja; la mensajería en tiempo real se dejó fuera de los E2E críticos
+   por ser propensa a fallos intermitentes.
+3. Las funciones del frontend están en 75,5 %: son sobre todo manejadores de
+   eventos de la cámara y del micrófono, que dependen de APIs del navegador.
+4. El ignore de protobuf caduca cuando se migre mediapipe: revisarlo cada sprint.

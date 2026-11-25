@@ -29,15 +29,26 @@ dev = [
     "pytest-cov==6.2.1",
     "httpx==0.28.1",
     "pip-audit==2.9.0",
+    "ruff==0.17.3",
 ]
 
 [tool.uv]
 package = false
 
+[tool.ruff]
+target-version = "py312"
+extend-exclude = ["alembic/versions"]
+
+[tool.ruff.lint]
+# Errores críticos: sintaxis (E9), imports mal ubicados o sin usar (E4, F401),
+# comparaciones y lambdas peligrosas (E7) y nombres indefinidos (F).
+select = ["E4", "E7", "E9", "F"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 # cov-fail-under: trinquete de cobertura. Sube en cada sprint, nunca baja.
-addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=79"
+# Cierre S7 (20 nov): real 88.09 → 88.
+addopts = "-q --cov=app --cov-report=term-missing --cov-fail-under=88"
 markers = [
     "integracion: pruebas contra PostgreSQL real; necesitan TEST_DATABASE_URL",
 ]

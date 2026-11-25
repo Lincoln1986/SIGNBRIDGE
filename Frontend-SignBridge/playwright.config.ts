@@ -2,6 +2,9 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   testDir: './e2e',
+  // Los E2E contra el backend real tienen su propia configuración
+  // (playwright.real.config.ts): aquí solo corren los simulados.
+  testIgnore: '**/real/**',
   timeout: 30_000,
   fullyParallel: true,
   retries: process.env.CI ? 1 : 0,

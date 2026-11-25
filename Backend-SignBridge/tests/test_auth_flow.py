@@ -1,5 +1,4 @@
 """Flujo completo de autenticación: registro, login y perfil."""
-import uuid
 
 
 def _payload(**overrides):

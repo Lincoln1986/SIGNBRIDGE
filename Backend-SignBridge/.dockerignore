@@ -1,0 +1,12 @@
+# Lo que no entra a la imagen del backend
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+tests/
+*.db
