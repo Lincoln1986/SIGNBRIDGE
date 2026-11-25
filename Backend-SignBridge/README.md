@@ -95,7 +95,7 @@ MAIL_FROM=noreply@signbridge.com
 MAIL_SERVER=sandbox.smtp.mailtrap.io
 MAIL_PORT=587
 
-FRONTEND_URL=http://localhost:3000
+FRONTEND_URL=http://localhost:5173
 ```
 
 ---
