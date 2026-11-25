@@ -1,27 +1,322 @@
-<!-- Si corrige un defecto, la primera línea es:  closes #N  (y conecta el issue en Development) -->
+# =============================================================================
+# SignBridge — pipeline de pruebas y calidad (Sprint S1 → S7)
+#
+# 7 jobs, todos en paralelo. El ruleset de main exige que pasen antes de
+# fusionar (ver docs/estrategia-pruebas.md):
+#
+#   1. frontend-tests       → vitest + umbrales de cobertura (vite.config.ts)
+#   2. backend-tests        → pytest + --cov-fail-under (pyproject.toml)
+#   3. code-quality         → pnpm lint, pnpm build y ruff (S7)
+#   4. database-integration → alembic upgrade head sobre Postgres + suite
+#                             + colección de Postman con Newman (S7)
+#   5. e2e-tests            → Playwright: registro, login por rol, traducción
+#                             + E2E real contra el backend, sin page.route (S7)
+#   6. security-audit       → pnpm audit + pip-audit
+#   7. evidencia-individual → commits de test por autor en la semana
+#
+# Cada corrida guarda artefactos: cobertura-frontend, cobertura-backend y
+# playwright-report y newman-report (se descargan al final de la corrida).
+# =============================================================================
 
-## ¿Qué cambia o qué prueba este PR?
+name: Tests
 
-<!-- Describe el comportamiento, no el código. Si son tests: qué verifican. -->
+on:
+  push:
+    branches: [main]
+  pull_request:
 
-## Capas
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
 
-- **Capa del autor esta semana**: <!-- Front / API / BD / E2E / CI / instalación / documentación -->
-- **Revisor**: @usuario
-- **Capa del revisor esta semana**: <!-- debe ser distinta a la del autor -->
+jobs:
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend-SignBridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - name: Instalar dependencias (sin comodines, lockfile exacto)
+        run: pnpm install --frozen-lockfile
+      - name: Tests unitarios con cobertura (umbral en vite.config.ts)
+        run: pnpm test:coverage --coverage.reporter=text-summary --coverage.reporter=html --coverage.reporter=json-summary
+      - name: Guardar reporte de cobertura del frontend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-frontend
+          path: Frontend-SignBridge/coverage/
+          retention-days: 14
 
-## Checklist
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend-SignBridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Instalar Python 3.12
+        run: uv python install 3.12
+      - name: Instalar dependencias (uv.lock exacto)
+        run: uv sync --frozen
+      - name: Tests con cobertura (umbral en pyproject.toml)
+        run: uv run pytest --cov-report=xml --cov-report=html
+      - name: Guardar reporte de cobertura del backend
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-backend
+          path: |
+            Backend-SignBridge/htmlcov/
+            Backend-SignBridge/coverage.xml
+          retention-days: 14
 
-- [ ] La base del PR es `develop` (o `main` solo si es el release)
-- [ ] El título y los commits siguen `tipo(alcance): qué cambia` (ver `docs/guia-commits.md`)
-- [ ] Los tests siguen el patrón AAA (Arrange, Act, Assert)
-- [ ] Los nombres de los tests describen el comportamiento esperado
-- [ ] Hice fallar cada test al menos una vez para comprobar que detecta el error (mutante)
-- [ ] Los tests pasan en local
-- [ ] No hay credenciales ni datos reales
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # ── Frontend: ESLint y compilación de producción ──
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - name: Instalar dependencias del frontend
+        working-directory: Frontend-SignBridge
+        run: pnpm install --frozen-lockfile
+      - name: Lint del frontend (ESLint)
+        working-directory: Frontend-SignBridge
+        run: pnpm lint
+      - name: Build de producción (TypeScript + Vite)
+        working-directory: Frontend-SignBridge
+        run: pnpm build
+      # ── Backend: ruff (reglas en [tool.ruff] de pyproject.toml) ──
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Instalar Python 3.12 y dependencias
+        working-directory: Backend-SignBridge
+        run: |
+          uv python install 3.12
+          uv sync --frozen
+      - name: Lint del backend (ruff)
+        working-directory: Backend-SignBridge
+        run: uv run ruff check app tests
 
-## ¿Cómo lo ejecuto?
+  database-integration:
+    name: Database Integration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Backend-SignBridge
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: signbridge_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:admin@localhost:5432/signbridge_test
+      # Activa los tests de tests/integracion (sin esta variable se saltan)
+      TEST_DATABASE_URL: postgresql://postgres:admin@localhost:5432/signbridge_test
+      SECRET_KEY: segredo-de-ci
+      MAIL_USERNAME: ci@test.com
+      MAIL_PASSWORD: no-se-usa
+      MAIL_FROM: ci@test.com
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --frozen
+      - name: Migraciones de Alembic sobre postgres de pruebas
+        run: uv run alembic upgrade head
+      - name: Verificar que la BD quedó en head
+        run: uv run alembic current
+      - name: Suite completa con integración en Postgres (corrida 1)
+        run: uv run pytest
+      - name: Integración en Postgres (corrida 2, debe ser estable)
+        run: uv run pytest tests/integracion --no-cov
+      # ── Pruebas de contrato de la API con Postman + Newman ──
+      # La API corre de verdad (uvicorn + Postgres) y Newman ejecuta la
+      # colección de postman/: cada petición valida el código y el cuerpo.
+      # Se usa el uvicorn del .venv directo (no `uv run`): un `uv run` que
+      # queda corriendo bloquea la caché de uv y el paso de limpieza de
+      # setup-uv falla al final del job.
+      - name: Levantar la API para Newman
+        run: |
+          nohup .venv/bin/uvicorn app.main:app --port 8000 > api.log 2>&1 &
+          echo $! > api.pid
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+      - name: Colección de Postman con Newman
+        run: >-
+          npx --yes newman@6.2.1 run ../postman/SignBridge.postman_collection.json
+          -e ../postman/local.postman_environment.json
+          --reporters cli,junit --reporter-junit-export newman-report.xml
+      - name: Detener la API
+        if: always()
+        run: kill "$(cat api.pid)" 2>/dev/null || true
+      - name: Guardar reporte de Newman
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: newman-report
+          path: |
+            Backend-SignBridge/newman-report.xml
+            Backend-SignBridge/api.log
+          retention-days: 14
 
-```bash
-# comando para probar este cambio
-```
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: Frontend-SignBridge
+    # Base real para el E2E sin simulación (e2e/real)
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: admin
+          POSTGRES_DB: signbridge_e2e
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://postgres:admin@localhost:5432/signbridge_e2e
+      SECRET_KEY: segredo-de-ci-e2e
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      MAIL_FROM: ci@test.com
+      FRONTEND_URL: http://localhost:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Versión de Playwright (llave de la caché)
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Caché del navegador de Playwright
+        id: cache-navegador
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - name: Instalar Chromium de Playwright (solo si no está en caché)
+        if: steps.cache-navegador.outputs.cache-hit != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Dependencias del sistema para Chromium (con caché)
+        if: steps.cache-navegador.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium
+      - name: Flujos E2E críticos (registro, login por rol, traducción)
+        run: pnpm test:e2e
+      # ── E2E real: el navegador contra el backend de verdad, sin page.route ──
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Backend para el E2E real (Python 3.12 + Alembic)
+        working-directory: Backend-SignBridge
+        run: |
+          uv python install 3.12
+          uv sync --frozen
+          .venv/bin/alembic upgrade head
+          nohup .venv/bin/uvicorn app.main:app --port 8000 > api-e2e.log 2>&1 &
+          echo $! > api-e2e.pid
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+      - name: E2E real sin simulación (registro y login contra el backend)
+        run: pnpm exec playwright test -c playwright.real.config.ts
+      - name: Detener el backend del E2E real
+        if: always()
+        working-directory: Backend-SignBridge
+        run: kill "$(cat api-e2e.pid)" 2>/dev/null || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            Frontend-SignBridge/playwright-report/
+            Frontend-SignBridge/playwright-report-real/
+            Backend-SignBridge/api-e2e.log
+          retention-days: 7
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: Frontend-SignBridge/package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: Frontend-SignBridge/pnpm-lock.yaml
+      - name: pnpm audit (dependencias de producción y desarrollo)
+        working-directory: Frontend-SignBridge
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm audit
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - name: pip-audit vía uv
+        working-directory: Backend-SignBridge
+        run: |
+          uv sync --frozen
+          # 1 aviso ignorado, sin fix compatible con el stack actual:
+          #   protobuf → mediapipe 0.10.x declara protobuf<5; el fix requiere
+          #     migrar a mediapipe 1.x.
+          # (python-jose se reemplazó por PyJWT: ya no hacen falta los 6
+          #  ignores de ecdsa y pyasn1.)
+          uv run pip-audit --ignore-vuln PYSEC-2026-1805
+
+  evidencia-individual:
+    name: Evidencia individual
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Commits de test por autor esta semana
+        run: |
+          echo "### Commits de test por autor desde el lunes" >> "$GITHUB_STEP_SUMMARY"
+          git shortlog -sn --since="last Monday" HEAD -- '*tests/*' '*.test.*' '*e2e/*' >> "$GITHUB_STEP_SUMMARY"
