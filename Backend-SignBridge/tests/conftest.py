@@ -51,6 +51,16 @@ def _create_tables():
 
 
 @pytest.fixture(autouse=True)
+def _reiniciar_limite_login():
+    """Los contadores de intentos de login viven en memoria: se vacían en
+    cada test para que los fallos de uno no bloqueen el siguiente."""
+    from app.routers.auth import limite_por_correo, limite_por_ip
+    limite_por_correo.reiniciar()
+    limite_por_ip.reiniciar()
+    yield
+
+
+@pytest.fixture(autouse=True)
 def _clean_tables(_create_tables):
     """Vacía las tablas después de cada test para que sean independientes."""
     yield

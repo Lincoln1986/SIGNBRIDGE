@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import uuid
 
+from app.core.config import get_settings
 from app.core.database import get_db
+from app.core.limite_intentos import LimiteIntentos
 from app.core.security import (
     hash_password, verify_password,
     create_access_token, create_reset_token,
@@ -17,6 +19,35 @@ from app.schemas.auth import (
 from app.services.mail import send_reset_email, send_welcome_email
 
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
+
+_settings = get_settings()
+_ventana = _settings.LOGIN_BLOQUEO_MINUTOS * 60
+limite_por_correo = LimiteIntentos(_settings.LOGIN_MAX_INTENTOS_CORREO, _ventana)
+limite_por_ip = LimiteIntentos(_settings.LOGIN_MAX_INTENTOS_IP, _ventana)
+
+
+def _ip_cliente(request: Request) -> str:
+    return request.client.host if request.client else "desconocida"
+
+
+def _rechazar_si_bloqueado(clave_correo: str, clave_ip: str) -> None:
+    """429 Too Many Requests si el correo o la IP pasaron el límite.
+
+    Se revisa ANTES de comprobar la contraseña: mientras dure el bloqueo,
+    ni siquiera la contraseña correcta entra. Si no, el bloqueo no frenaría
+    la fuerza bruta (el atacante sabría cuál acertó por la respuesta).
+    """
+    espera = max(
+        limite_por_correo.segundos_bloqueado(clave_correo),
+        limite_por_ip.segundos_bloqueado(clave_ip),
+    )
+    if espera:
+        minutos = max(1, -(-espera // 60))  # redondeo hacia arriba
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Demasiados intentos fallidos. Intenta de nuevo en {minutos} minuto(s).",
+            headers={"Retry-After": str(espera)},
+        )
 
 
 # ── Registro ──────────────────────────────────────────────────────────────────
@@ -76,7 +107,11 @@ async def register(payload: UserRegister, db: Session = Depends(get_db)):
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: UserLogin, db: Session = Depends(get_db)):
+async def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
+    clave_correo = payload.email.lower()
+    clave_ip = _ip_cliente(request)
+    _rechazar_si_bloqueado(clave_correo, clave_ip)
+
     user = db.query(User).filter(
         func.lower(User.email) == payload.email.lower(),
         User.deleted_at.is_(None),
@@ -93,6 +128,10 @@ async def login(payload: UserLogin, db: Session = Depends(get_db)):
                 access_type = "failed_attempt",
             ))
             db.commit()
+        # Se cuenta aunque el correo no exista: así el 429 no delata cuáles
+        # correos están registrados.
+        limite_por_correo.registrar_fallo(clave_correo)
+        limite_por_ip.registrar_fallo(clave_ip)
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
 
     # Cuenta desactivada por un administrador
@@ -107,6 +146,9 @@ async def login(payload: UserLogin, db: Session = Depends(get_db)):
             status_code=403,
             detail="Tu cuenta ha sido desactivada. Contacta al administrador.",
         )
+
+    # Contraseña correcta: el contador de ese correo vuelve a cero.
+    limite_por_correo.limpiar(clave_correo)
 
     # Log de acceso exitoso
     db.add(AccessLog(
