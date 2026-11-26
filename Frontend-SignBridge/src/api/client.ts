@@ -112,6 +112,7 @@ export interface LexicalUnitAdmin {
 // ── Translation Types ──────────────────────────────────────────────────────
 
 export interface SignToTextResponse {
+  id_session?: string | null;   // guardarlo y reenviarlo en el siguiente frame
   detected_sign?: string | null;
   confidence?: number | null;
   message?: string;
@@ -290,12 +291,23 @@ export const translationApi = {
   /**
    * POST /api/traduccion/frame — detecta seña desde frame base64.
    * Campo del backend: "frame_base64" (no "frame").
-   * FrameResponse NO devuelve id_session — SignToText no puede vincular feedback.
+   * Devuelve id_session — guardarlo y reenviarlo en los siguientes frames.
    */
   signToText: (frame_base64: string, session_id?: string) =>
     api.post<SignToTextResponse>('/api/traduccion/frame', {
       frame_base64,
       ...(session_id ? { session_id } : {}),
+    }),
+
+  /**
+   * POST /api/traduccion/frame/palabra — guarda la palabra/frase deletreada
+   * completa (ej. "vida") en el historial de esa sesión, en vez de que quede
+   * una fila por cada letra. Llamar al terminar de deletrear (parar o limpiar).
+   */
+  confirmarPalabra: (session_id: string, texto: string) =>
+    api.post<{ guardado: boolean; texto: string }>('/api/traduccion/frame/palabra', {
+      session_id,
+      texto,
     }),
 
   /**
@@ -460,6 +472,7 @@ export interface HistorySession {
   date_time?: string | null;
   translation_type?: string | null;
   signs: HistorySign[];
+  generated_text?: string | null;  // palabra/frase deletreada completa (seña → texto), si se confirmó
 }
 
 /** Las traducciones de un día, agrupadas por el backend */
@@ -537,7 +550,18 @@ export const statsApi = {
   /** GET /stats/mias/canales — cómo traducís: texto, voz o seña */
   misCanales: () => api.get<TranslationTypeRow[]>('/stats/mias/canales'),
   /** GET /stats/mias/historial — tus traducciones agrupadas por día */
-  miHistorial: (dias = 30) => api.get<HistoryDay[]>(`/stats/mias/historial?dias=${dias}`),
+  miHistorial: (dias = 30, q?: string) =>
+    api.get<HistoryDay[]>(`/stats/mias/historial?dias=${dias}${q ? `&q=${encodeURIComponent(q)}` : ''}`),
+
+  /** GET /stats/mias/historial/pdf — descarga el historial (con el mismo filtro) como PDF */
+  exportarHistorialPDF: (dias = 30, q?: string) =>
+    api.get(`/stats/mias/historial/pdf?dias=${dias}${q ? `&q=${encodeURIComponent(q)}` : ''}`, {
+      responseType: 'blob',
+    }),
+
+  /** DELETE /stats/mias/historial/{id_session} — quita una traducción de tu historial */
+  eliminarDeHistorial: (id_session: string) =>
+    api.delete<void>(`/stats/mias/historial/${id_session}`),
 
   /** GET /stats/globales/palabras — ranking global de señas más usadas (Admin) */
   palabrasGlobales: (limite = 10) =>

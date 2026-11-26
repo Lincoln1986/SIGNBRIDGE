@@ -5,7 +5,7 @@ import type { UserDashboardRow, FeedbackItem, SupportTicket, FavoriteWord } from
 import { useAuth } from '../context/auth-context';
 import { StatCard, Card, Spinner, Alert, Badge, Btn } from '../components/UI';
 import TranslationHistory from '../components/TranslationHistory';
-import GoalProgressCard from '../components/GoalProgressCard';
+import { GoalProgressCard } from '../components/GoalProgressCard';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tab bar
@@ -204,7 +204,7 @@ function OverviewTab({
 
           {/* Barra de progreso — se reinicia en cada meta y guarda la racha */}
           <div style={{ marginBottom: 28 }}>
-            <GoalProgressCard translationsMade={data.translations_made} />
+            <GoalProgressCard />
           </div>
 
           {/* Valoracion promedio */}

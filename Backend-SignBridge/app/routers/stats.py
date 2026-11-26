@@ -16,7 +16,7 @@ Cada endpoint tiene dos alcances:
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,7 @@ from app.core.security import get_current_user, require_admin
 from app.models.user import (
     Feedback,
     LexicalUnit,
+    SignInput,
     Support,
     TranslationDetail,
     TranslationSession,
@@ -289,31 +290,55 @@ def resumen_interaccion(
 # Historial de traducciones agrupado por fecha
 # ─────────────────────────────────────────────────────────────────────────────
 
-@router.get("/mias/historial", response_model=List[HistoryDay],
-            summary="Tu historial de traducciones, agrupado por día")
-def mi_historial(
-    dias: int = Query(30, ge=1, le=365, description="Cuántos días hacia atrás"),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Las traducciones del usuario ordenadas por fecha, de la más reciente a
-    la más antigua, con las señas que tuvo cada una.
+CANAL_LABEL = {
+    "texto": "Texto -> Señas",
+    "text_to_sign": "Texto -> Señas",
+    "voz": "Voz -> Señas",
+    "voice_to_sign": "Voz -> Señas",
+    "sena": "Señas -> Texto",
+    "seña": "Señas -> Texto",
+    "sign_to_text": "Señas -> Texto",
+}
 
-    Se agrupa acá y no en el frontend para no mandar una fila por seña y que
-    el navegador tenga que rearmar la estructura.
+
+def _obtener_mi_historial(
+    db: Session, id_user: str, dias: int, q: Optional[str] = None
+) -> List[HistoryDay]:
+    """Arma el historial agrupado por día para un usuario, con búsqueda
+    opcional por palabra. Compartido entre el endpoint JSON y el de PDF para
+    no repetir la consulta dos veces.
     """
     desde = datetime.now(timezone.utc) - timedelta(days=dias)
 
-    sesiones = (
-        db.query(TranslationSession)
-        .filter(
-            TranslationSession.id_user == current_user.id_user,
-            TranslationSession.deleted_at.is_(None),
-            TranslationSession.date_time >= desde,
-        )
-        .order_by(TranslationSession.date_time.desc())
-        .all()
+    query = db.query(TranslationSession).filter(
+        TranslationSession.id_user == id_user,
+        TranslationSession.deleted_at.is_(None),
+        TranslationSession.date_time >= desde,
     )
+
+    if q:
+        patron = f"%{q.strip()}%"
+
+        ids_por_palabra = (
+            db.query(TranslationDetail.id_session)
+            .join(LexicalUnit, LexicalUnit.id_lexicalunit == TranslationDetail.id_lexicalunit)
+            .filter(
+                TranslationDetail.deleted_at.is_(None),
+                LexicalUnit.text.ilike(patron),
+            )
+        )
+        ids_por_texto_deletreado = (
+            db.query(SignInput.id_session)
+            .filter(
+                SignInput.deleted_at.is_(None),
+                SignInput.generated_text.ilike(patron),
+            )
+        )
+        ids_coincidentes = ids_por_palabra.union(ids_por_texto_deletreado).subquery()
+
+        query = query.filter(TranslationSession.id_session.in_(select(ids_coincidentes)))
+
+    sesiones = query.order_by(TranslationSession.date_time.desc()).all()
     if not sesiones:
         return []
 
@@ -337,6 +362,22 @@ def mi_historial(
             HistorySign(word=palabra.text or "", video_url=palabra.video_url)
         )
 
+    # Palabra/frase completa que el usuario deletreó en H03 (seña → texto),
+    # si la confirmó con /frame/palabra. Se prefiere sobre la lista de letras
+    # sueltas al mostrar el historial — ver record_sign_input.
+    textos_generados = (
+        db.query(SignInput.id_session, SignInput.generated_text)
+        .filter(
+            SignInput.id_session.in_(ids),
+            SignInput.deleted_at.is_(None),
+        )
+        .order_by(SignInput.created_at.desc())
+        .all()
+    )
+    texto_por_sesion: dict = {}
+    for id_session, generated_text in textos_generados:
+        texto_por_sesion.setdefault(id_session, generated_text)  # el primero (más reciente) gana
+
     dias_map: dict = {}
     for s in sesiones:
         clave = s.date_time.date().isoformat() if s.date_time else "sin fecha"
@@ -346,6 +387,7 @@ def mi_historial(
                 date_time        = s.date_time.isoformat() if s.date_time else None,
                 translation_type = s.translation_type,
                 signs            = por_sesion.get(s.id_session, []),
+                generated_text   = texto_por_sesion.get(s.id_session),
             )
         )
 
@@ -353,6 +395,152 @@ def mi_historial(
         HistoryDay(day=dia, total=len(lista), sessions=lista)
         for dia, lista in dias_map.items()
     ]
+
+
+@router.get("/mias/historial", response_model=List[HistoryDay],
+            summary="Tu historial de traducciones, agrupado por día")
+def mi_historial(
+    dias: int = Query(30, ge=1, le=365, description="Cuántos días hacia atrás"),
+    q: Optional[str] = Query(None, min_length=1, description="Buscar por palabra dentro del historial"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Las traducciones del usuario ordenadas por fecha, de la más reciente a
+    la más antigua, con las señas que tuvo cada una.
+
+    Si se pasa `q`, se filtra a las sesiones donde alguna de las señas
+    traducidas coincide con el texto buscado, o donde el texto deletreado
+    por seña (H03) contiene esa palabra.
+    """
+    return _obtener_mi_historial(db, current_user.id_user, dias, q)
+
+
+@router.get("/mias/historial/pdf",
+            summary="Exportar tu historial de traducciones en PDF")
+def exportar_mi_historial_pdf(
+    dias: int = Query(30, ge=1, le=365),
+    q: Optional[str] = Query(None, min_length=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Genera un PDF con el mismo historial que ve el usuario en pantalla
+    (mismo filtro por días y búsqueda por palabra, si se envía).
+    """
+    from io import BytesIO
+    from fastapi.responses import StreamingResponse
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.units import cm
+    from reportlab.lib import colors
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from xml.sax.saxutils import escape
+
+    dias_data = _obtener_mi_historial(db, current_user.id_user, dias, q)
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer, pagesize=letter,
+        topMargin=2 * cm, bottomMargin=2 * cm, leftMargin=2 * cm, rightMargin=2 * cm,
+    )
+    styles = getSampleStyleSheet()
+    titulo_style = ParagraphStyle(
+        "TituloSB", parent=styles["Heading1"], textColor=colors.HexColor("#2823BC"),
+    )
+    dia_style = ParagraphStyle(
+        "DiaSB", parent=styles["Heading3"], spaceBefore=14, spaceAfter=6,
+        textColor=colors.HexColor("#252440"),
+    )
+
+    nombre = getattr(current_user, "first_name", "") or ""
+    apellido = getattr(current_user, "last_name", "") or ""
+    nombre_completo = f"{nombre} {apellido}".strip() or current_user.email
+
+    elementos = [
+        Paragraph("SignBridge - Historial de traducciones", titulo_style),
+        Paragraph(f"Usuario: {escape(nombre_completo)}", styles["Normal"]),
+        Paragraph(
+            f"Generado el {datetime.now(timezone.utc).strftime('%d/%m/%Y %H:%M UTC')}",
+            styles["Normal"],
+        ),
+    ]
+    if q:
+        elementos.append(Paragraph(f'Filtro de busqueda: "{escape(q)}"', styles["Normal"]))
+    elementos.append(Spacer(1, 0.6 * cm))
+
+    if not dias_data:
+        elementos.append(Paragraph("No hay traducciones para este periodo/busqueda.", styles["Normal"]))
+    else:
+        # Días de más reciente a más antiguo, igual que en la vista web.
+        for dia in sorted(dias_data, key=lambda d: d.day, reverse=True):
+            elementos.append(Paragraph(f"{dia.day} - {dia.total} traduccion(es)", dia_style))
+
+            filas = [["Hora", "Canal", "Traduccion"]]
+            for s in dia.sessions:
+                hora = ""
+                if s.date_time:
+                    try:
+                        hora = datetime.fromisoformat(s.date_time).strftime("%H:%M")
+                    except ValueError:
+                        hora = ""
+                canal = CANAL_LABEL.get(s.translation_type or "", s.translation_type or "-")
+                if s.generated_text:
+                    contenido = s.generated_text
+                elif s.signs:
+                    contenido = ", ".join(sign.word for sign in s.signs)
+                else:
+                    contenido = "Sin señas registradas"
+                filas.append([hora, canal, contenido])
+
+            tabla = Table(filas, colWidths=[2.2 * cm, 3.5 * cm, 9.3 * cm])
+            tabla.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2823BC")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTSIZE", (0, 0), (-1, -1), 9),
+                ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+                ("TOPPADDING", (0, 0), (-1, 0), 6),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#DDDDDD")),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            elementos.append(tabla)
+
+    doc.build(elementos)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": "attachment; filename=historial-signbridge.pdf"},
+    )
+
+
+@router.delete("/mias/historial/{id_session}", status_code=204,
+               summary="Eliminar una traducción de tu propio historial")
+def eliminar_de_mi_historial(
+    id_session: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Oculta (soft-delete) una sesión de traducción del historial del usuario
+    dueño. No borra la fila físicamente — igual que al eliminar una
+    valoración — y por eso mismo no afecta las estadísticas globales del
+    Admin, que cuentan todo lo que pasó independientemente de si el usuario
+    después lo ocultó de su propia vista.
+    """
+    sesion = (
+        db.query(TranslationSession)
+        .filter(
+            TranslationSession.id_session == id_session,
+            TranslationSession.id_user == current_user.id_user,
+            TranslationSession.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if not sesion:
+        raise HTTPException(status_code=404, detail="Traducción no encontrada")
+
+    sesion.deleted_at = datetime.now(timezone.utc)
+    db.commit()
+    return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -531,4 +719,3 @@ def resumen_tickets(
         dias_promedio_resolucion = promedio,
         resueltos_medidos        = len(duraciones),
     )
-

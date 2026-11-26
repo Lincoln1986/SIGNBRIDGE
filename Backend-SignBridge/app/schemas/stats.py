@@ -55,6 +55,7 @@ class HistorySession(BaseModel):
     date_time:        Optional[str] = None   # ISO
     translation_type: Optional[str] = None
     signs:            list[HistorySign] = []
+    generated_text:   Optional[str] = None  # palabra/frase deletreada en H03 (seña → texto)
 
 
 class HistoryDay(BaseModel):

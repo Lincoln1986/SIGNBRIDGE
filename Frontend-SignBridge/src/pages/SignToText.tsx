@@ -59,6 +59,21 @@ export default function SignToText() {
   const pausaHastaRef = useRef<number>(0);
   const velocidadRef = useRef<Velocidad>('normal');
 
+  // El backend crea la sesión de traducción en el primer frame y la devuelve
+  // en id_session. Sin reenviarla, cada frame generaría una sesión nueva y
+  // el historial de "seña a texto" tendría una fila por letra.
+  const sessionIdRef = useRef<string | null>(null);
+
+  // Cuántas letras del historial ya se guardaron como palabra. Si el usuario
+  // detiene, vuelve a iniciar y detiene otra vez sin limpiar, solo se guardan
+  // las letras nuevas y no se repite la palabra anterior.
+  const confirmadasRef = useRef(0);
+
+  // Evita que dos frames viajen en paralelo. Si la red va lenta el POST puede
+  // tardar más que el intervalo y saldrían varios frames a la vez, todos sin
+  // id_session todavía → una sesión nueva por cada uno.
+  const enVueloRef = useRef(false);
+
 
   useEffect(() => { velocidadRef.current = velocidad; }, [velocidad]);
 
@@ -78,14 +93,20 @@ export default function SignToText() {
 
   // Enviar frame al backend
   const sendFrame = useCallback(async () => {
+    if (enVueloRef.current) return;  // ya hay un frame en camino — no solapar
+
     const frame = captureFrame();
     if (!frame) return;
 
+    enVueloRef.current = true;
     try {
       // El backend espera "frame_base64", no "frame" — translationApi.signToText lo maneja
-      const res = await translationApi.signToText(frame);
+      const res = await translationApi.signToText(frame, sessionIdRef.current ?? undefined);
       const data = res.data;
       setLastResult(data);
+      if (data.id_session) {
+        sessionIdRef.current = data.id_session;
+      }
 
       // Ventana de descanso tras aceptar una letra: sin esto, mantener la mano
       // quieta un instante de más registraba la misma letra varias veces.
@@ -126,8 +147,24 @@ export default function SignToText() {
       }
     } catch {
       // No mostrar error por cada frame fallido; solo si persiste
+    } finally {
+      enVueloRef.current = false;
     }
   }, [captureFrame]);
+
+  // Guarda en el historial la palabra deletreada (ej. "vida") como una sola
+  // traducción, en vez de una fila por letra. Si falla, la traducción ya se
+  // hizo: no se bloquea al usuario por esto.
+  const confirmarPalabra = useCallback((letras: string[]) => {
+    const nuevas = letras.slice(confirmadasRef.current);
+    confirmadasRef.current = letras.length;
+    const palabra = nuevas.map(l => (l === 'ESPACIO' ? ' ' : l)).join('').trim().toLowerCase();
+    if (sessionIdRef.current && palabra) {
+      translationApi.confirmarPalabra(sessionIdRef.current, palabra).catch(() => {});
+    }
+    // La próxima palabra empieza una sesión nueva en el backend.
+    sessionIdRef.current = null;
+  }, []);
 
   // Iniciar/detener el bucle de captura
   const startTranslation = useCallback(() => {
@@ -148,16 +185,22 @@ export default function SignToText() {
     }
   }, []);
 
+  // "Pausar" solo para el bucle y conserva la sesión: la palabra sigue.
+  // "Detener cámara" termina la palabra y la guarda en el historial.
   const handleStop = useCallback(() => {
     stopTranslation();
     stopCamera();
-  }, [stopTranslation, stopCamera]);
+    confirmarPalabra(history);
+  }, [stopTranslation, stopCamera, confirmarPalabra, history]);
 
   const clearHistory = useCallback(() => {
+    // Si había una palabra en curso sin guardar, se guarda antes de limpiar.
+    confirmarPalabra(history);
+    confirmadasRef.current = 0;
     setHistory([]);
     setTranslatedText('');
     setLastResult(null);
-  }, []);
+  }, [confirmarPalabra, history]);
 
   // Limpiar al desmontar
   useEffect(() => {

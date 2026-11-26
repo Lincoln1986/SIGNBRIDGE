@@ -26,7 +26,6 @@ import api, {
   supportApi,
   translationApi,
 } from './client';
-import { historyApi } from './history';
 
 const get = vi.mocked(api.get);
 const post = vi.mocked(api.post);
@@ -232,12 +231,29 @@ describe('notificationsApi', () => {
   });
 });
 
-describe('historyApi', () => {
-  it('list y goalProgress', async () => {
-    await historyApi.list();
-    expect(get).toHaveBeenCalledWith('/dashboard/history');
-    await historyApi.goalProgress();
-    expect(get).toHaveBeenCalledWith('/dashboard/goal-progress');
+describe('historial (statsApi)', () => {
+  it('miHistorial agrega la búsqueda codificada solo si viene', async () => {
+    await statsApi.miHistorial(30, 'buenas noches');
+    expect(get).toHaveBeenCalledWith('/stats/mias/historial?dias=30&q=buenas%20noches');
+    await statsApi.miHistorial(30);
+    expect(get).toHaveBeenCalledWith('/stats/mias/historial?dias=30');
+  });
+
+  it('exportarHistorialPDF pide un blob', async () => {
+    await statsApi.exportarHistorialPDF(7, 'hola');
+    expect(get).toHaveBeenCalledWith('/stats/mias/historial/pdf?dias=7&q=hola', { responseType: 'blob' });
+    await statsApi.exportarHistorialPDF();
+    expect(get).toHaveBeenCalledWith('/stats/mias/historial/pdf?dias=30', { responseType: 'blob' });
+  });
+
+  it('eliminarDeHistorial borra por id de sesión', async () => {
+    await statsApi.eliminarDeHistorial('s1');
+    expect(del).toHaveBeenCalledWith('/stats/mias/historial/s1');
+  });
+
+  it('confirmarPalabra guarda la palabra deletreada', async () => {
+    await translationApi.confirmarPalabra('s1', 'vida');
+    expect(post).toHaveBeenCalledWith('/api/traduccion/frame/palabra', { session_id: 's1', texto: 'vida' });
   });
 });
 

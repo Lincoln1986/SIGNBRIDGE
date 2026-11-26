@@ -21,6 +21,7 @@ dependencies = [
     "numpy==1.26.4",
     "mediapipe==0.10.14",
     "alembic==1.15.2",
+    "reportlab==4.5.1",
 ]
 
 [dependency-groups]

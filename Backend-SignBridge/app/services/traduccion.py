@@ -34,6 +34,7 @@ from sqlalchemy.orm import Session
 from app.services.abecedario import clasificar_letra, describir_pose, medir_pose
 from app.models.user import (
     LexicalUnit,
+    SignInput,
     SystemErrorLog,
     TranslationDetail,
     TranslationSession,
@@ -360,6 +361,97 @@ def translate_text_to_lsc(
             )
 
     return signs, untranslated
+
+
+def record_sign_input(db: Session, id_session: str, texto: str) -> bool:
+    """Guarda en SignInput la palabra/frase que el usuario terminó de deletrear.
+
+    La tabla existía en el modelo (igual que TranslationDetail antes) pero
+    nunca se escribía. Esto es lo que hace que el historial muestre "vida"
+    como una sola traducción en vez de una fila por cada letra (V, I, D, A):
+    las letras se siguen guardando en TranslationDetail para las estadísticas
+    de uso del abecedario, pero lo que se le muestra al usuario en su
+    historial es la palabra completa de acá.
+
+    Nunca lanza excepción: una falla acá no puede tumbarle la traducción al
+    usuario, igual que record_translation_details.
+    """
+    texto = texto.strip()
+    if not texto:
+        return False
+    try:
+        sesion = (
+            db.query(TranslationSession)
+            .filter(TranslationSession.id_session == id_session)
+            .first()
+        )
+        if sesion is None:
+            return False
+
+        db.add(
+            SignInput(
+                id_sign_input  = str(uuid.uuid4()),
+                id_session     = id_session,
+                generated_text = texto,
+            )
+        )
+        db.commit()
+        return True
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning("No se pudo registrar la palabra deletreada '%s': %s", texto, exc)
+        _log_system_error(db, "SignInput", "services.traduccion.record_sign_input", str(exc))
+        return False
+
+
+def record_frame_detail(db: Session, id_session: str, letra: str) -> None:
+    """Registra en TranslationDetail la letra detectada en H03 (seña → texto).
+
+    A diferencia de H08/H16, acá llegan muchos frames por segundo con la
+    misma letra mientras el usuario mantiene la pose (CAPTURE_INTERVAL_MS en
+    el frontend). Si se guardara cada frame, una sola letra sostenida 2
+    segundos generaría 5 registros y las estadísticas de "palabras más
+    usadas" quedarían infladas. Por eso solo se guarda cuando la letra es
+    distinta a la última registrada en esta sesión.
+
+    Nunca lanza excepción: igual que record_translation_details, una falla
+    acá no puede tumbarle la traducción al usuario.
+    """
+    try:
+        unidad = (
+            db.query(LexicalUnit)
+            .filter(
+                func.upper(LexicalUnit.text) == letra.upper(),
+                LexicalUnit.deleted_at.is_(None),
+            )
+            .first()
+        )
+        if unidad is None:
+            return
+
+        ultimo_detalle = (
+            db.query(TranslationDetail)
+            .filter(TranslationDetail.id_session == id_session)
+            .order_by(TranslationDetail.order.desc())
+            .first()
+        )
+        if ultimo_detalle and ultimo_detalle.id_lexicalunit == unidad.id_lexicalunit:
+            return  # misma letra que el frame anterior — no duplicar
+
+        siguiente_orden = (ultimo_detalle.order + 1) if ultimo_detalle else 1
+        db.add(
+            TranslationDetail(
+                id_detail      = str(uuid.uuid4()),
+                id_session     = id_session,
+                id_lexicalunit = unidad.id_lexicalunit,
+                order          = siguiente_orden,
+            )
+        )
+        db.commit()
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        logger.warning("No se pudo registrar el detalle de la letra '%s': %s", letra, exc)
+        _log_system_error(db, "TranslationDetail", "services.traduccion.record_frame_detail", str(exc))
 
 
 def record_translation_details(
