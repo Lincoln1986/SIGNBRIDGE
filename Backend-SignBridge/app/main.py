@@ -17,6 +17,7 @@ from app.routers import regions, messages, feedback, support, favorites
 from app.routers import admin_users
 from app.routers import stats
 from app.routers import notifications
+from app.core.cabeceras import CabecerasSeguridadMiddleware
 
 # Importar todos los modelos para registrar relaciones en SQLAlchemy
 from app.models import user, session  # noqa: F401
@@ -28,8 +29,10 @@ app = FastAPI(
     title=settings.APP_NAME,
     description="API REST para la aplicación de traducción de lenguaje de señas Sign Bridge.",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    # Con DOCS_HABILITADOS=false las tres rutas responden 404 (OWASP A05).
+    docs_url="/docs" if settings.DOCS_HABILITADOS else None,
+    redoc_url="/redoc" if settings.DOCS_HABILITADOS else None,
+    openapi_url="/openapi.json" if settings.DOCS_HABILITADOS else None,
 )
 
 # ── Error inesperado: siempre JSON, nunca detalles internos ───────────────────
@@ -43,6 +46,9 @@ async def error_inesperado(request: Request, exc: Exception) -> JSONResponse:
     logging.getLogger("signbridge").exception("Error no controlado en %s %s", request.method, request.url.path)
     return JSONResponse(status_code=500, content={"detail": "Error interno del servidor"})
 
+
+# ── Cabeceras de seguridad en todas las respuestas (OWASP A05) ───────────────
+app.add_middleware(CabecerasSeguridadMiddleware)
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(

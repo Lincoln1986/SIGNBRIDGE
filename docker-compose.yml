@@ -9,7 +9,7 @@
 # parte en local (uv run uvicorn app.main:app --reload / pnpm dev).
 #
 #   Frontend  → http://localhost:5173
-#   API docs  → http://localhost:8000/docs
+#   API docs  → http://localhost:8000/docs  (solo con DOCS_HABILITADOS=true en el .env)
 # ==============================================================================
 
 services:
@@ -78,6 +78,7 @@ services:
       MAIL_SERVER: ${MAIL_SERVER:-sandbox.smtp.mailtrap.io}
       MAIL_PORT: ${MAIL_PORT:-2525}
       APP_NAME: ${APP_NAME:-Sign_Bridge}
+      DOCS_HABILITADOS: ${DOCS_HABILITADOS:-false}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
     # Espera a que Postgres acepte conexiones, no solo a que arranque el
     # contenedor: de lo contrario el backend entra en un bucle de reinicios.
@@ -95,6 +96,10 @@ services:
       context: ./Frontend-SignBridge
       dockerfile: Dockerfile
     container_name: signbridge_frontend
+    environment:
+      # URL con la que el navegador llega al backend. nginx la pone en la
+      # Content-Security-Policy para permitir datos y videos solo desde ahí.
+      BACKEND_URL: ${VITE_API_URL:-http://localhost:8000}
     restart: unless-stopped
     # nginx dentro del contenedor escucha en 8080 (usuario sin privilegios).
     ports:

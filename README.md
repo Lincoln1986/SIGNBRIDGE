@@ -87,7 +87,7 @@ docker compose ps                            # backend en estado "healthy"
 | Servicio | URL |
 |---|---|
 | Aplicación | http://localhost:5173 |
-| API (Swagger) | http://localhost:8000/docs |
+| API (Swagger) | http://localhost:8000/docs (solo si el `.env` tiene `DOCS_HABILITADOS=true`) |
 | Estado del backend | http://localhost:8000/health |
 
 Si `/health` devuelve `{"status":"healthy"}`, el backend está funcionando.
