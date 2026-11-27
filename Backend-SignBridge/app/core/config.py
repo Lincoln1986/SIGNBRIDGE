@@ -11,6 +11,11 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Límite de intentos de inicio de sesión (OWASP A04 / A07)
+    LOGIN_MAX_INTENTOS_CORREO: int = 5
+    LOGIN_MAX_INTENTOS_IP: int = 20
+    LOGIN_BLOQUEO_MINUTOS: int = 15
+
     # Mailtrap SMTP
     MAIL_USERNAME: str
     MAIL_PASSWORD: str
