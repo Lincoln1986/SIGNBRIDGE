@@ -39,6 +39,12 @@ class FrameRequest(BaseModel):
 class FrameResponse(BaseModel):
     """Respuesta de POST /api/traduccion/frame."""
 
+    id_session: Optional[str] = Field(
+        None,
+        description="ID de la sesión de traducción (tipo 'sena'). Guardarlo y reenviarlo "
+                    "en los siguientes frames para que todas las letras queden en la misma "
+                    "sesión, y para poder usarlo luego al calificar la traducción.",
+    )
     detected_sign: Optional[str] = Field(
         None,
         description="Texto de la seña detectada. None si no se reconoció ninguna.",
@@ -53,6 +59,25 @@ class FrameResponse(BaseModel):
         ...,
         description="Mensaje descriptivo del resultado.",
     )
+
+
+class ConfirmarPalabraRequest(BaseModel):
+    """Payload para POST /api/traduccion/frame/palabra.
+
+    Se llama cuando el usuario termina de deletrear una palabra (o corta/
+    limpia la traducción) para guardar el resultado como una sola palabra
+    en el historial, en lugar de una fila por cada letra.
+    """
+
+    session_id: str = Field(..., description="id_session devuelto por /frame.")
+    texto: str = Field(..., min_length=1, max_length=200, description="Palabra o frase deletreada, ej. 'vida'.")
+
+
+class ConfirmarPalabraResponse(BaseModel):
+    """Respuesta de POST /api/traduccion/frame/palabra."""
+
+    guardado: bool
+    texto: str
 
 
 # ── H08 ───────────────────────────────────────────────────────────────────────

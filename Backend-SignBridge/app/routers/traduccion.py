@@ -17,10 +17,12 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.security import get_current_user
-from app.models.user import User
+from app.models.user import User, TranslationSession
 from app.schemas.traduccion import (
     FrameRequest,
     FrameResponse,
+    ConfirmarPalabraRequest,
+    ConfirmarPalabraResponse,
     TextoTraduccionRequest,
     TextoTraduccionResponse,
     VozTraduccionRequest,
@@ -33,6 +35,8 @@ from app.services.traduccion import (
     translate_text_to_lsc,
     resolve_session,
     record_translation_details,
+    record_frame_detail,
+    record_sign_input,
     medir_mano_en_frame,
 )
 
@@ -82,21 +86,68 @@ def procesar_frame(
     """
     logger.info("H03 frame recibido — usuario: %s", current_user.id_user)
 
+    # Se resuelve la sesión siempre, aunque este frame no traiga letra, para
+    # que el frontend tenga un id_session desde el primer frame y lo pueda
+    # reenviar en los siguientes (ver comentario en FrameResponse).
+    session_id = resolve_session(payload.session_id, current_user.id_user, "sena", db)
+
     frame_array = decode_base64_frame(payload.frame_base64)
     detected_sign, confidence = detect_sign_from_frame(frame_array, db)
 
     if detected_sign is None:
         return FrameResponse(
+            id_session=session_id,
             detected_sign=None,
             confidence=None,
             message="No se detectó ninguna seña en el frame.",
         )
 
+    # Registrar la letra para las estadísticas de uso (con deduplicado de
+    # frames consecutivos — ver record_frame_detail).
+    record_frame_detail(db, session_id, detected_sign)
+
     return FrameResponse(
+        id_session=session_id,
         detected_sign=detected_sign,
         confidence=confidence,
         message=f"Seña detectada: '{detected_sign}'.",
     )
+
+
+@router.post(
+    "/frame/palabra",
+    response_model=ConfirmarPalabraResponse,
+    summary="H03 — Guardar la palabra/frase deletreada como una sola traducción",
+    description="""
+Se llama cuando el usuario termina de deletrear (al presionar "Detener" o
+"Limpiar", o al cambiar de palabra). Guarda el texto completo, por ejemplo
+"vida", en el historial de esa sesión — en vez de que el historial muestre
+una fila por cada letra (V, I, D, A).
+    """,
+    status_code=status.HTTP_200_OK,
+)
+def confirmar_palabra(
+    payload: ConfirmarPalabraRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ConfirmarPalabraResponse:
+    # La sesión tiene que ser del usuario autenticado. Si es de otra persona
+    # (o no existe) se responde guardado=False y no se escribe nada: así nadie
+    # puede meter texto en el historial ajeno cambiando el session_id.
+    sesion = (
+        db.query(TranslationSession)
+        .filter(
+            TranslationSession.id_session == payload.session_id,
+            TranslationSession.id_user == current_user.id_user,
+            TranslationSession.deleted_at.is_(None),
+        )
+        .first()
+    )
+    if sesion is None:
+        return ConfirmarPalabraResponse(guardado=False, texto=payload.texto)
+
+    guardado = record_sign_input(db, payload.session_id, payload.texto)
+    return ConfirmarPalabraResponse(guardado=guardado, texto=payload.texto)
 
 
 @router.post(
@@ -145,17 +196,23 @@ async def procesar_frame_multipart(
     from app.schemas.traduccion import FrameRequest as FR
     payload = FR(frame_base64=frame_b64, session_id=session_id)
 
+    resolved_session_id = resolve_session(payload.session_id, current_user.id_user, "sena", db)
+
     frame_array = decode_base64_frame(payload.frame_base64)
     detected_sign, confidence = detect_sign_from_frame(frame_array, db)
 
     if detected_sign is None:
         return FrameResponse(
+            id_session=resolved_session_id,
             detected_sign=None,
             confidence=None,
             message="No se detectó ninguna seña en el frame.",
         )
 
+    record_frame_detail(db, resolved_session_id, detected_sign)
+
     return FrameResponse(
+        id_session=resolved_session_id,
         detected_sign=detected_sign,
         confidence=confidence,
         message=f"Seña detectada: '{detected_sign}'.",

@@ -3,8 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { dashboardApi, favoritesApi, feedbackApi, supportApi } from '../api/client';
-import { historyApi } from '../api/history';
+import { dashboardApi, favoritesApi, feedbackApi, statsApi, supportApi } from '../api/client';
 import { AuthContext, type AuthContextType } from '../context/auth-context';
 import UserDashboard from './UserDashboard';
 
@@ -41,10 +40,11 @@ beforeEach(() => {
   vi.restoreAllMocks();
   localStorage.clear();
   vi.spyOn(dashboardApi, 'user').mockResolvedValue({ data: PANEL } as never);
-  vi.spyOn(historyApi, 'goalProgress').mockResolvedValue(
-    { data: { translations_made: 4, goal: 10, streak: 2, last_goal_date: null } } as never
-  );
-  vi.spyOn(historyApi, 'list').mockResolvedValue({ data: [] } as never);
+  vi.spyOn(statsApi, 'miProgreso').mockResolvedValue({
+    data: { meta: 10, total_traducciones: 14, en_ciclo_actual: 4, metas_completadas: 1,
+            historial: [{ numero: 1, fecha: '2026-11-20T10:00:00Z' }] },
+  } as never);
+  vi.spyOn(statsApi, 'miHistorial').mockResolvedValue({ data: [] } as never);
   vi.spyOn(favoritesApi, 'list').mockResolvedValue({ data: [] } as never);
   vi.spyOn(supportApi, 'list').mockResolvedValue({ data: [] } as never);
   vi.spyOn(feedbackApi, 'list').mockResolvedValue({ data: [] } as never);
@@ -66,17 +66,17 @@ describe('Panel del usuario · Mi panel', () => {
     renderPanel();
 
     expect(await screen.findByText('4 / 10')).toBeInTheDocument();
-    expect(screen.getByText('Te faltan 6 traducciones para tu próxima meta')).toBeInTheDocument();
-    expect(screen.getByText('Racha: 2')).toBeInTheDocument();
+    expect(screen.getByText('Te faltan 6 traducciones para la próxima meta')).toBeInTheDocument();
+    expect(screen.getByText('🔥 1 meta cumplida')).toBeInTheDocument();
   });
 
-  it('should fall back to the dashboard numbers when the goal endpoint fails', async () => {
-    vi.spyOn(historyApi, 'goalProgress').mockRejectedValue(new Error('404'));
-    vi.spyOn(dashboardApi, 'user').mockResolvedValue({ data: { ...PANEL, translations_made: 12 } } as never);
+  it('should hide the goal card when the progress endpoint fails', async () => {
+    vi.spyOn(statsApi, 'miProgreso').mockRejectedValue(new Error('500'));
 
     renderPanel();
 
-    expect(await screen.findByText('🎉 ¡Meta alcanzada! Sigue así.')).toBeInTheDocument();
+    expect(await screen.findByText('Traducciones realizadas')).toBeInTheDocument();
+    expect(screen.queryByText('Progreso de traducciones')).not.toBeInTheDocument();
   });
 
   it('should show an error when the panel cannot be loaded', async () => {
@@ -155,21 +155,25 @@ describe('Panel del usuario · Favoritos', () => {
 
 describe('Panel del usuario · Historial', () => {
   it('should group the translations by day', async () => {
-    vi.spyOn(historyApi, 'list').mockResolvedValue({
-      data: [
-        { id_session: 's1', date_time: '2026-11-10T15:00:00Z', translation_type: 'voz', status: 'active', signs_count: 1, original_text: 'hola' },
-        { id_session: 's2', date_time: '2026-11-10T16:00:00Z', translation_type: 'texto', status: 'active', signs_count: 3 },
-      ],
+    vi.spyOn(statsApi, 'miHistorial').mockResolvedValue({
+      data: [{
+        day: '2026-11-10', total: 2, sessions: [
+          { id_session: 's1', date_time: '2026-11-10T15:00:00Z', translation_type: 'voz',
+            signs: [{ word: 'hola' }] },
+          { id_session: 's2', date_time: '2026-11-10T16:00:00Z', translation_type: 'sena',
+            signs: [], generated_text: 'vida' },
+        ],
+      }],
     } as never);
     renderPanel();
 
     await userEvent.click(pestana(/Historial/));
 
-    expect(await screen.findByText('2 traducciones')).toBeInTheDocument();
+    expect(await screen.findAllByText('2 traducciones')).toHaveLength(2);
     expect(screen.getByText('en 1 día')).toBeInTheDocument();
-    expect(screen.getByText('Traducción por voz')).toBeInTheDocument();
-    expect(screen.getByText(/1 seña encontrada — "hola"/)).toBeInTheDocument();
-    expect(screen.getByText(/3 señas encontradas/)).toBeInTheDocument();
+    expect(screen.getByText('Voz → Señas')).toBeInTheDocument();
+    expect(screen.getByText('hola')).toBeInTheDocument();
+    expect(screen.getByText('"vida"')).toBeInTheDocument();
   });
 
   it('should say when there are no translations yet', async () => {
@@ -181,7 +185,7 @@ describe('Panel del usuario · Historial', () => {
   });
 
   it('should show an error when the history cannot be loaded', async () => {
-    vi.spyOn(historyApi, 'list').mockRejectedValue(new Error('500'));
+    vi.spyOn(statsApi, 'miHistorial').mockRejectedValue(new Error('500'));
     renderPanel();
 
     await userEvent.click(pestana(/Historial/));

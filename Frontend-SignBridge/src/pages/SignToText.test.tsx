@@ -88,7 +88,7 @@ describe('Señas a Texto · deletreo', () => {
     await unaLectura();
 
     // Assert: 2 lecturas → todavía candidata
-    expect(enviar).toHaveBeenCalledWith('frame-base64');
+    expect(enviar).toHaveBeenCalledWith('frame-base64', undefined);
     expect(screen.getByText('2 / 3')).toBeInTheDocument();
     expect(screen.queryByText('Conversación')).not.toBeInTheDocument();
     expect(screen.getByText('Confianza: 90%')).toBeInTheDocument();
@@ -181,5 +181,64 @@ describe('Señas a Texto · deletreo', () => {
     fireEvent.click(screen.getByRole('button', { name: '📋 Copiar frase' }));
 
     expect(copiar).toHaveBeenCalledWith('O K');
+  });
+});
+
+describe('Señas a Texto · historial', () => {
+  const conSesion = (letra: string) =>
+    ({ data: { id_session: 'ses-1', detected_sign: letra, confidence: 0.9, message: '' } }) as never;
+
+  it('should reuse the session id the backend returns', async () => {
+    const enviar = vi.spyOn(translationApi, 'signToText').mockResolvedValue(conSesion('A'));
+    render(<SignToText />);
+    fireEvent.click(screen.getByRole('button', { name: '▶ Iniciar traducción' }));
+
+    await unaLectura();
+    await unaLectura();
+
+    expect(enviar).toHaveBeenNthCalledWith(1, 'frame-base64', undefined);
+    expect(enviar).toHaveBeenNthCalledWith(2, 'frame-base64', 'ses-1');
+  });
+
+  it('should not send a new frame while the previous one is still on its way', async () => {
+    const enviar = vi.spyOn(translationApi, 'signToText').mockReturnValue(new Promise(() => {}) as never);
+    render(<SignToText />);
+    fireEvent.click(screen.getByRole('button', { name: '▶ Iniciar traducción' }));
+
+    for (let i = 0; i < 3; i++) await unaLectura();
+
+    expect(enviar).toHaveBeenCalledTimes(1);
+  });
+
+  it('should save the spelled word once when the camera stops', async () => {
+    vi.spyOn(translationApi, 'signToText')
+      .mockResolvedValueOnce(conSesion('O')).mockResolvedValueOnce(conSesion('O'))
+      .mockResolvedValue(conSesion('K'));
+    const guardar = vi.spyOn(translationApi, 'confirmarPalabra').mockResolvedValue({} as never);
+    render(<SignToText />);
+    fireEvent.click(screen.getByRole('button', { name: 'Rápida' }));
+    fireEvent.click(screen.getByRole('button', { name: '▶ Iniciar traducción' }));
+    for (let i = 0; i < 6; i++) await unaLectura();
+
+    fireEvent.click(screen.getByRole('button', { name: '⏹ Detener cámara' }));
+    expect(guardar).toHaveBeenCalledWith('ses-1', 'ok');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar' }));
+    expect(guardar).toHaveBeenCalledTimes(1); // no se repite la misma palabra
+  });
+
+  it('should not save anything when pausing, and save when clearing', async () => {
+    vi.spyOn(translationApi, 'signToText').mockResolvedValue(conSesion('C'));
+    const guardar = vi.spyOn(translationApi, 'confirmarPalabra').mockRejectedValue(new Error('500'));
+    render(<SignToText />);
+    fireEvent.click(screen.getByRole('button', { name: '▶ Iniciar traducción' }));
+    for (let i = 0; i < 3; i++) await unaLectura();
+
+    fireEvent.click(screen.getByRole('button', { name: '⏸ Pausar' }));
+    expect(guardar).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar' }));
+    expect(guardar).toHaveBeenCalledWith('ses-1', 'c');
+    expect(screen.getByText('El texto traducido aparecerá aquí')).toBeInTheDocument();
   });
 });
