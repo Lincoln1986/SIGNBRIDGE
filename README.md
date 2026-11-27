@@ -44,7 +44,20 @@ Ficha 3228973 B — V Trimestre
 Solo **Docker** y **Docker Compose**. No hace falta instalar Python ni Node:
 todo corre dentro de contenedores.
 
-### Pasos
+### Opción rápida: un solo comando
+
+```bash
+git clone https://github.com/Lincoln1986/SIGNBRIDGE.git
+cd SIGNBRIDGE
+bash start.sh
+```
+
+`start.sh` revisa que Docker esté corriendo, crea el `.env` con una
+`SECRET_KEY` propia, levanta los contenedores, espera a que estén sanos y
+muestra las URLs. También: `bash start.sh --parar` y `bash start.sh --limpio`
+(borra la base de datos). En Windows se corre desde Git Bash o WSL.
+
+### Pasos (a mano)
 
 ```bash
 git clone https://github.com/Lincoln1986/SIGNBRIDGE.git
