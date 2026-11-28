@@ -32,6 +32,10 @@ class Settings(BaseSettings):
 
     # App
     APP_NAME: str = "Sign_Bridge"
+
+    # Seña a texto: true usa el modelo entrenado (app/ml/modelo_abecedario.pkl);
+    # false, las reglas geométricas de app/services/abecedario.py.
+    ABECEDARIO_MODELO: bool = True
     # Puerto de Vite (pnpm dev) y del frontend en Docker. Antes era 3000: el
     # navegador bloqueaba por CORS el frontend local y los enlaces de los
     # correos (recuperar contraseña) apuntaban a un puerto donde no hay nada.
