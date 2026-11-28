@@ -31,7 +31,9 @@ from PIL import Image
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.services.abecedario import clasificar_letra, describir_pose, medir_pose
+from app.services.abecedario import describir_pose, medir_pose
+# El modelo entrenado; si no se puede usar, recurre solo a las reglas geométricas.
+from app.services.abecedario_modelo import clasificar_letra
 from app.models.user import (
     LexicalUnit,
     SignInput,
@@ -203,10 +205,9 @@ def detect_sign_from_frame(
             return None, None
 
         # ── Clasificación del abecedario dactilológico ───────────────────────
-        # Se usan reglas geométricas sobre los 21 puntos de la mano en lugar de
-        # un modelo entrenado. Las letras son poses estáticas que se distinguen
-        # por qué dedos están extendidos, así que no hacen falta datos de
-        # entrenamiento. Ver app/services/abecedario.py.
+        # Un SVM entrenado con el dataset LSC70 clasifica los 21 puntos de la
+        # mano (app/services/abecedario_modelo.py). Si el modelo no se puede
+        # usar, se recurre a las reglas geométricas de app/services/abecedario.py.
         #
         # El reconocimiento de señas completas (con movimiento) necesita un
         # dataset etiquetado y está documentado como HU-28.

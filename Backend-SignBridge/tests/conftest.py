@@ -13,6 +13,10 @@ os.environ.setdefault("SECRET_KEY", "clave-secreta-de-pruebas")
 os.environ.setdefault("MAIL_USERNAME", "test@test.com")
 os.environ.setdefault("MAIL_PASSWORD", "no-se-usa")
 os.environ.setdefault("MAIL_FROM", "test@test.com")
+# Las pruebas existentes de seña a texto usan manos dibujadas a mano pensadas
+# para las reglas geométricas. El modelo entrenado se prueba aparte, en
+# test_abecedario_modelo.py, prendiéndolo explícitamente.
+os.environ.setdefault("ABECEDARIO_MODELO", "false")
 
 import pytest
 from fastapi.testclient import TestClient

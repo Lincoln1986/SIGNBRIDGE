@@ -22,6 +22,8 @@ dependencies = [
     "mediapipe==0.10.14",
     "alembic==1.15.2",
     "reportlab==4.5.1",
+    "scikit-learn==1.9.1",
+    "joblib==1.6.0",
 ]
 
 [dependency-groups]
