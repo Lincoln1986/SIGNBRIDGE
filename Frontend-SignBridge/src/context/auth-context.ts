@@ -9,7 +9,7 @@ import type { UserProfile, TokenResponse } from '../api/client';
  * un archivo con componentes no exporte hooks ni utilidades.
  */
 export interface AuthState {
-  token: string | null;
+  /** Usuario con sesión iniciada (null = sin sesión). El token vive en una cookie HttpOnly. */
   user: UserProfile | null;
   role: string | null;
   loading: boolean;

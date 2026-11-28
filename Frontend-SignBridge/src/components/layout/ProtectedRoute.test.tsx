@@ -4,9 +4,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 vi.mock('../../api/client', () => ({
   authApi: {
-    me: vi.fn().mockResolvedValue({
-      data: { id_user: '1', full_name: 'Ana Torres', email: 'a@a.co', role: 'Cliente', phone: '3001234567' },
-    }),
+    // /auth/me responde con el rol de la sesión (el que dejó el test en localStorage).
+    me: vi.fn(() => Promise.resolve({
+      data: { id_user: '1', full_name: 'Ana Torres', email: 'a@a.co', role: localStorage.getItem('role'), phone: '3001234567' },
+    })),
+    logout: vi.fn().mockResolvedValue({}),
   },
   default: { get: vi.fn(), post: vi.fn() },
 }));
@@ -42,7 +44,7 @@ const renderGuard = (
     </MemoryRouter>
   );
 
-// AuthContext real lee localStorage en el arranque: con y sin token se
+// AuthContext real lee localStorage en el arranque: con y sin la marca de sesión se
 // cubren los dos caminos de ProtectedRoute sin depender de la red.
 describe('ProtectedRoute', () => {
   it('redirige a /login sin sesión', async () => {
@@ -55,7 +57,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('muestra el contenido con sesión activa', async () => {
-    localStorage.setItem('token', 'tok-de-prueba');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Cliente');
     renderGuard(
       <ProtectedRoute><p>contenido privado</p></ProtectedRoute>
@@ -66,7 +68,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('bloquea rutas admin para un rol no admin', async () => {
-    localStorage.setItem('token', 'tok-de-prueba');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Cliente');
     renderGuard(
       <ProtectedRoute adminOnly><p>solo admin</p></ProtectedRoute>
@@ -78,7 +80,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('permite rutas admin con rol Administrador', async () => {
-    localStorage.setItem('token', 'tok-de-prueba');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Administrador');
     renderGuard(
       <ProtectedRoute adminOnly><p>solo admin</p></ProtectedRoute>
@@ -88,7 +90,7 @@ describe('ProtectedRoute', () => {
   });
 
   it('supportOnly permite a Soporte y a Administrador', async () => {
-    localStorage.setItem('token', 'tok');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Soporte');
     renderGuard(
       <ProtectedRoute supportOnly><p>panel soporte</p></ProtectedRoute>
@@ -109,7 +111,7 @@ describe('PublicRoute', () => {
   });
 
   it('redirige al panel si ya hay sesión', async () => {
-    localStorage.setItem('token', 'tok');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Cliente');
     renderGuard(
       <PublicRoute><p>landing pública</p></PublicRoute>,
@@ -121,7 +123,7 @@ describe('PublicRoute', () => {
   });
 
   it('los admins van a /admin', async () => {
-    localStorage.setItem('token', 'tok');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Administrador');
     renderGuard(
       <PublicRoute><p>landing pública</p></PublicRoute>,

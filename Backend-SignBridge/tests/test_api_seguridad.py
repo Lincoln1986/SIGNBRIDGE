@@ -35,6 +35,7 @@ PUBLICOS = {
     ("POST", "/auth/register"), ("POST", "/auth/login"),
     ("POST", "/auth/forgot-password"), ("POST", "/auth/reset-password"),
     ("GET", "/regions"),   # el registro necesita la lista de ciudades
+    ("POST", "/auth/logout"),  # borra la cookie; debe servir aunque la sesión ya venció
 }
 
 

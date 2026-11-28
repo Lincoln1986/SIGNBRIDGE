@@ -27,7 +27,7 @@ async function sesionDeCliente(page: Page) {
   })));
   await page.route('**/notifications/unread-count', route => route.fulfill(json({ unread: 0 })));
   await page.addInitScript(() => {
-    localStorage.setItem('token', 'e2e-token');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Cliente');
   });
 }

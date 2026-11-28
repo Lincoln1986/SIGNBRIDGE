@@ -25,7 +25,7 @@ function pantalla() {
 }
 
 function sesion(rol: string, nombre = 'Ana María Paz') {
-  localStorage.setItem('token', 'tok');
+  localStorage.setItem('sesion', '1');
   localStorage.setItem('role', rol);
   vi.spyOn(authApi, 'me').mockResolvedValue({ data: { full_name: nombre } } as never);
   vi.spyOn(dashboardApi, 'user').mockResolvedValue({
