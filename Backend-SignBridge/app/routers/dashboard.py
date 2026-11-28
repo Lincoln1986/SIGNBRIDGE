@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 from sqlalchemy import func, text
 from typing import List
@@ -7,6 +7,7 @@ import uuid
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin
 from app.models.user import User, LexicalUnit, Role
+from app.services.videos import borrar_video_subido, guardar_video
 from app.schemas.auth import (
     AdminDashboardRow, UserDashboardRow, SystemStats,
     LexicalUnitOut, LexicalUnitCreate, LexicalUnitVideoUpdate,
@@ -192,9 +193,40 @@ def update_lexical_unit_video(
     if not unit:
         raise HTTPException(status_code=404, detail="Palabra no encontrada")
 
+    anterior = unit.video_url
     unit.video_url = payload.video_url
     db.commit()
     db.refresh(unit)
+    if anterior != unit.video_url:
+        borrar_video_subido(anterior)  # si era un video subido, ya no se usa
+    return unit
+
+
+@router.post("/lexical-units/{id_lexicalunit}/video-file", response_model=LexicalUnitOut)
+async def upload_lexical_unit_video_file(
+    id_lexicalunit: str,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _admin: User = Depends(require_admin),
+):
+    """
+    Sube un archivo de video (MP4, WebM o MOV, hasta 100 MB) y lo asigna a la
+    palabra. Se guarda en media/subidos/ con un nombre nuevo (UUID). Si la
+    palabra tenía otro video subido, ese archivo se borra; los del repositorio
+    y los enlaces de YouTube no se tocan. Solo admin.
+    """
+    unit = db.query(LexicalUnit).filter(
+        LexicalUnit.id_lexicalunit == id_lexicalunit,
+        LexicalUnit.deleted_at.is_(None),
+    ).first()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Palabra no encontrada")
+
+    anterior = unit.video_url
+    unit.video_url = await guardar_video(file)
+    db.commit()
+    db.refresh(unit)
+    borrar_video_subido(anterior)
     return unit
 
 

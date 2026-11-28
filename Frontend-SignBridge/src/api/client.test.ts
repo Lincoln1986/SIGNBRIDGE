@@ -104,6 +104,15 @@ describe('dashboardApi', () => {
     await dashboardApi.deleteLexicalUnit('id-1');
     expect(del).toHaveBeenCalledWith('/dashboard/lexical-units/id-1');
   });
+
+  it('uploadLexicalUnitVideo manda el archivo como multipart', async () => {
+    const video = new File(['mp4'], 'hola.mp4', { type: 'video/mp4' });
+    await dashboardApi.uploadLexicalUnitVideo('id-1', video);
+    const [ruta, cuerpo, opciones] = post.mock.calls[0];
+    expect(ruta).toBe('/dashboard/lexical-units/id-1/video-file');
+    expect((cuerpo as FormData).get('file')).toBe(video);
+    expect(opciones).toEqual({ headers: { 'Content-Type': undefined } });
+  });
 });
 
 describe('adminUsersApi', () => {

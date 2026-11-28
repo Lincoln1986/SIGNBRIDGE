@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { dashboardApi, favoritesApi, feedbackApi } from '../api/client';
 import type { LexicalUnit, FavoriteWord } from '../api/client';
 import { Card, Spinner, Alert, Badge } from '../components/UI';
+import { esYouTube, urlDeVideo, urlEmbebida } from '../utils/video';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Abecedario dactilologico LSC (A-Z)
@@ -9,26 +10,6 @@ import { Card, Spinner, Alert, Badge } from '../components/UI';
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-function getEmbedUrl(url: string): string {
-  try {
-    if (url.includes('youtube.com/embed/')) return url;
-    const short = url.match(/youtu\.be\/([^?&]+)/);
-    if (short) return `https://www.youtube.com/embed/${short[1]}`;
-    const watch = url.match(/[?&]v=([^?&]+)/);
-    if (watch) return `https://www.youtube.com/embed/${watch[1]}`;
-    return url;
-  } catch {
-    return url;
-  }
-}
-
-function isYouTube(url: string) {
-  return url.includes('youtube.com') || url.includes('youtu.be');
-}
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('es-CO', {
@@ -59,7 +40,7 @@ function VideoLightbox({ unit, onClose }: LightboxProps) {
     };
   }, [onClose]);
 
-  const youtube = unit.video_url ? isYouTube(unit.video_url) : false;
+  const youtube = unit.video_url ? esYouTube(unit.video_url) : false;
 
   return (
     <div
@@ -111,7 +92,8 @@ function VideoLightbox({ unit, onClose }: LightboxProps) {
         <div style={{ aspectRatio: '16/9', background: '#000' }}>
           {youtube ? (
             <iframe
-              src={`${getEmbedUrl(unit.video_url!)}?autoplay=1`}
+              src={`${urlEmbebida(unit.video_url!)}?autoplay=1`}
+              title={`Seña de ${unit.text}`}
               style={{ width: '100%', height: '100%', border: 'none', display: 'block' }}
               allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               allowFullScreen
@@ -119,7 +101,7 @@ function VideoLightbox({ unit, onClose }: LightboxProps) {
           ) : (
             <video
               ref={videoRef}
-              src={unit.video_url}
+              src={urlDeVideo(unit.video_url!)}
               autoPlay
               controls
               playsInline

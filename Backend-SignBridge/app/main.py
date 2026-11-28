@@ -4,6 +4,7 @@ from typing import List
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,7 @@ from app.routers import admin_users
 from app.routers import stats
 from app.routers import notifications
 from app.core.cabeceras import CabecerasSeguridadMiddleware
+from app.services.videos import MEDIA_ROOT, VIDEOS_SUBIDOS
 
 # Importar todos los modelos para registrar relaciones en SQLAlchemy
 from app.models import user, session  # noqa: F401
@@ -71,6 +73,14 @@ app.include_router(favorites.router)
 app.include_router(admin_users.router)
 app.include_router(stats.router)
 app.include_router(notifications.router)
+
+# ── Videos de señas ───────────────────────────────────────────────────────────
+# /media/videos/...  los del vocabulario inicial (vienen en el repositorio)
+# /media/subidos/... los que sube el administrador (volumen en Docker)
+# StaticFiles solo sirve archivos que estén dentro de media/: una ruta como
+# /media/../.env responde 404.
+VIDEOS_SUBIDOS.mkdir(parents=True, exist_ok=True)
+app.mount("/media", StaticFiles(directory=MEDIA_ROOT), name="media")
 
 # Aliases de dashboard con prefijos directos (GET /admin/dashboard, etc.)
 

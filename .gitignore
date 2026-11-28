@@ -23,3 +23,7 @@ Backend-SignBridge/*.db
 Backend-SignBridge/*.db-journal
 Backend-SignBridge/*.db-wal
 Backend-SignBridge/*.db-shm
+
+# Videos que sube el administrador desde la app (en Docker viven en un volumen).
+# Los del vocabulario inicial (media/videos/) sí van en el repositorio.
+Backend-SignBridge/media/subidos/
