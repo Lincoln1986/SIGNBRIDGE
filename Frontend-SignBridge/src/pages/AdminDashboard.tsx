@@ -619,6 +619,11 @@ function VocabularyTab() {
     flash(url ? '✅ Video asignado correctamente' : '✅ Video eliminado');
   };
 
+  const handleVideoSubido = (unidad: LexicalUnitAdmin) => {
+    setVocabUnits(prev => prev.map(u => u.id_lexicalunit === unidad.id_lexicalunit ? { ...u, video_url: unidad.video_url } : u));
+    flash('✅ Video subido correctamente');
+  };
+
   const handleDelete = async () => {
     if (!deleteConfirm) return;
     setDeleting(true);
@@ -718,7 +723,14 @@ function VocabularyTab() {
         )}
       </Card>
 
-      {editingUnit && <VideoModal unit={editingUnit} onClose={() => setEditingUnit(null)} onSave={handleSaveVideo} />}
+      {editingUnit && (
+        <VideoModal
+          unit={editingUnit}
+          onClose={() => setEditingUnit(null)}
+          onSave={handleSaveVideo}
+          onUploaded={handleVideoSubido}
+        />
+      )}
       {showNewWord && <NewWordModal onClose={() => setShowNewWord(false)} onCreated={u => setVocabUnits(prev => [u, ...prev])} />}
       {deleteConfirm && <DeleteConfirmModal unit={deleteConfirm} onClose={() => setDeleteConfirm(null)} onConfirm={handleDelete} deleting={deleting} />}
     </>

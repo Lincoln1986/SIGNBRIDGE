@@ -41,6 +41,16 @@ describe('SignSequencePlayer', () => {
     expect(screen.queryByTitle('oculto')).not.toBeInTheDocument();
   });
 
+  it('un video local se pide al backend y arranca sin sonido', () => {
+    vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
+    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);
+    render(<SignSequencePlayer signs={[{ word: 'hola', video_url: '/media/videos/hola.mp4', found: true }]} isLoading={false} />);
+
+    const video = document.querySelector('video') as HTMLVideoElement;
+    expect(video).toHaveAttribute('src', 'http://localhost:8000/media/videos/hola.mp4');
+    expect(video.muted).toBe(true);
+  });
+
   it('navega con los botones de anterior y siguiente', async () => {
     vi.spyOn(HTMLMediaElement.prototype, 'load').mockImplementation(() => {});
     vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined);

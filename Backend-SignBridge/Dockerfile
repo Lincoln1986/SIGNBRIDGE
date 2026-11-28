@@ -32,7 +32,10 @@ RUN uv sync --frozen --no-dev --no-install-project
 COPY . .
 
 # Usuario sin privilegios. Si alguien entra al contenedor, no es root.
+# media/subidos es donde quedan los videos que sube el admin; en docker-compose
+# se monta como volumen, y el volumen nuevo toma este dueño.
 RUN useradd --create-home --uid 1000 appuser \
+ && mkdir -p /app/media/subidos \
  && chown -R appuser:appuser /app
 USER appuser
 

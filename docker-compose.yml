@@ -83,6 +83,11 @@ services:
       APP_NAME: ${APP_NAME:-Sign_Bridge}
       DOCS_HABILITADOS: ${DOCS_HABILITADOS:-false}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+    # Videos que sube el administrador desde la app. Es un volumen: no se
+    # pierden al reconstruir la imagen. Los del vocabulario inicial vienen
+    # dentro de la imagen, en /app/media/videos.
+    volumes:
+      - videos_subidos:/app/media/subidos
     # Espera a que Postgres acepte conexiones, no solo a que arranque el
     # contenedor: de lo contrario el backend entra en un bucle de reinicios.
     depends_on:
@@ -115,6 +120,7 @@ services:
 
 volumes:
   postgres_data:
+  videos_subidos:
 
 # Segmentación de tráfico:
 #   web_network  → proxy/app (frontend ↔ backend). Nunca toca la base de datos.

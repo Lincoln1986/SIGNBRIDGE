@@ -257,6 +257,7 @@ describe('Administración · Vocabulario', () => {
     await abrirVocabulario();
 
     await userEvent.click(within(fila('Gracias')).getByRole('button', { name: '▶ Agregar' }));
+    await userEvent.click(screen.getByRole('tab', { name: '🔗 Enlace (YouTube)' }));
     await userEvent.type(screen.getByLabelText('URL del video (YouTube o enlace directo)'), 'https://youtu.be/xyz');
     await userEvent.click(screen.getByRole('button', { name: 'Guardar video' }));
 
@@ -281,10 +282,65 @@ describe('Administración · Vocabulario', () => {
     await abrirVocabulario();
 
     await userEvent.click(within(fila('Gracias')).getByRole('button', { name: '▶ Agregar' }));
+    await userEvent.click(screen.getByRole('tab', { name: '🔗 Enlace (YouTube)' }));
     await userEvent.type(screen.getByLabelText('URL del video (YouTube o enlace directo)'), 'no-es-url');
     await userEvent.click(screen.getByRole('button', { name: 'Guardar video' }));
 
     expect(await screen.findByText('No se pudo guardar el video')).toBeInTheDocument();
+  });
+
+  it('should upload a video file for a word', async () => {
+    const subir = vi.spyOn(dashboardApi, 'uploadLexicalUnitVideo').mockResolvedValue({
+      data: { id_lexicalunit: 'l2', text: 'Gracias', language: 'es_CO', video_url: '/media/subidos/x.mp4' },
+    } as never);
+    await abrirVocabulario();
+    const video = new File(['mp4'], 'gracias.mp4', { type: 'video/mp4' });
+
+    await userEvent.click(within(fila('Gracias')).getByRole('button', { name: '▶ Agregar' }));
+    await userEvent.upload(screen.getByLabelText('Archivo de video'), video);
+    await userEvent.click(screen.getByRole('button', { name: 'Subir video' }));
+
+    expect(subir).toHaveBeenCalledWith('l2', video);
+    expect(await screen.findByText('✅ Video subido correctamente')).toBeInTheDocument();
+    expect(screen.getByText('2 con video asignado')).toBeInTheDocument();
+  });
+
+  it('should ask for a file before uploading', async () => {
+    const subir = vi.spyOn(dashboardApi, 'uploadLexicalUnitVideo');
+    await abrirVocabulario();
+
+    await userEvent.click(within(fila('Gracias')).getByRole('button', { name: '▶ Agregar' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Subir video' }));
+
+    expect(await screen.findByText('Elige un archivo de video')).toBeInTheDocument();
+    expect(subir).not.toHaveBeenCalled();
+  });
+
+  it('should refuse files that are not videos or are too big', async () => {
+    await abrirVocabulario();
+    await userEvent.click(within(fila('Gracias')).getByRole('button', { name: '▶ Agregar' }));
+    const entrada = screen.getByLabelText('Archivo de video');
+
+    await userEvent.upload(entrada, new File(['<html>'], 'x.html', { type: 'text/html' }), { applyAccept: false });
+    expect(screen.getByText('Solo se aceptan videos MP4, WebM o MOV')).toBeInTheDocument();
+
+    const grande = new File(['x'], 'grande.mp4', { type: 'video/mp4' });
+    Object.defineProperty(grande, 'size', { value: 101 * 1024 * 1024 });
+    await userEvent.upload(entrada, grande);
+    expect(screen.getByText('El video supera el límite de 100 MB')).toBeInTheDocument();
+  });
+
+  it('should show the reason the server gives when the upload fails', async () => {
+    vi.spyOn(dashboardApi, 'uploadLexicalUnitVideo').mockRejectedValue({
+      response: { data: { detail: 'El archivo no es un video válido.' } },
+    });
+    await abrirVocabulario();
+
+    await userEvent.click(within(fila('Gracias')).getByRole('button', { name: '▶ Agregar' }));
+    await userEvent.upload(screen.getByLabelText('Archivo de video'), new File(['x'], 'v.mp4', { type: 'video/mp4' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Subir video' }));
+
+    expect(await screen.findByText('El archivo no es un video válido.')).toBeInTheDocument();
   });
 
   it('should delete a word only after confirming', async () => {

@@ -114,3 +114,20 @@ def test_should_not_leak_data_between_tests_part_1(db, crear_usuario):
 
 def test_should_not_leak_data_between_tests_part_2(db):
     assert db.execute(text('SELECT COUNT(*) FROM "User" WHERE email = \'fuga@example.com\'')).scalar() == 0
+
+
+def test_should_load_the_initial_vocabulary_with_its_local_videos(db):
+    """Migración c4f1a8e2d930: una instalación nueva trae el vocabulario y cada
+    video que nombra existe en media/videos/."""
+    from pathlib import Path
+
+    filas = db.execute(text(
+        'SELECT text, video_url FROM "LexicalUnit" '
+        "WHERE deleted_at IS NULL AND video_url LIKE '/media/videos/%'"
+    )).all()
+    media = Path(__file__).resolve().parents[2] / "media" / "videos"
+
+    assert len(filas) == 25
+    assert {t for t, _ in filas} >= {"hola", "gracias", "buenas noches"}
+    for _, url in filas:
+        assert (media / url.removeprefix("/media/videos/")).is_file(), url

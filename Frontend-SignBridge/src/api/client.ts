@@ -254,6 +254,19 @@ export const dashboardApi = {
     api.patch<LexicalUnitAdmin>(`/dashboard/lexical-units/${id}/video`, { video_url }),
   deleteLexicalUnit: (id: string) =>
     api.delete(`/dashboard/lexical-units/${id}`),
+
+  /**
+   * POST /dashboard/lexical-units/:id/video-file — sube un video (MP4, WebM o
+   * MOV, hasta 100 MB) al servidor. Sin Content-Type a mano: con un FormData
+   * axios arma solo el multipart con su boundary.
+   */
+  uploadLexicalUnitVideo: (id: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<LexicalUnitAdmin>(`/dashboard/lexical-units/${id}/video-file`, formData, {
+      headers: { 'Content-Type': undefined },
+    });
+  },
 };
 
 // ── Admin users CRUD ───────────────────────────────────────────────────────

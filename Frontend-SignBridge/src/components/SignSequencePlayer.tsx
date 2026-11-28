@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Spinner } from './UI';
+import { esYouTube, idDeYouTube, urlDeVideo } from '../utils/video';
 
 // ── Tipos ──────────────────────────────────────────────────────────────────
 
@@ -12,22 +13,6 @@ export interface SignVideo {
 interface SignSequencePlayerProps {
   signs: SignVideo[];
   isLoading: boolean;
-}
-
-// ── Helper: detectar YouTube ───────────────────────────────────────────────
-
-function isYouTubeUrl(url: string): boolean {
-  return url.includes('youtube.com') || url.includes('youtu.be');
-}
-
-function extractYouTubeId(url: string): string | null {
-  const match1 = url.match(/youtu\.be\/([^?&]+)/);
-  if (match1) return match1[1];
-  const match2 = url.match(/[?&]v=([^?&]+)/);
-  if (match2) return match2[1];
-  const match3 = url.match(/youtube\.com\/embed\/([^?&]+)/);
-  if (match3) return match3[1];
-  return null;
 }
 
 // ── Componente principal ───────────────────────────────────────────────────
@@ -129,8 +114,8 @@ export default function SignSequencePlayer({
   useEffect(() => {
     if (!current || !current.video_url) return;
 
-    if (isYouTubeUrl(current.video_url)) {
-      const videoId = extractYouTubeId(current.video_url);
+    if (esYouTube(current.video_url)) {
+      const videoId = idDeYouTube(current.video_url);
       if (videoId) createYtPlayer(videoId);
     } else {
       // Video HTML5
@@ -151,7 +136,7 @@ export default function SignSequencePlayer({
   }, [total]);
 
   // ── Detectar si el video actual es YouTube ────────────────────────────────
-  const isYt = current?.video_url ? isYouTubeUrl(current.video_url) : false;
+  const isYt = current?.video_url ? esYouTube(current.video_url) : false;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -188,9 +173,12 @@ export default function SignSequencePlayer({
           ) : (
             <video
               ref={videoRef}
-              src={current.video_url!}
+              src={urlDeVideo(current.video_url!)}
               controls
               autoPlay
+              // Sin sonido: el navegador solo deja reproducir solo un video
+              // silenciado, y una seña no necesita audio.
+              muted
               playsInline
               onEnded={goNext}
               style={{ width: '100%', objectFit: 'contain' }}
