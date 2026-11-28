@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # correos (recuperar contraseña) apuntaban a un puerto donde no hay nada.
     FRONTEND_URL: str = "http://localhost:5173"
 
+    # Swagger (/docs, /redoc y /openapi.json). En local sirve para probar la
+    # API; en un servidor público le entrega el mapa de la API a un atacante
+    # (OWASP A05). docker-compose lo deja apagado salvo que el .env diga true.
+    DOCS_HABILITADOS: bool = True
+
     class Config:
         env_file = ".env"
         extra = "ignore"

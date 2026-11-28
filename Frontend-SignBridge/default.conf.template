@@ -1,0 +1,41 @@
+# Configuración de nginx para el frontend de SignBridge.
+#
+# Es una PLANTILLA: al arrancar el contenedor, nginx reemplaza ${BACKEND_URL}
+# por la variable de entorno del mismo nombre (la imagen oficial lo hace con
+# envsubst) y guarda el resultado en /etc/nginx/conf.d/default.conf.
+# Solo se reemplazan variables que existan en el entorno, así que las de nginx
+# como $uri quedan intactas.
+
+server {
+    listen 8080;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # No decir la versión de nginx en las respuestas ni en las páginas de error.
+    server_tokens off;
+
+    include /etc/nginx/conf.d/cabeceras-seguridad.inc;
+
+    # SPA de React: cualquier ruta que no sea un archivo (/login, /admin, ...)
+    # devuelve index.html y React Router decide qué pantalla mostrar.
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Los archivos de dist/assets llevan un hash en el nombre: se pueden
+    # guardar en caché mucho tiempo sin riesgo de servir una versión vieja.
+    # Ojo: un add_header dentro de un location borra los del server, por eso
+    # se vuelven a incluir las cabeceras de seguridad aquí.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        include /etc/nginx/conf.d/cabeceras-seguridad.inc;
+    }
+
+    # Archivos ocultos (.git, .env, .htaccess): nunca se sirven.
+    location ~ /\. {
+        deny all;
+        return 404;
+    }
+}

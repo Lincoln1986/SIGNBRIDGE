@@ -20,7 +20,10 @@ RUN pnpm build
 # ── 2. Servidor web ──────────────────────────────────────────────────────────
 # nginx-unprivileged corre con el usuario "nginx" (no root) y escucha en 8080.
 FROM nginxinc/nginx-unprivileged:1.27-alpine AS web
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Plantillas: al arrancar, nginx cambia ${BACKEND_URL} por la URL del backend
+# y deja el resultado en /etc/nginx/conf.d/ (ver default.conf.template).
+ENV BACKEND_URL=http://localhost:8000
+COPY default.conf.template cabeceras-seguridad.inc.template /etc/nginx/templates/
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 8080

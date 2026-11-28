@@ -1,0 +1,28 @@
+# Cabeceras de seguridad de la aplicación web (OWASP A05).
+# Se incluyen desde default.conf.template en el server y en cada location que
+# tenga su propio add_header. "always" las pone también en las respuestas de
+# error (404, 500).
+
+# Content-Security-Policy: de dónde puede cargar cosas la página. Si alguien
+# lograra meter un <script> en la página (XSS), el navegador no lo ejecutaría
+# porque no viene de un origen permitido.
+#   default-src 'self'      todo, por defecto, solo del mismo sitio
+#   script-src              la app y la API de YouTube del reproductor
+#   style-src               'unsafe-inline' porque React pone estilos en línea; fuentes de Google
+#   connect-src / media-src la API del backend (datos y videos locales)
+#   frame-src               los videos de YouTube que aún queden
+#   frame-ancestors 'none'  nadie puede meter SignBridge en un iframe (clickjacking)
+add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: ${BACKEND_URL} https://i.ytimg.com; media-src 'self' blob: ${BACKEND_URL}; connect-src 'self' ${BACKEND_URL}; frame-src https://www.youtube.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+
+# No adivinar el tipo de un archivo: lo que dice ser texto no se ejecuta.
+add_header X-Content-Type-Options "nosniff" always;
+
+# Igual que frame-ancestors 'none', para navegadores viejos.
+add_header X-Frame-Options "DENY" always;
+
+# Al ir a otro sitio, solo se envía el dominio, no la ruta completa.
+add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+# La página puede usar cámara y micrófono (Seña a Texto y Voz a Seña), pero
+# ningún iframe incrustado puede. Geolocalización y pagos, nadie.
+add_header Permissions-Policy "camera=(self), microphone=(self), geolocation=(), payment=()" always;
