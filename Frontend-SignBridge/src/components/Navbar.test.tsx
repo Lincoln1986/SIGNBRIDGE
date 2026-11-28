@@ -5,9 +5,11 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 
 vi.mock('../api/client', () => ({
   authApi: {
-    me: vi.fn().mockResolvedValue({
-      data: { id_user: '1', full_name: 'Ana Torres', email: 'a@a.co', role: 'Cliente', phone: '300' },
-    }),
+    // /auth/me responde con el rol de la sesión (el que dejó el test en localStorage).
+    me: vi.fn(() => Promise.resolve({
+      data: { id_user: '1', full_name: 'Ana Torres', email: 'a@a.co', role: localStorage.getItem('role'), phone: '300' },
+    })),
+    logout: vi.fn().mockResolvedValue({}),
   },
   notificationsApi: {
     list: vi.fn().mockResolvedValue({ data: [] }),
@@ -30,7 +32,7 @@ function LocationProbe() {
 const renderNavbar = (role: string | null) => {
   localStorage.clear();
   if (role) {
-    localStorage.setItem('token', 'tok');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', role);
   }
   return render(
@@ -85,7 +87,7 @@ describe('Navbar', () => {
     renderNavbar('Cliente');
     await userEvent.click(await screen.findByRole('button', { name: 'Salir' }));
     expect(screen.getByTestId('location')).toHaveTextContent('/');
-    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('sesion')).toBeNull();
   });
 
   it('muestra el rol debajo del nombre', async () => {

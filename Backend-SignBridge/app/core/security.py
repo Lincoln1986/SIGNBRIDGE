@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import jwt
 from jwt import PyJWTError
 from passlib.context import CryptContext
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, Response, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.core.config import get_settings
@@ -10,7 +10,12 @@ from app.core.database import get_db
 
 settings = get_settings()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-bearer_scheme = HTTPBearer()
+# auto_error=False: si no viene la cabecera Authorization no se corta aquí,
+# porque el token puede venir en la cookie de sesión.
+bearer_scheme = HTTPBearer(auto_error=False)
+
+# Nombre de la cookie donde viaja el token de sesión.
+COOKIE_SESION = "sb_sesion"
 
 # ── Contraseñas ──────────────────────────────────────────────────────────────
 def hash_password(password: str) -> str:
@@ -44,13 +49,58 @@ def decode_token(token: str) -> dict:
             detail="Token inválido o expirado",
         )
 
+# ── Cookie de sesión ─────────────────────────────────────────────────────────
+
+def poner_cookie_sesion(response: Response, token: str) -> None:
+    """Guarda el token en una cookie que el JavaScript de la página no puede leer.
+
+    - httponly: document.cookie no la ve; un script inyectado (XSS) no la roba.
+    - samesite=lax: el navegador no la manda en peticiones que otro sitio
+      dispare hacia la API (CSRF).
+    - secure: con HTTPS, solo viaja cifrada (se activa con COOKIE_SECURE=true).
+    - max_age: dura lo mismo que el token.
+    """
+    response.set_cookie(
+        key=COOKIE_SESION,
+        value=token,
+        httponly=True,
+        samesite=settings.COOKIE_SAMESITE,
+        secure=settings.COOKIE_SECURE,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+    )
+
+
+def borrar_cookie_sesion(response: Response) -> None:
+    response.delete_cookie(
+        key=COOKIE_SESION, path="/", httponly=True,
+        samesite=settings.COOKIE_SAMESITE, secure=settings.COOKIE_SECURE,
+    )
+
+
+def token_de_la_peticion(request: Request, credentials: HTTPAuthorizationCredentials | None) -> str:
+    """El token sale de la cabecera Authorization (Postman, Newman, pruebas) o,
+    si no viene, de la cookie de sesión (la aplicación web)."""
+    if credentials and credentials.credentials:
+        return credentials.credentials
+    token = request.cookies.get(COOKIE_SESION)
+    if token:
+        return token
+    raise HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="No autenticado",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
 # ── Dependencias de autenticación ────────────────────────────────────────────
 def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme),
+    request: Request,
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
     db: Session = Depends(get_db),
 ):
     from app.models.user import User
-    payload = decode_token(credentials.credentials)
+    payload = decode_token(token_de_la_peticion(request, credentials))
     user_id: str = payload.get("sub")
     if not user_id:
         raise HTTPException(status_code=401, detail="Token inválido")

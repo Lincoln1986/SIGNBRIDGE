@@ -13,7 +13,7 @@ from sqlalchemy import or_, and_
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import get_current_user, decode_token
+from app.core.security import COOKIE_SESION, get_current_user, decode_token
 from app.models.message import Message
 from app.models.user import User
 from app.schemas.messages import MessageCreate, MessageOut, ConversationPreview
@@ -203,11 +203,11 @@ manager = _ConnectionManager()
 
 
 @router.websocket("/ws")
-async def websocket_endpoint(ws: WebSocket, token: str, db: Session = Depends(get_db)):
+async def websocket_endpoint(ws: WebSocket, token: str | None = None, db: Session = Depends(get_db)):
     """
     WebSocket para mensajería en tiempo real.
 
-    Conexión:  ws://host/messages/ws?token=<JWT>
+    Conexión:  ws://host/messages/ws?token=<JWT>  (o sin ?token, con la cookie de sesión)
 
     Protocolo de mensajes (JSON):
       Cliente → Servidor:
@@ -223,8 +223,11 @@ async def websocket_endpoint(ws: WebSocket, token: str, db: Session = Depends(ge
       Servidor → Cliente (error):
         { "event": "error", "detail": "<descripción>" }
     """
-    # Autenticar via token en query string
+    # Token en la query (?token=) o, desde la aplicación web, en la cookie de sesión.
+    token = token or ws.cookies.get(COOKIE_SESION)
     try:
+        if not token:
+            raise ValueError("sin token")
         payload = decode_token(token)
         user_id: str = payload.get("sub")
         current_user = db.query(User).filter(

@@ -290,7 +290,10 @@
                 ]
               }
             }
-          ]
+          ],
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
         },
         {
           "name": "Un Cliente no entra al panel admin (403)",
