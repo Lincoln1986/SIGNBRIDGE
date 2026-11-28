@@ -64,7 +64,9 @@ test('el login con credenciales válidas abre el modal y llega al home', async (
   await modal.locator('button[type="submit"]').click();
 
   await expect(page).toHaveURL(/\/home$/);
-  expect(await page.evaluate(() => localStorage.getItem('token'))).toBe('e2e-token');
+  // El token no se guarda en el navegador (va en una cookie HttpOnly): solo la marca de sesión.
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+  expect(await page.evaluate(() => localStorage.getItem('sesion'))).toBe('1');
   expect(await page.evaluate(() => localStorage.getItem('role'))).toBe('Cliente');
 });
 
@@ -92,12 +94,12 @@ test('un 401 del backend limpia la sesión y vuelve al inicio', async ({ page })
   await expect(page).toHaveURL(/\/$/);
 
   // La recarga de la navegación puede estar en curso: se reintenta el
-  // evaluate mientras hay contexto, sin aflojar la condición (token null).
+  // evaluate mientras hay contexto, sin aflojar la condición (sesión olvidada).
   await expect
     .poll(
       async () => {
         try {
-          return await page.evaluate(() => localStorage.getItem('token'));
+          return await page.evaluate(() => localStorage.getItem('sesion'));
         } catch {
           return 'navegando'; // contexto destruido: la recarga sigue
         }

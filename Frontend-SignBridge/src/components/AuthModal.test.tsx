@@ -96,7 +96,9 @@ describe('AuthModal', () => {
     await userEvent.click(submitButton());
 
     await waitFor(() => expect(onClose).toHaveBeenCalled());
-    expect(localStorage.getItem('token')).toBe('tok');
+    // El token no se guarda en el navegador (va en la cookie HttpOnly): solo la marca de sesión.
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('sesion')).toBe('1');
   });
 
   it('el botón de registro está deshabilitado con contraseña débil', async () => {

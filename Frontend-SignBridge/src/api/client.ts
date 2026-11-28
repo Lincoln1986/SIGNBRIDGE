@@ -1,19 +1,19 @@
 import axios from 'axios';
+import { olvidarSesion } from './sesion';
 
 // URL del backend: se toma de VITE_API_URL (Frontend-SignBridge/.env) y, si no
 // está definida, se usa la del entorno local. Antes estaba fija en el código y
 // la variable de .env.example no tenía ningún efecto.
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
+// La sesión viaja en una cookie HttpOnly que pone el backend al iniciar
+// sesión (OWASP A02). El JavaScript de la página no la puede leer, así que un
+// script inyectado (XSS) no se puede robar el token. withCredentials hace que
+// el navegador mande esa cookie en cada petición a la API.
 const api = axios.create({
   baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  return config;
+  withCredentials: true,
 });
 
 api.interceptors.response.use(
@@ -23,7 +23,7 @@ api.interceptors.response.use(
     // error; recargar aquí lo tacha. Los demás 401 siguen cerrando la sesión.
     const enLogin = error.config?.url === '/auth/login';
     if (error.response?.status === 401 && !enLogin) {
-      localStorage.clear();
+      olvidarSesion();
       window.location.href = '/';
     }
     return Promise.reject(error);
@@ -222,6 +222,9 @@ export const authApi = {
     api.post<TokenResponse>('/auth/login', { email, password }),
 
   me: () => api.get<UserProfile>('/auth/me'),
+
+  /** POST /auth/logout — el backend borra la cookie de sesión. */
+  logout: () => api.post('/auth/logout'),
 
   forgotPassword: (email: string) =>
     api.post('/auth/forgot-password', { email }),

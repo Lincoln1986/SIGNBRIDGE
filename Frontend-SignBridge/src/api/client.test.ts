@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Se mockea axios antes de importar el cliente: cada llamada queda registrada
@@ -27,6 +28,9 @@ import api, {
   translationApi,
 } from './client';
 
+// Se guarda antes de que beforeEach limpie los mocks.
+const opcionesAxios = vi.mocked(axios.create).mock.calls[0]?.[0];
+
 const get = vi.mocked(api.get);
 const post = vi.mocked(api.post);
 const patch = vi.mocked(api.patch);
@@ -34,6 +38,17 @@ const del = vi.mocked(api.delete);
 
 beforeEach(() => {
   vi.clearAllMocks();
+});
+
+describe('sesión en cookie', () => {
+  it('el cliente manda la cookie de sesión en cada petición', () => {
+    expect(opcionesAxios).toEqual(expect.objectContaining({ withCredentials: true }));
+  });
+
+  it('logout pide al backend borrar la cookie', async () => {
+    await authApi.logout();
+    expect(post).toHaveBeenCalledWith('/auth/logout');
+  });
 });
 
 describe('authApi', () => {

@@ -11,6 +11,13 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60
 
+    # Cookie de sesión (OWASP A02 / A07). El token viaja en una cookie HttpOnly:
+    # el JavaScript de la página no la puede leer, así que un XSS no la roba.
+    # COOKIE_SECURE=true cuando haya HTTPS (la cookie solo viaja cifrada).
+    # COOKIE_SAMESITE=lax: otro sitio no puede mandar peticiones con la cookie (CSRF).
+    COOKIE_SECURE: bool = False
+    COOKIE_SAMESITE: str = "lax"
+
     # Límite de intentos de inicio de sesión (OWASP A04 / A07)
     LOGIN_MAX_INTENTOS_CORREO: int = 5
     LOGIN_MAX_INTENTOS_IP: int = 20

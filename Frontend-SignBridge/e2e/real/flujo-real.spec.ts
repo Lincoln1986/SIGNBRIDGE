@@ -38,12 +38,23 @@ test('una persona se registra y entra con el backend real', async ({ page, reque
   await new LoginModal(page).iniciarSesion(persona.correo, persona.contrasena);
   await expect(page).toHaveURL(/\/home$/);
 
-  // El token es un JWT real emitido por el backend, y sirve para pedir el perfil
-  const token = await page.evaluate(() => localStorage.getItem('token'));
-  expect(token?.split('.')).toHaveLength(3);
-  const perfil = await request.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
+  // OWASP A02: el JWT real quedó en una cookie HttpOnly que el JavaScript de
+  // la página no puede leer, y no en localStorage.
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+  expect(await page.evaluate(() => document.cookie)).not.toContain('sb_sesion');
+  const cookie = (await page.context().cookies()).find(c => c.name === 'sb_sesion');
+  expect(cookie?.httpOnly).toBe(true);
+  expect(cookie?.sameSite).toBe('Lax');
+  expect(cookie?.value.split('.')).toHaveLength(3);
+
+  // Ese mismo token sirve para pedir el perfil al backend
+  const perfil = await request.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${cookie?.value}` } });
   expect(perfil.status()).toBe(200);
   expect(await perfil.json()).toMatchObject({ email: persona.correo, role: 'Cliente' });
+
+  // Y al recargar la página la sesión sigue, sin token en el navegador
+  await page.reload();
+  await expect(page).toHaveURL(/\/home$/);
 });
 
 test('el backend real rechaza un correo que ya existe', async ({ page }) => {

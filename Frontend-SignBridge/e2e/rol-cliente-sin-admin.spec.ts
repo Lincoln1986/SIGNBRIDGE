@@ -24,7 +24,7 @@ test.beforeEach(async ({ page }) => {
 
   // Sesión de Cliente ya iniciada (sin pasar por el formulario)
   await page.addInitScript(() => {
-    localStorage.setItem('token', 'e2e-token');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Cliente');
   });
 });
