@@ -33,7 +33,7 @@ test.beforeEach(async ({ page }) => {
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(PALABRAS) })
   );
   await page.addInitScript(() => {
-    localStorage.setItem('token', 'e2e-token');
+    localStorage.setItem('sesion', '1');
     localStorage.setItem('role', 'Cliente');
   });
 });

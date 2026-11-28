@@ -75,7 +75,8 @@ test('se registra, el doble clic no duplica la cuenta y luego entra con esos dat
   await expect(page).toHaveURL(/\/$/); // /login abre el modal sobre la portada
   await new LoginModal(page).iniciarSesion(PERSONA.correo, PERSONA.contrasena);
   await expect(page).toHaveURL(/\/home$/);
-  expect(await page.evaluate(() => localStorage.getItem('token'))).toBe('token-laura');
+  expect(await page.evaluate(() => localStorage.getItem('sesion'))).toBe('1');
+  expect(await page.evaluate(() => localStorage.getItem('token'))).toBeNull();
 });
 
 test('no deja crear la cuenta si las contraseñas no coinciden', async ({ page }) => {

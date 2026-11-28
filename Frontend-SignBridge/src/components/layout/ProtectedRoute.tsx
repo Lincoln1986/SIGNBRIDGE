@@ -14,7 +14,7 @@ export function ProtectedRoute({ children, adminOnly = false, supportOnly = fals
   /** Permite el paso a Soporte y también a Admin (Admin puede ver todo). */
   supportOnly?: boolean;
 }) {
-  const { token, isAdmin, isSupport, loading } = useAuth();
+  const { user, isAdmin, isSupport, loading } = useAuth();
 
   if (loading) return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -22,7 +22,7 @@ export function ProtectedRoute({ children, adminOnly = false, supportOnly = fals
     </div>
   );
 
-  if (!token) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   if (adminOnly && !isAdmin) return <Navigate to="/dashboard" replace />;
   if (supportOnly && !isSupport && !isAdmin) return <Navigate to="/dashboard" replace />;
 
@@ -34,8 +34,8 @@ export function ProtectedRoute({ children, adminOnly = false, supportOnly = fals
  * Redirige al dashboard si ya hay sesión activa.
  */
 export function PublicRoute({ children }: { children: ReactNode }) {
-  const { token, isAdmin, isSupport, loading } = useAuth();
+  const { user, isAdmin, isSupport, loading } = useAuth();
   if (loading) return null;
-  if (token) return <Navigate to={isAdmin ? '/admin' : isSupport ? '/support' : '/dashboard'} replace />;
+  if (user) return <Navigate to={isAdmin ? '/admin' : isSupport ? '/support' : '/dashboard'} replace />;
   return <>{children}</>;
 }

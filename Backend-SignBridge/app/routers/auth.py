@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 import uuid
@@ -10,6 +10,7 @@ from app.core.security import (
     hash_password, verify_password,
     create_access_token, create_reset_token,
     decode_token, get_current_user,
+    poner_cookie_sesion, borrar_cookie_sesion,
 )
 from app.models.user import User, Role
 from app.schemas.auth import (
@@ -107,7 +108,7 @@ async def register(payload: UserRegister, db: Session = Depends(get_db)):
 # ── Login ─────────────────────────────────────────────────────────────────────
 
 @router.post("/login", response_model=TokenResponse)
-async def login(payload: UserLogin, request: Request, db: Session = Depends(get_db)):
+async def login(payload: UserLogin, request: Request, response: Response, db: Session = Depends(get_db)):
     clave_correo = payload.email.lower()
     clave_ip = _ip_cliente(request)
     _rechazar_si_bloqueado(clave_correo, clave_ip)
@@ -161,12 +162,26 @@ async def login(payload: UserLogin, request: Request, db: Session = Depends(get_
     token = create_access_token({"sub": user.id_user})
     full_name = f"{user.first_name} {user.last_name}"
 
+    # La aplicación web usa la cookie HttpOnly y no guarda el token en el
+    # navegador. El token también va en el cuerpo para Postman y otros clientes.
+    poner_cookie_sesion(response, token)
+
     return TokenResponse(
         access_token = token,
         user_id      = user.id_user,
         role         = user.role.role_name,
         full_name    = full_name,
     )
+
+
+# ── Cerrar sesión ─────────────────────────────────────────────────────────────
+
+@router.post("/logout", status_code=200)
+async def logout(response: Response):
+    """Borra la cookie de sesión. No pide estar autenticado: cerrar una sesión
+    que ya venció tiene que funcionar igual."""
+    borrar_cookie_sesion(response)
+    return {"message": "Sesión cerrada"}
 
 
 # ── Perfil del usuario autenticado ────────────────────────────────────────────
